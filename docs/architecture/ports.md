@@ -6,7 +6,7 @@ Interfaces live in `packages/shared` (types) and `apps/web/src/server/ports/` (i
 
 ## CNPJ registry
 
-Checksum (módulo 11) **always** runs in-process (`@saas-frota/shared` `isValidCnpj` / `isValidCpf`). The registry is extra.
+Checksum (módulo 11) **always** runs in-process (`packages/shared` `isValidCnpj`). The registry is extra. CPF helpers may remain in shared for later varejo; MVP cadastro path is CNPJ-only.
 
 ```ts
 type CnpjRegistryResult =
@@ -20,15 +20,15 @@ interface CnpjRegistryPort {
 
 Recommended live adapter: [BrasilAPI CNPJ](https://brasilapi.com.br/api/cnpj/v1/{cnpj}) with a short timeout (3s).
 
-| Outcome | Registration |
+| Outcome | Cadastro |
 |---|---|
 | checksum fail | 422 `checksum_invalido` — stop |
-| registry ok | save profile; `cnpj_registro_pendente = false`; store `razao_social` |
-| not_found or timeout/5xx | checksum already passed → allow register; **warn** in UX; `cnpj_registro_pendente = true` |
+| registry ok | save; `cnpj_registro_pendente = false`; store `razao_social` |
+| not_found or timeout/5xx | checksum passed → allow; **warn** in UX; `cnpj_registro_pendente = true` |
 
 `CNPJ_REGISTRY_ENABLED=false` (default local): adapter returns `unavailable` so the degrade path is demonstrable. Tests inject a mock port; they still must run checksum.
 
-Rate-limit `POST /api/identidade/cnpj` per IP.
+Rate-limit `POST /api/identidade/cnpj` and public cadastro per IP.
 
 Never log the CNPJ digits passed into the port (hash or last4 only).
 
@@ -38,52 +38,58 @@ Never log the CNPJ digits passed into the port (hash or last4 only).
 type OutboxChannel = "email" | "whatsapp";
 
 interface OutboxTransportPort {
-  send(row: { id: string; channel: OutboxChannel; recipient: string; templateKey: string; payload: unknown }): Promise<void>;
+  send(row: {
+    id: string
+    channel: OutboxChannel
+    recipient: string
+    templateKey: string
+    payload: unknown
+  }): Promise<void>;
 }
 ```
 
 MVP `StubOutboxTransport`: mark the row `enviado` without calling Meta or SMTP.
 
-On every **successful** status change (same transaction as history):
+On every **successful** notifying event (same transaction as history / cadastro decision):
 
 1. Resolve tenant `canais_aviso`.
-2. Insert outbox rows for **customer** and **seller**.
-3. If `ambos`, two channels each (four rows). If `email` or `whatsapp`, one channel each (two rows).
+2. Insert outbox rows for **customer** and **vendedor** (seller).
+3. If `ambos`, two channels each. If `email` or `whatsapp`, one channel each.
 4. After commit, adapter may flip `pendente` → `enviado`.
 
-Warehouse and courier are not recipients. Payload includes order id + new status — **no full tax ID**.
+Silent exception: create → Orçamento `rascunho` and create → Venda `rascunho` do **not** notify (product). Notify on `faturado`, cadastro approve/refuse, and all other Orçamento/Pedido status changes.
 
-## File parse (AI inventory)
+Payload includes document id + new status — **no full tax ID**.
 
-Not an agent platform. No executing spreadsheets.
+## WhatsApp inbox simulator
 
 ```ts
-type CanonicalImportRow = {
-  sku: string;
-  nome?: string;
-  quantidade: number; // absolute on_hand
-  preco_varejo_centavos?: number;
-  preco_atacado_centavos?: number;
-  qtd_min_atacado?: number;
-  visivel_loja?: boolean;
-};
-
-interface InventoryFileParsePort {
-  parse(input: { bytes: Uint8Array; filename: string; instruction?: string }): Promise<{
-    rows: Array<CanonicalImportRow | { error: string; raw: unknown }>;
-  }>;
+interface WhatsappInboxSimulatePort {
+  ingestInbound(input: {
+    tenantId: string
+    phoneE164: string
+    body: string
+    intentHint?: "cadastro" | "orcamento" | "info_empresa" | "outro"
+  }): Promise<{ threadId: string; messageId: string }>;
 }
 ```
 
-Header synonyms (deterministic, required): `código`/`codigo`/`sku`, `produto`/`nome`, `qtd`/`quantidade`, `preço`/`preco`/`preco_varejo`, `preco_atacado`, `qtd_min_atacado`, `visivel_loja`.
+MVP behavior:
 
-Optional later: one LLM remap when a key is configured. Product does not require a live model. MVP ships the deterministic mapper.
+- Admin SaaS action “simular mensagem” calls this port.
+- Seed uses the same path to create sample threads.
+- Optional Loja CTA demo hook may call it when explicitly enabled for demos; production wa.me link does not require Meta.
+- **No** Meta webhook receiver in MVP. `WHATSAPP_INBOX_MODE=simulate`.
 
-Apply path:
+Intent tags may be set manually by admin/vendedor after ingest. Linking a thread to cadastro/orçamento is a SaaS write, not automatic magic beyond seed examples.
 
-1. `POST /api/saas/importacoes` → parse → persist batch `preview` + row actions (`create` / `update` / `error`) → return `preview_id`.
-2. Nothing hits `inventory_balances` yet.
-3. `POST /api/saas/importacoes/:id/confirmar` is the **only** apply. Transaction: valid rows apply absolute `quantidade`; invalid rows reported and skipped.
-4. Discard / navigate away → batch `discarded`, ledger unchanged.
+## Explicitly out of MVP ports
 
-Accept `text/csv` and XLSX. Reject other MIME types. Cap size (e.g. 2 MB). Never `eval` or run macros.
+| Port | Status |
+|---|---|
+| Meta Cloud API inbound/outbound | forbidden until product approves paid integration |
+| SMTP provider | optional later; stub outbox is enough |
+| NF-e / SEFAZ | forbidden |
+| Payment / PIX | forbidden |
+| Inventory file parse / AI apply | deferred (no port required for MVP) |
+| Account billing provider | deferred |

@@ -94,6 +94,36 @@ MVP threat notes. Blockers if a PR ships the failure mode.
 
 **Rule:** `/relatorios/*` = **admin** only. All aggregates `WHERE tenant_id = session.tenantId`. Do not return full message bodies or CNPJ in report DTOs — counts and durations only.
 
+## Widget session fixation / tenant hop (Phase D)
+
+**Risk:** Attacker forges `tenant_id`, steals hmac, or posts widget messages into another tenant’s desk.
+
+**Rule:** Resolve tenant **only** from `website_token` → ChannelWebsiteWidget. Store session token **hashed**. Sign session payloads with sealed hmac. Enforce `allowed_origins`. Rate-limit bootstrap/session/message per IP+token. Never put hmac secret or API plaintext tokens in bootstrap JSON.
+
+## Channel stub → live confusion (Phase D)
+
+**Risk:** Implementer wires Meta/IG/Twilio/SMTP because credential fields exist; or sets `connection_status=live`.
+
+**Rule:** Domain rejects `live` for all channel types (`501`). Adapters are stub/first-party-widget only. Acceptance tests assert no egress to Graph, Facebook, Instagram, TikTok, X, Telegram, LINE, Twilio, SMTP/IMAP hosts. UI copy stays “Pronto para conectar”.
+
+## API channel token leakage (Phase D)
+
+**Risk:** Bearer token in logs, SSE, or GET after create.
+
+**Rule:** Hash at rest; return plaintext **once** on create/rotate; thereafter prefix/last4 + `secrets_present`. Rotate invalidates old hash. Same masking rules as WA vault.
+
+## Interactive / pre-chat abuse (Phase D)
+
+**Risk:** Oversized JSON payloads; XSS via form labels mirrored into SaaS; unauthenticated spam threads.
+
+**Rule:** Cap content_attributes size; sanitize labels; rate-limit widget message create; lock_to_single_conversation on seed widget inbox; optional pre-chat required fields before first message.
+
+## Browser push endpoint spam (Phase D)
+
+**Risk:** Stored XSS open redirect via notification URL; subscription bombing.
+
+**Rule:** Allow only same-origin relative URLs in push payload; limit subscriptions per user; delete on 410 from push service; missing VAPID = skip (no throw on message path).
+
 ## CNPJ lookup abuse
 
 **Risk:** Open proxy to BrasilAPI; scraping.

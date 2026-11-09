@@ -18,7 +18,14 @@ Tenant 1──1 Theme
        1──* Contact ──? Cliente ──? User (loja login)
                    ──* ContactInbox
        1──* Inbox ──? ChannelWhatsapp
+                 ──? ChannelWebsiteWidget ──* WidgetSession
+                 ──? ChannelEmail
+                 ──? ChannelSocial
+                 ──? ChannelSms
+                 ──? ChannelApi
                  ──* InboxMember
+       1──* EmailTemplate
+       1──* PushSubscription (via User)
                  ──* Conversation ──* Message
                                  ──* ConversationLabel ── Label
        1──* Team ──* TeamMember
@@ -38,7 +45,7 @@ Tenant 1──1 Theme
        1──* Session
 ```
 
-**Phase A CRM** replaces `WhatsappThread` / `WhatsappMessage` (migrate in place — see [crm-chatwoot-parity.md](./crm-chatwoot-parity.md)). **Phase B** entities (AutomationRule, Macro, CustomAttributeDefinition, AgentBot, Webhook, WorkingHour, AssignmentPolicy, CsatResponse, CustomFilter) are fully contracted below. **Phase C** entities (Campaign, CampaignRecipient, Portal, Category, Article; optional ReportSnapshot) are fully contracted below — implement when that phase starts. Phase D+ remain sketched.
+**Phase A CRM** replaces `WhatsappThread` / `WhatsappMessage` (migrate in place — see [crm-chatwoot-parity.md](./crm-chatwoot-parity.md)). **Phase B** entities (AutomationRule, Macro, CustomAttributeDefinition, AgentBot, Webhook, WorkingHour, AssignmentPolicy, CsatResponse, CustomFilter) are fully contracted below. **Phase C** entities (Campaign, CampaignRecipient, Portal, Category, Article; optional ReportSnapshot) are fully contracted below. **Phase D** entities (ChannelWebsiteWidget, WidgetSession, ChannelEmail, ChannelSocial, ChannelSms, ChannelApi, EmailTemplate, PushSubscription; Message interactive content_types) are fully contracted below — implement when that phase starts. Phase E remains sketched.
 
 No `InventoryImportBatch` in MVP. No Account / subscription tables required for ops.
 
@@ -154,7 +161,7 @@ CRM person. Prospects and WA chats exist here without being Cliente.
 | Column | Notes |
 |---|---|
 | `tenant_id`, `contact_id`, `inbox_id` | |
-| `source_id` | channel identity (WA = phone E.164) |
+| `source_id` | channel identity (WA = phone E.164; widget = `widget:{session}` or `email:…`; API = client source_id) |
 | unique | `(tenant_id, inbox_id, source_id)` |
 
 ### Cliente
@@ -185,7 +192,7 @@ CadastroRequest gains `contact_id?` and `conversation_id?` (replaces `thread_id`
 
 | Inbox | Notes |
 |---|---|
-| `tenant_id`, `name`, `channel_type` | Phase A: `whatsapp` (D+: email, api, web_widget, …) |
+| `tenant_id`, `name`, `channel_type` | A: `whatsapp`; D: `web_widget` \| `email` \| `facebook` \| `instagram` \| `tiktok` \| `twitter` \| `telegram` \| `line` \| `sms` \| `api` |
 | `greeting` / `ooo_message` | string? |
 | `csat_enabled` | bool default false |
 | `lock_to_single_conversation` | bool |
@@ -225,7 +232,7 @@ One **default** WhatsApp inbox per tenant (seed). `ChannelWhatsapp` 1:1:
 | `message_type` | `incoming` \| `outgoing` \| `activity` |
 | `private` | bool — private notes |
 | `content` | text |
-| `content_type` | `text` \| `attachment` (metadata only in A) |
+| `content_type` | `text` \| `attachment` (A); D adds `input_select` \| `cards` \| `form` (widget/API only) |
 | `attachment_meta_json` | filename, mime, size, storage key — no execute |
 | `sender_user_id` | agent when outgoing/note |
 | `delivery_status` | `queued` \| `sent` \| `delivered` \| `read` \| `failed` — stub for WA |
@@ -566,7 +573,7 @@ See [crm-chatwoot-parity.md](./crm-chatwoot-parity.md) Phase C locks. Implement 
 | `template_key?` | must exist in channel stub `message_templates_json` for one_off |
 | `message?` | ongoing website copy / fallback body |
 | `scheduled_at?` | when `scheduled` |
-| `display_status?` | ongoing: `awaiting_widget` \| `ready` (ready only after Phase D widget); null for one_off |
+| `display_status?` | ongoing: `awaiting_widget` \| `ready` (D: `ready` when widget inbox can serve); null for one_off |
 | `started_at?`, `completed_at?` | |
 | `created_by_user_id` | admin |
 | `stats_json?` | `{ targeted, enviado, falha }` denormalized after batch |
@@ -630,21 +637,118 @@ Not required for Phase C acceptance if live queries are fast enough on seed scal
 
 Already has `category` + `campaign_id` (see outbox section above). Campaign writers **must** set both; commerce readers filter `category = commerce`.
 
-## Phase D–E entities (sketch)
+## Phase D entities (omnichannel + widget)
+
+See [crm-chatwoot-parity.md](./crm-chatwoot-parity.md) Phase D locks. Implement with Phase D — not before. All channel `connection_status` ≤ `ready_stub` (no `live`).
+
+### ChannelWebsiteWidget (1:1 Inbox when `channel_type=web_widget`)
+
+| Column | Notes |
+|---|---|
+| `inbox_id`, `tenant_id` | unique `inbox_id` |
+| `website_token` | public embed id; unique globally (or per tenant + unique) |
+| `hmac_secret_ciphertext` | sealed; used to sign widget session tokens |
+| `allowed_origins_json` | string[] — CORS / Origin check for widget APIs |
+| `pre_chat_fields_json` | `[{ name, type, label_pt, required }]` |
+| `welcome_title?` / `widget_color?` | display |
+| `connection_status` | same enum; `ready_stub` when token + hmac present |
+| `continuity` | `session` \| `contact` — how returning visitors map |
+
+### WidgetSession
+
+| Column | Notes |
+|---|---|
+| `tenant_id`, `inbox_id`, `website_token` | |
+| `session_token_hash` | store hash only |
+| `contact_id?` | set after pre-chat |
+| `conversation_id?` | current open/pending thread |
+| `pre_chat_json?` | submitted field values |
+| `expires_at`, `created_at`, `last_seen_at` | |
+
+`ContactInbox.source_id` for widget: `widget:{session_id}` until email/phone identity preferred; if pre-chat email present, may use `email:{normalized}` unique per inbox.
+
+### ChannelEmail (1:1 `email`)
+
+| Column | Notes |
+|---|---|
+| `provider` | `smtp_imap` \| `google` \| `microsoft` |
+| `forward_to_email?` / `from_email_display?` | plaintext metadata |
+| `secrets_ciphertext` | IMAP/SMTP/OAuth tokens sealed |
+| `connection_status` | ≤ `ready_stub` |
+| `email_template_id?` | default branded stub |
+
+### ChannelSocial (1:1 for facebook\|instagram\|tiktok\|twitter\|telegram\|line)
+
+| Column | Notes |
+|---|---|
+| `provider` | matches inbox `channel_type` |
+| `external_page_or_bot_id?` | plaintext metadata |
+| `secrets_ciphertext` | page/bot tokens sealed |
+| `connection_status` | ≤ `ready_stub` |
+
+### ChannelSms (1:1 `sms`)
+
+| Column | Notes |
+|---|---|
+| `provider` | `twilio` \| `bandwidth` |
+| `from_number_display?` | |
+| `secrets_ciphertext` | |
+| `connection_status` | ≤ `ready_stub` |
+
+### ChannelApi (1:1 `api`)
+
+| Column | Notes |
+|---|---|
+| `api_access_token_hash` | plaintext shown once on create/rotate |
+| `token_prefix` / `token_last4` | display |
+| `callback_url?` | optional; SSRF-guarded if deliver used |
+| `connection_status` | ≤ `ready_stub` when token issued |
+
+### EmailTemplate
+
+| Column | Notes |
+|---|---|
+| `tenant_id`, `name`, `slug` | unique `(tenant_id, slug)` |
+| `subject_template`, `body_html_template` | pt-BR stubs; sanitize HTML |
+| `created_at` / `updated_at` | |
+
+### PushSubscription
+
+| Column | Notes |
+|---|---|
+| `tenant_id`, `user_id` | agent |
+| `endpoint`, `p256dh`, `auth` | Web Push keys |
+| `created_at` | |
+| unique | `(tenant_id, user_id, endpoint)` |
+
+### Message content_type (D)
+
+Extend enum: `text` \| `attachment` \| `input_select` \| `cards` \| `form`. Payload in `content` JSON or `content` + `content_attributes_json`. Enforce channel allow-list in domain service.
+
+### Indexes (D adds)
+
+| Table | Index |
+|---|---|
+| `channel_website_widgets` | unique `website_token` |
+| `widget_sessions` | `(tenant_id, session_token_hash)`, `(inbox_id, contact_id)` |
+| `channel_api` | `(tenant_id)` — token lookup by hash globally unique |
+| `push_subscriptions` | `(tenant_id, user_id)` |
+
+## Phase E entities (sketch)
 
 | Phase | Entities |
 |---|---|
-| **D** | Additional `channel_*` tables; `WidgetConfig`; client messaging API identities; ongoing campaign display linkage |
-| **E** | `SlaPolicy`; `AuditEvent`; Captain/AI ports; SAML config; custom role tables; balanced capacity; HC custom domain routing; CSAT review notes |
+| **E** | `SlaPolicy`; `AuditEvent`; Captain/AI ports; SAML config; custom role tables; balanced capacity; HC custom domain routing; CSAT review notes; voice channel |
 
 ## What must not exist (MVP + parity)
 
 - Second stock / `store_stocks` table.
 - Meta webhook tables as **source of truth** for messages (stub simulate + outbox only until unlock).
 - Parallel write path to legacy `whatsapp_threads` after Conversation migration.
+- Live provider webhook receiver tables that call Graph/Twilio/IMAP in Phase D.
 - NF-e, PIX, payment capture tables.
 - Account billing tables driving ops entitlement.
 - AI inventory import batches.
 - CPF / varejo price path as a sales channel.
-- Plaintext storage of WA access tokens / app secrets.
+- Plaintext storage of WA / channel access tokens / app secrets / widget hmac / API tokens at rest.
 - Storing bot/webhook response bodies with full PII in `last_error` / logs.

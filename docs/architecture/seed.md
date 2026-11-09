@@ -134,6 +134,23 @@ Additive on top of Phase A+B seed:
 
 Seed must **not** enqueue `campaign.send_batch` on boot. Outbox seed rows remain `category=commerce` unless an explicit demo campaign row is added (prefer none).
 
+## CRM desk (Phase D — when that phase seeds)
+
+Additive on top of Phase A–C seed:
+
+| Object | Contract |
+|---|---|
+| **Inbox** `web_widget` | One Loja widget inbox, name e.g. `Loja — chat`; `lock_to_single_conversation=true`; `connection_status=ready_stub` |
+| **ChannelWebsiteWidget** | `website_token` stable for demo; hmac sealed; `allowed_origins` includes Loja origin; pre-chat: nome (required), email (optional), empresa (optional) |
+| **Inbox** stubs | Optional one each of `email`, `api`, and one social (e.g. `instagram`) at `not_configured` or `credentials_saved` — **never** `live`; do not require all types in seed |
+| **ChannelApi** | Optional demo token issued once in seed logs / `.env.example` note only — prefer generate on first admin rotate in UI |
+| **EmailTemplate** | ≥1 pt-BR stub layout |
+| **Campaign** ongoing | If present from C, point `inbox_id` at widget inbox; after D seed may be `display_status=ready` when active |
+| **PushSubscription** | none required |
+| **WidgetSession** | none required on boot — created by Loja embed |
+
+Seed must **not** call Meta/social/SMS/SMTP. Seed must **not** set any channel to `live`.
+
 ## Sales documents
 
 | Doc | Status | Notes |

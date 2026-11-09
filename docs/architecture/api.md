@@ -317,12 +317,84 @@ Rate-limit public HC reads lightly per IP. No contact PII in payloads. Custom do
 
 Query params (all series): `from`, `to` (required ISO), `tz?` (default `America/Sao_Paulo`), `inbox_id?`, `team_id?` where applicable. Range > 90 days → **422**. Vendedor → **403**. SLA reports are **not** in C (omit routes or **501** until E).
 
-### Phase D–E API (names reserved)
+### Phase D — Omnichannel channels + Loja widget
+
+See [crm-chatwoot-parity.md](./crm-chatwoot-parity.md) Phase D locks. **No Meta / social / SMS / SMTP provider HTTP.** Max channel `connection_status` = `ready_stub` (`live` → **501** `nao_implementado`).
+
+#### Caixas de entrada — channel types (extends Phase A)
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| POST | `/api/saas/crm/caixas` | **admin** | body includes `channel_type` ∈ D enum; creates Inbox + typed channel row (`not_configured`) |
+| GET | `/api/saas/crm/caixas` | admin, vendedor | includes `channel_type`, `connection_status` |
+| GET/PATCH | `/api/saas/crm/caixas/:id` | admin; vendedor read if member | |
+| GET/PUT | `/api/saas/crm/caixas/:id/canal` | **admin** write; vendedor read membership | polymorphic channel config; secrets write-only / masked on GET |
+| POST | `/api/saas/crm/caixas/:id/canal/simular` | **admin** | simulate inbound for that channel (WA + email + social + sms + api shapes); widget prefer Loja widget routes |
+| POST | `/api/saas/crm/caixas/:id/canal/rotacionar-token` | **admin** | `web_widget` website_token or `api` access token; returns plaintext **once** |
+
+`channel_type` create values: `whatsapp` \| `web_widget` \| `email` \| `facebook` \| `instagram` \| `tiktok` \| `twitter` \| `telegram` \| `line` \| `sms` \| `api`.
+
+#### Widget config (SaaS)
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| GET/PUT | `/api/saas/crm/caixas/:id/widget` | **admin** | pre_chat_fields, allowed_origins, welcome copy, color; only if `channel_type=web_widget` |
+| GET | `/api/saas/crm/caixas/:id/widget/snippet` | **admin** | embed snippet + public `website_token` (no hmac) |
+
+#### Email templates (stub)
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| GET/POST | `/api/saas/crm/modelos-email` | **admin** | branded layout stubs pt-BR |
+| GET/PATCH/DELETE | `/api/saas/crm/modelos-email/:id` | **admin** | |
+
+#### Browser push (agent)
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| GET | `/api/saas/crm/push/vapid-public` | admin, vendedor | public key or **404** if unset |
+| POST | `/api/saas/crm/push/subscriptions` | self | `{ endpoint, keys }` |
+| DELETE | `/api/saas/crm/push/subscriptions/:id` | self | |
+
+#### Loja widget (public / session)
+
+Tenant resolved from `website_token` only. Rate-limit per IP + token.
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| GET | `/api/loja/widget/bootstrap` | public | `?website_token=`; greeting, pre_chat schema, inbox public id, active ongoing campaigns, theme hints |
+| POST | `/api/loja/widget/sessao` | public | creates `WidgetSession`; returns `session_token` (+ cookie) |
+| POST | `/api/loja/widget/pre-chat` | widget session | upsert Contact + ContactInbox; required fields |
+| GET | `/api/loja/widget/conversa` | widget session | current conversation summary or null |
+| GET | `/api/loja/widget/mensagens` | widget session | cursor / `?after=`; poll primary |
+| POST | `/api/loja/widget/mensagens` | widget session | visitor message → Conversation + Message `incoming`; opens/creates thread |
+| POST | `/api/loja/widget/typing` | widget session | optional typing ping → SaaS SSE |
+| GET | `/api/loja/widget/events/stream` | widget session | optional SSE; same event vocabulary subset |
+| GET | `/api/loja/widget/campanhas` | widget session or bootstrap token | active ongoing for this inbox |
+
+Agent replies use existing `POST /api/saas/crm/conversas/:id/mensagens` — delivery fan-out to widget session.
+
+#### Client API (API channel)
+
+Bearer = inbox API token. Tenant from token. Rate-limit per token.
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| POST | `/api/public/crm-client/mensagens` | API token | `{ source_id, content, content_type?, contact? }` upsert ContactInbox + message |
+| GET | `/api/public/crm-client/conversas/:source_id/mensagens` | API token | list messages for that contact-inbox identity |
+| POST | `/api/public/crm-client/conversas/:source_id/mensagens` | API token | alias create |
+
+Interactive `content_type` (`input_select` \| `cards` \| `form`) allowed on widget + API conversations only — else **422**.
+
+#### Ongoing campaign hook (extends C)
+
+`POST /campanhas/:id/enviar` on `ongoing`: if target widget inbox `connection_status=ready_stub`, set `display_status=ready` + `active`; else keep `awaiting_widget`. Widget bootstrap/campanhas read only `active` + `ready`.
+
+### Phase E API (names reserved)
 
 | Phase | Prefix / resources |
 |---|---|
-| **D** | channel types beyond WA; `/api/loja/widget/*` client messaging; ongoing campaign display hook |
-| **E** | `/sla`, `/auditoria`, `/integracoes`, Captain; HC custom domain; CSAT review notes |
+| **E** | `/sla`, `/auditoria`, `/integracoes`, Captain; HC custom domain; CSAT review notes; voice channels |
 
 Do not invent ad-hoc BFF routes outside this map — extend architecture first.
 

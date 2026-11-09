@@ -24,7 +24,7 @@ Companion docs: [data-model.md](./data-model.md), [api.md](./api.md), [authz.md]
 | **Automation / Macro / Bot / Webhook** | Rules, action sequences, outbound hooks | B |
 | **CustomAttribute / Filter / CSAT / Hours / AssignmentPolicy** | Operator power | B |
 | **Campaign / HelpCenter / Reports** | Growth & insight | C |
-| **Non-WA channels + Loja widget** | Omnichannel expand | D |
+| **Non-WA channels + Loja widget** | Omnichannel expand (stub providers + first-party widget) | D |
 | **Captain / SLA / SAML / Audit / Integrations** | Enterprise | E |
 
 Commerce modules (Cadastro, Cliente, Orçamento, Pedido, Venda, Stock, Theme) stay authoritative. CRM **links** to them; it does not replace status machines or the stock ledger.
@@ -123,7 +123,7 @@ Add to outbox (migration before Phase C; may land empty in A):
 |---|---|
 | **B** | Full contracts below — implement when Phase B starts |
 | **C** | Full contracts in “Phase C — growth & insight” — Campaign + Portal/Article + reports; outbox `category=campaign` |
-| **D** | Channel polymorphism rows (`channel_type`); Loja widget client API |
+| **D** | Full contracts in “Phase D — omnichannel expand” — non-WA channel stubs + Loja widget + client API |
 | **E** | SlaPolicy, Captain ports, SAML, audit_events, custom roles |
 
 ### Migration plan (threads → desk)
@@ -343,6 +343,124 @@ Reports **read** existing A/B events; they do not require a separate projection 
 | **frontend** | Admin screens + public HC pages against Phase C map; no parallel kit |
 | **qa** | Phase C checklist; no Meta; outbox category isolation; HC public vs draft; reports RBAC |
 
+## Phase D — omnichannel expand (contracts)
+
+Product Phase D: **non-WhatsApp channels** (mostly stub providers) + **Loja website live-chat widget** + client messaging API + pre-chat forms + interactive messages (widget/API) + browser push + branded email templates (stub). **No live Meta / Instagram / Facebook / Twilio / IMAP/SMTP providers.** Channel credential UIs reach **`ready_stub` only** (same lock as WA). The Loja widget is **first-party** and wires into the existing Conversation desk — not a second inbox product.
+
+Companion detail: [data-model.md](./data-model.md), [api.md](./api.md), [jobs-realtime.md](./jobs-realtime.md), [authz.md](./authz.md), [threats.md](./threats.md), [ports.md](./ports.md), [seed.md](./seed.md).
+
+### In scope
+
+1. **Channel polymorphism** — `Inbox.channel_type` expanded; 1:1 channel config tables per type; SaaS inbox create/list/update for all D types; simulate inbound where it makes sense; send via stub adapters except first-party widget/API delivery into Conversation.
+2. **ChannelWebsiteWidget** — website token + HMAC secret; pre-chat form schema; greeting/OOOH reuse Inbox fields; embeddable Loja widget that creates/continues CRM Conversations on that inbox.
+3. **Channel stubs (config + simulate only)** — `email`, `facebook`, `instagram`, `tiktok`, `twitter`, `telegram`, `line`, `sms`, `api` — credential shapes + encryption + `connection_status ≤ ready_stub`; **zero** provider HTTP.
+4. **Client / widget messaging API** — public Loja widget session + message routes; API-channel inbox token for custom clients (in-process).
+5. **Interactive messages** — `content_type` cards / input_select / form for `web_widget` + `api` only.
+6. **Ongoing campaigns** — widget runtime fetches active `ongoing` campaigns; flip `display_status` to `ready` when widget inbox can display; no external blast.
+7. **Browser push (agent)** — optional PushSubscription + VAPID; delivery may stub-fail closed without breaking desk.
+8. **Email branded templates** — stub layout keys for email-channel replies via outbox `category=crm_agent` / channel stub — still no SMTP.
+
+### Out of Phase D
+
+| Deferred | Why |
+|---|---|
+| Live Meta / FB / IG / TikTok / X / Telegram / LINE / Twilio / IMAP-SMTP | Product stub policy — configs only |
+| Voice / WhatsApp calling | Phase E |
+| WebSocket media signaling | Text chat does not need WS; keep SSE + poll |
+| Captain, SLA, SAML, audit, custom roles, integrations marketplace | Phase E |
+| Help Center custom domain | Phase E |
+| Replacing commerce WhatsApp CTA with widget-only | CTA stays; widget is additive |
+
+### Locked decisions (Phase D)
+
+| Topic | Decision |
+|---|---|
+| Channel types (D) | `whatsapp` \| `web_widget` \| `email` \| `facebook` \| `instagram` \| `tiktok` \| `twitter` \| `telegram` \| `line` \| `sms` \| `api` |
+| Connection status | Same enum as WA: `not_configured` \| `credentials_saved` \| `ready_stub` \| `live`. API **rejects** `live` for **all** channel types in D (`501` / domain guard). Max reachable: **`ready_stub`** |
+| Provider HTTP | Forbidden for Meta Graph, Facebook, Instagram, TikTok, X, Telegram Bot API, LINE, Twilio/Bandwidth, IMAP/SMTP, Google/Microsoft mail APIs. Tests assert no egress to those hosts from channel adapters |
+| Widget vs stub | `web_widget` is **first-party**: messages persist to Conversation/Message via Casa APIs. Naming stays `ready_stub` (no external provider “live”). Do **not** call this Meta-live |
+| Widget tenancy | Resolve tenant from **website_token → ChannelWebsiteWidget → Inbox → tenant_id**. Never trust client-supplied `tenant_id` |
+| Widget identity | `WidgetSession` (opaque id + HMAC-signed cookie/header). Pre-chat fields upsert Contact; `ContactInbox.source_id = widget:{session_id}` (or email/phone when provided and unique per inbox) |
+| One conversation | Respect inbox `lock_to_single_conversation`: reopen latest non-resolved or create new per Chatwoot-shaped lock; default seed: lock on |
+| Realtime (widget) | Public `GET /api/loja/widget/mensagens?after=` poll (primary) + optional SSE `GET /api/loja/widget/events/stream` scoped by widget session. **No WebSocket** in D. SaaS desk keeps Phase A SSE |
+| API channel | Inbox-scoped `api_access_token` (hashed at rest; plaintext once on create/rotate). Client APIs under `/api/public/crm-client/*` with `Authorization: Bearer`. In-process only — still max `ready_stub` |
+| Email channel | Config fields for IMAP/SMTP or Google/Microsoft OAuth **shapes**; secrets encrypted; simulate inbound creates Conversation; outbound → stub send + optional outbox row — **no** real mail |
+| Social / SMS channels | Credential field envelopes only + simulate inbound admin tool; StubChannelSendPort on agent reply |
+| Pre-chat | `pre_chat_fields_json` on ChannelWebsiteWidget: ordered fields `{ name, type, required, label_pt }`; conversation create blocked until required satisfied (**422**) |
+| Interactive content | Message `content_type`: add `input_select` \| `cards` \| `form`; allowed only when inbox `channel_type` ∈ (`web_widget`,`api`). WA/email/social ignore or **422** |
+| Ongoing campaigns | Active `ongoing` with matching widget `inbox_id` (or tenant default widget inbox): widget bootstrap returns campaign payload; set `display_status=ready` when first served (or on activate if widget inbox already `ready_stub`). Still **no** Meta/SMS |
+| Browser push | Agent opt-in `PushSubscription`; VAPID keys from env; `push.notify` job may no-op if keys missing. Never block message write on push failure |
+| Email templates | `EmailTemplate` stub rows (pt-BR layout) referenced by email-channel replies; render → outbox/stub only |
+| Secrets | Reuse `ChannelCredentialsVaultPort` / AES-256-GCM; GET masked; widget HMAC secret + API tokens never in SSE/public bootstrap beyond what the session needs (website_token is public embed id; **hmac secret is not**) |
+| Authz | Channel / widget / API-token / email-template CRUD = **admin**; vendedor reads inbox list + membership; widget public routes unauthenticated but token-bound |
+
+### Channel config shapes (ready_stub)
+
+| `channel_type` | Config table | Notable fields (non-secret / secret) |
+|---|---|---|
+| `whatsapp` | ChannelWhatsapp (A) | unchanged; still ≤ `ready_stub` |
+| `web_widget` | ChannelWebsiteWidget | `website_token` (public), `hmac_secret` (sealed), `allowed_origins[]`, `pre_chat_fields_json`, `widget_color?`, `welcome_title?`, ` continuity` |
+| `email` | ChannelEmail | `provider` `smtp_imap`\|`google`\|`microsoft`; `forward_to_email?`; sealed IMAP/SMTP/OAuth secrets |
+| `facebook` | ChannelSocial | `provider=facebook`; page id metadata; sealed page token |
+| `instagram` | ChannelSocial | `provider=instagram` |
+| `tiktok` | ChannelSocial | `provider=tiktok` |
+| `twitter` | ChannelSocial | `provider=twitter` |
+| `telegram` | ChannelSocial | `provider=telegram`; bot username metadata; sealed bot token |
+| `line` | ChannelSocial | `provider=line` |
+| `sms` | ChannelSms | `provider` `twilio`\|`bandwidth`; from-number display; sealed account secrets |
+| `api` | ChannelApi | `api_access_token_hash`; `token_prefix` / last4; webhook callback URL optional (SSRF-guarded if set, deliver still stub/queued) |
+
+Shared: `connection_status`, `secrets_ciphertext?`, `updated_at`. Social may share one `channel_social` table discriminated by `provider`.
+
+### Widget → Conversation flow
+
+```
+Loja embed loads script with website_token
+  → GET /api/loja/widget/bootstrap?website_token=…
+      (tenant+inbox from token; greeting; pre_chat schema; active ongoing campaigns)
+  → POST /api/loja/widget/sessao  (creates WidgetSession; Set-Cookie / returns session_token)
+  → POST /api/loja/widget/pre-chat  (upsert Contact + ContactInbox; validate required fields)
+  → POST /api/loja/widget/mensagens  (ensure Conversation on widget inbox; Message incoming;
+        emit domain_events; automations/bots as today; fan-out SaaS SSE)
+Agent reply on SaaS desk (same Conversation)
+  → StubChannelSendPort for widget = mark delivery_status=sent + fan-out widget poll/SSE
+  → visitor sees via GET .../mensagens?after= or widget SSE
+```
+
+Cadastro / Orçamento deep-links unchanged: widget Contact may later link Cliente; commerce gates stay on Cliente.
+
+### Domain events added in D
+
+`channel.updated` · `widget.session_started` · `widget.message_created` · `campaign.displayed` · `push.subscribed` · `push.failed`
+
+### Job kinds enabled in D
+
+| Kind | Trigger |
+|---|---|
+| `push.notify` | Agent notification types opted into browser push |
+| `email.channel_stub_deliver` | Optional: email-channel outgoing → outbox row then StubOutboxTransport |
+| `channel.simulate_social_ingest` | Admin simulate for non-WA channels (may run inline in request for MVP; job optional) |
+
+No provider webhook receiver jobs (no Meta signature verify endpoints that call Graph).
+
+### Phase D acceptance (architecture)
+
+1. Admin creates inboxes for each D `channel_type`; credential save reaches **`ready_stub`**; transition to `live` rejected; **no** provider HTTP in tests.
+2. Loja widget bootstrap + session + pre-chat + messages create Conversations/Messages on the `web_widget` inbox; agent sees them in SaaS Conversas; agent reply visible to widget poll/SSE.
+3. Ongoing campaign active for that inbox returns in widget bootstrap; `display_status` becomes `ready`; no external campaign HTTP.
+4. API channel Bearer token can create message on its inbox (tenant-scoped); invalid token → 401.
+5. Interactive `content_type` accepted on widget/API conversations; rejected on WA inbox.
+6. Cadastro/pipeline/commerce outbox unchanged; WA still ≤ `ready_stub`; Meta hosts absent from egress allow-list.
+
+### Handoff (Phase D)
+
+| Specialist | Task |
+|---|---|
+| **design** | SaaS canal config per type (“Pronto para conectar”); Loja widget UI + pre-chat; ongoing campaign surface in widget |
+| **backend** | Channel_* tables; widget + client APIs; stub adapters; campaign display_status; push optional |
+| **frontend** | Canal settings + Loja widget embed against Phase D map; no parallel kit |
+| **qa** | Phase D checklist; no Meta/social/SMS/SMTP HTTP; widget tenancy; ready_stub ceiling; desk↔widget thread continuity |
+
 ## Channel polymorphism
 
 ```
@@ -350,15 +468,19 @@ Inbox
   id, tenant_id, name, channel_type, greeting?, ooo_message?,
   csat_enabled, lock_to_single_conversation, allow_auto_assign, …
 
-ChannelWhatsapp (1:1 inbox when channel_type=whatsapp)
-  inbox_id, provider, phone_e164_display,
-  phone_number_id?, business_account_id?,
-  secrets_ciphertext, connection_status, message_templates_json
+channel_type =
+  whatsapp | web_widget | email | facebook | instagram | tiktok |
+  twitter | telegram | line | sms | api
 
--- Phase D+: ChannelEmail, ChannelApi, ChannelWidget, …
+ChannelWhatsapp (1:1 when channel_type=whatsapp) — Phase A
+ChannelWebsiteWidget (1:1 web_widget) — Phase D
+ChannelEmail (1:1 email) — Phase D
+ChannelSocial (1:1 facebook|instagram|tiktok|twitter|telegram|line) — Phase D
+ChannelSms (1:1 sms) — Phase D
+ChannelApi (1:1 api) — Phase D
 ```
 
-Domain talks to `ChannelSendPort` / `ChannelSimulateInboundPort`. WA adapters are stubs until Meta unlock.
+Domain talks to `ChannelSendPort` / `ChannelSimulateInboundPort` / `WidgetSessionPort`. All external provider adapters are stubs until product unlock. Widget/API delivery is first-party persistence + fan-out.
 
 ## Permission summary
 
@@ -377,26 +499,33 @@ Phase A emits at least:
 
 Phase B+ consumers: automations, webhooks, bots, reports projections.
 
+Phase D adds: `channel.updated` | `widget.session_started` | `widget.message_created` | `campaign.displayed` | `push.subscribed` | `push.failed`
+
 ## Handoff
 
 | Specialist | Task |
 |---|---|
-| **design** | Phase A desk IA + Phase B config + Phase C Campanhas / Relatórios / Central de Ajuda |
-| **backend** | Phase A→C tables + job consumers per this doc |
-| **frontend** | `/api/saas/crm/*` Phase A→C; public HC; no parallel CSS kit |
-| **qa** | Per-phase acceptance; no Meta HTTP; SSRF; campaign outbox isolation; cadastro/pipeline regression; tenant isolation |
+| **design** | Phase A–D desk IA; canal stubs; Loja widget + pre-chat |
+| **backend** | Phase A→D tables + job consumers per this doc |
+| **frontend** | `/api/saas/crm/*` Phase A→D; Loja widget; public HC; no parallel CSS kit |
+| **qa** | Per-phase acceptance; no Meta/provider HTTP; SSRF; campaign outbox isolation; widget tenancy; cadastro/pipeline regression; tenant isolation |
 
 ## What must not happen
 
 - Second inbox product or parallel `whatsapp_threads` write path after migration.
 - Live Meta Graph / webhook verification / campaign template sync from Meta.
+- Live Facebook / Instagram / TikTok / X / Telegram / LINE / Twilio / IMAP-SMTP / Google-Microsoft mail from channel adapters in Phase D.
+- Transition any channel `connection_status` to `live` before product unlock.
+- Trusting client-supplied `tenant_id` on widget or client API (resolve from website_token / API token).
+- Exposing widget HMAC secret or API plaintext token on GET lists after create.
 - Merging Account billing into CRM nav.
 - Second stock ledger.
 - Trusting client for role, prices, stock, or `tenant_id`.
-- Returning WA secrets on GET.
+- Returning WA / channel secrets on GET.
 - Inline SSRF-prone HTTP from automation/bot/webhook on the request path.
 - Executing automation webhook actions without `UrlEgressGuardPort`.
 - CSAT, bot, or **campaign** delivery calling Meta/SMTP — stub outbox / stub channel only.
 - Mixing `category=campaign` rows into commerce avisos without an explicit filter.
 - Publishing Help Center drafts on public routes.
 - Inventing SLA report numbers before Phase E policies exist.
+- WebSocket requirement for Phase D text widget (SSE + poll only).

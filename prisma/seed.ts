@@ -59,6 +59,11 @@ const ids = {
   inboxIg: "inx_ig_stub",
   channelIg: "cso_ig_stub",
   emailTemplate: "etpl_padrao",
+  inboxVoice: "inx_voice_stub",
+  channelVoice: "cvo_voice_stub",
+  slaPadrao: "sla_padrao",
+  captainCopilot: "cpa_copilot",
+  customRoleReports: "rol_relatorios",
   teamVendas: "team_vendas",
   companyMercado: "co_mercado",
   contactProspecto: "ct_prospecto",
@@ -71,6 +76,15 @@ const ids = {
 
 async function main() {
   // Wipe in FK-safe order
+  await prisma.captainSuggestion.deleteMany();
+  await prisma.captainAssistant.deleteMany();
+  await prisma.conversationSla.deleteMany();
+  await prisma.auditEvent.deleteMany();
+  await prisma.agentCapacity.deleteMany();
+  await prisma.integrationInstall.deleteMany();
+  await prisma.dashboardApp.deleteMany();
+  await prisma.mfaDevice.deleteMany();
+  await prisma.samlConfig.deleteMany();
   await prisma.csatResponse.deleteMany();
   await prisma.contactImportBatch.deleteMany();
   await prisma.customFilter.deleteMany();
@@ -105,6 +119,7 @@ async function main() {
   await prisma.channelSocial.deleteMany();
   await prisma.channelSms.deleteMany();
   await prisma.channelApi.deleteMany();
+  await prisma.channelVoice.deleteMany();
   await prisma.emailTemplate.deleteMany();
   await prisma.channelWhatsapp.deleteMany();
   await prisma.inboxMember.deleteMany();
@@ -131,6 +146,8 @@ async function main() {
   await prisma.sku.deleteMany();
   await prisma.session.deleteMany();
   await prisma.membership.deleteMany();
+  await prisma.customRole.deleteMany();
+  await prisma.slaPolicy.deleteMany();
   await prisma.theme.deleteMany();
   await prisma.tenant.deleteMany();
   await prisma.user.deleteMany();
@@ -1005,7 +1022,106 @@ async function main() {
     data: { inboxId: ids.inboxWidget },
   });
 
-  console.log("Seed OK — tenant casa-dos-frios CRM Phase D (password Demo@1234)");
+
+  // Phase E — SLA, Captain stub, capacity, custom role, voice, security stubs
+  await prisma.slaPolicy.create({
+    data: {
+      id: ids.slaPadrao,
+      tenantId: TENANT,
+      name: "Padrão atendimento",
+      frtSeconds: 900,
+      nrtSeconds: 1800,
+      rtSeconds: 86400,
+      active: true,
+      description: "FRT 15m / NRT 30m / RT 24h",
+    },
+  });
+  await prisma.inbox.update({
+    where: { id: ids.inboxWa },
+    data: { defaultSlaPolicyId: ids.slaPadrao },
+  });
+  await prisma.agentCapacity.createMany({
+    data: [
+      {
+        id: "acap_admin",
+        tenantId: TENANT,
+        userId: ids.admin,
+        maxOpenConversations: 20,
+      },
+      {
+        id: "acap_vendedor",
+        tenantId: TENANT,
+        userId: ids.vendedor,
+        maxOpenConversations: 20,
+      },
+    ],
+  });
+  await prisma.captainAssistant.create({
+    data: {
+      id: ids.captainCopilot,
+      tenantId: TENANT,
+      name: "Copiloto stub",
+      mode: "copilot",
+      systemPromptStub: "Sugira respostas educadas em pt-BR.",
+      active: true,
+    },
+  });
+  await prisma.samlConfig.create({
+    data: {
+      id: "sml_casa",
+      tenantId: TENANT,
+      enabled: false,
+      jitProvision: false,
+      spEntityId: `urn:saas-frota:sp:${TENANT}`,
+    },
+  });
+  await prisma.customRole.create({
+    data: {
+      id: ids.customRoleReports,
+      tenantId: TENANT,
+      name: "Analista de relatórios",
+      description: "Somente report_manage — não atribuído no seed",
+      permissionsJson: JSON.stringify(["report_manage"]),
+    },
+  });
+  await prisma.dashboardApp.create({
+    data: {
+      id: "dap_exemplo",
+      tenantId: TENANT,
+      title: "App exemplo",
+      url: "https://example.com/app",
+      enabled: false,
+      position: 0,
+    },
+  });
+  await prisma.inbox.create({
+    data: {
+      id: ids.inboxVoice,
+      tenantId: TENANT,
+      name: "Voz (stub)",
+      channelType: "voice",
+    },
+  });
+  await prisma.channelVoice.create({
+    data: {
+      id: ids.channelVoice,
+      tenantId: TENANT,
+      inboxId: ids.inboxVoice,
+      provider: "twilio_voice",
+      connectionStatus: "not_configured",
+    },
+  });
+  await prisma.inboxMember.create({
+    data: {
+      id: "inm_voice_admin",
+      tenantId: TENANT,
+      inboxId: ids.inboxVoice,
+      userId: ids.admin,
+    },
+  });
+
+  console.log("Seed OK — tenant casa-dos-frios CRM Phase E (password Demo@1234)");
+
   console.log(`Widget website_token (demo): ${widgetToken}`);
 }
 

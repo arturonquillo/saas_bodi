@@ -1,6 +1,6 @@
 import { REPORT_MAX_RANGE_DAYS } from "@saas-frota/shared";
 import type { SessionContext } from "../authz/session";
-import { assertSaasRole } from "../authz/gates";
+import { assertReportAccess } from "../authz/gates";
 import { db } from "../db";
 import { ApiError } from "../http/respond";
 
@@ -72,7 +72,7 @@ async function convWhere(session: SessionContext, range: Range) {
 }
 
 export async function reportVisaoGeral(session: SessionContext, url: URL) {
-  assertSaasRole(session, "admin");
+  assertReportAccess(session);
   const range = parseRange(url);
   const base = {
     tenantId: session.tenantId,
@@ -174,7 +174,7 @@ export async function reportVisaoGeral(session: SessionContext, url: URL) {
 }
 
 export async function reportConversas(session: SessionContext, url: URL) {
-  assertSaasRole(session, "admin");
+  assertReportAccess(session);
   const range = parseRange(url);
   const where = await convWhere(session, range);
   const rows = await db.conversation.findMany({
@@ -212,7 +212,7 @@ export async function reportConversas(session: SessionContext, url: URL) {
 }
 
 export async function reportAgentes(session: SessionContext, url: URL) {
-  assertSaasRole(session, "admin");
+  assertReportAccess(session);
   const range = parseRange(url);
   const convs = await db.conversation.findMany({
     where: {
@@ -278,7 +278,7 @@ export async function reportAgentes(session: SessionContext, url: URL) {
 }
 
 export async function reportLabels(session: SessionContext, url: URL) {
-  assertSaasRole(session, "admin");
+  assertReportAccess(session);
   const range = parseRange(url);
   const labels = await db.label.findMany({
     where: { tenantId: session.tenantId },
@@ -320,7 +320,7 @@ export async function reportLabels(session: SessionContext, url: URL) {
 }
 
 export async function reportInboxes(session: SessionContext, url: URL) {
-  assertSaasRole(session, "admin");
+  assertReportAccess(session);
   const range = parseRange(url);
   const inboxes = await db.inbox.findMany({
     where: { tenantId: session.tenantId },
@@ -357,7 +357,7 @@ export async function reportInboxes(session: SessionContext, url: URL) {
 }
 
 export async function reportEquipes(session: SessionContext, url: URL) {
-  assertSaasRole(session, "admin");
+  assertReportAccess(session);
   const range = parseRange(url);
   const teams = await db.team.findMany({ where: { tenantId: session.tenantId } });
   const series = [];
@@ -394,7 +394,7 @@ export async function reportEquipes(session: SessionContext, url: URL) {
 }
 
 export async function reportCsat(session: SessionContext, url: URL) {
-  assertSaasRole(session, "admin");
+  assertReportAccess(session);
   const range = parseRange(url);
   const rows = await db.csatResponse.findMany({
     where: {
@@ -420,7 +420,7 @@ export async function reportCsat(session: SessionContext, url: URL) {
 }
 
 export async function reportBots(session: SessionContext, url: URL) {
-  assertSaasRole(session, "admin");
+  assertReportAccess(session);
   const range = parseRange(url);
   const [messaged, handedOff, touched] = await Promise.all([
     db.domainEvent.count({
@@ -454,4 +454,62 @@ export async function reportBots(session: SessionContext, url: URL) {
     },
     { bot_messages: messaged, handoffs: handedOff, conversations_touched: touched },
   );
+}
+
+
+export async function reportSla(session: SessionContext, url: URL) {
+  assertReportAccess(session);
+  const range = parseRange(url);
+  const rows = await db.conversationSla.findMany({
+    where: {
+      tenantId: session.tenantId,
+      appliedAt: { gte: range.from, lte: range.to },
+      ...(range.inboxId
+        ? { conversation: { inboxId: range.inboxId } }
+        : {}),
+    },
+    include: { conversation: { select: { inboxId: true, teamId: true } } },
+  });
+  const filtered = range.teamId
+    ? rows.filter((r) => r.conversation.teamId === range.teamId)
+    : rows;
+  const days = emptySeries(range.from, range.to);
+  const byDay: Record<
+    string,
+    { applied: number; frt_hit: number; nrt_hit: number; rt_hit: number; frt_breach: number; nrt_breach: number; rt_breach: number }
+  > = {};
+  for (const d of days) {
+    byDay[d] = { applied: 0, frt_hit: 0, nrt_hit: 0, rt_hit: 0, frt_breach: 0, nrt_breach: 0, rt_breach: 0 };
+  }
+  for (const r of filtered) {
+    const key = dayKey(r.appliedAt);
+    if (!byDay[key]) continue;
+    byDay[key].applied += 1;
+    if (r.frtHitAt && !r.frtBreached) byDay[key].frt_hit += 1;
+    if (r.nrtHitAt && !r.nrtBreached) byDay[key].nrt_hit += 1;
+    if (r.rtHitAt && !r.rtBreached) byDay[key].rt_hit += 1;
+    if (r.frtBreached) byDay[key].frt_breach += 1;
+    if (r.nrtBreached) byDay[key].nrt_breach += 1;
+    if (r.rtBreached) byDay[key].rt_breach += 1;
+  }
+  const series = days.map((d) => ({ day: d, ...byDay[d]! }));
+  const totals = {
+    applied: filtered.length,
+    frt_hit: filtered.filter((r) => r.frtHitAt && !r.frtBreached).length,
+    nrt_hit: filtered.filter((r) => r.nrtHitAt && !r.nrtBreached).length,
+    rt_hit: filtered.filter((r) => r.rtHitAt && !r.rtBreached).length,
+    frt_breach: filtered.filter((r) => r.frtBreached).length,
+    nrt_breach: filtered.filter((r) => r.nrtBreached).length,
+    rt_breach: filtered.filter((r) => r.rtBreached).length,
+    frt_hit_rate: filtered.length
+      ? filtered.filter((r) => r.frtHitAt && !r.frtBreached).length / filtered.length
+      : 0,
+    nrt_hit_rate: filtered.length
+      ? filtered.filter((r) => r.nrtHitAt && !r.nrtBreached).length / filtered.length
+      : 0,
+    rt_hit_rate: filtered.length
+      ? filtered.filter((r) => r.rtHitAt && !r.rtBreached).length / filtered.length
+      : 0,
+  };
+  return wrap(series, totals);
 }

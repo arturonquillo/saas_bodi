@@ -124,6 +124,7 @@ enum ChannelType {
   line
   sms
   api
+  voice
 }
 
 enum WaConnectionStatus {
@@ -208,6 +209,7 @@ model Tenant {
   lojaModo              LojaModo   @default(pedido_direto) @map("loja_modo")
   defaultVendedorUserId String?    @map("default_vendedor_user_id")
   webhookSigningSecret  String?    @map("webhook_signing_secret")
+  mfaRequired           Boolean    @default(false) @map("mfa_required")
   createdAt             DateTime   @default(now()) @map("created_at")
 
   theme                 Theme?
@@ -224,6 +226,7 @@ model Tenant {
   channelSocials        ChannelSocial[]
   channelSmses          ChannelSms[]
   channelApis           ChannelApi[]
+  channelVoices         ChannelVoice[]
   widgetSessions        WidgetSession[]
   emailTemplates        EmailTemplate[]
   pushSubscriptions     PushSubscription[]
@@ -266,6 +269,17 @@ model Tenant {
   portals               Portal[]
   helpCategories        HelpCategory[]
   articles              Article[]
+  slaPolicies           SlaPolicy[]
+  conversationSlas      ConversationSla[]
+  agentCapacities       AgentCapacity[]
+  captainAssistants     CaptainAssistant[]
+  captainSuggestions    CaptainSuggestion[]
+  auditEvents           AuditEvent[]
+  samlConfig            SamlConfig?
+  mfaDevices            MfaDevice[]
+  customRoles           CustomRole[]
+  integrationInstalls   IntegrationInstall[]
+  dashboardApps         DashboardApp[]
 
   @@map("tenants")
 }
@@ -323,23 +337,32 @@ model User {
   campaignsCreated       Campaign[]                @relation("CampaignCreator")
   articlesAuthored       Article[]                 @relation("ArticleAuthor")
   pushSubscriptions      PushSubscription[]
+  agentCapacities        AgentCapacity[]
+  captainSuggestionsRequested CaptainSuggestion[]  @relation("CaptainSuggestionActor")
+  captainSuggestionsResolved  CaptainSuggestion[]  @relation("CaptainSuggestionResolver")
+  auditEvents            AuditEvent[]              @relation("AuditEventActor")
+  mfaDevices             MfaDevice[]
+  csatReviewed           CsatResponse[]            @relation("CsatReviewedBy")
 
   @@map("users")
 }
 
 model Membership {
-  id         String    @id
-  tenantId   String    @map("tenant_id")
-  userId     String    @map("user_id")
-  saasRole   SaasRole? @map("saas_role")
-  isCustomer Boolean   @default(false) @map("is_customer")
-  createdAt  DateTime  @default(now()) @map("created_at")
+  id           String    @id
+  tenantId     String    @map("tenant_id")
+  userId       String    @map("user_id")
+  saasRole     SaasRole? @map("saas_role")
+  isCustomer   Boolean   @default(false) @map("is_customer")
+  customRoleId String?   @map("custom_role_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customRole CustomRole? @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
 
   @@unique([tenantId, userId])
   @@index([tenantId, saasRole])
+  @@index([tenantId, customRoleId])
   @@map("memberships")
 }
 
@@ -485,27 +508,31 @@ model Cliente {
 }
 
 model Inbox {
-  id                       String      @id
-  tenantId                 String      @map("tenant_id")
-  name                     String
-  channelType              ChannelType @default(whatsapp) @map("channel_type")
-  greeting                 String?
-  oooMessage               String?     @map("ooo_message")
-  csatEnabled              Boolean     @default(false) @map("csat_enabled")
-  lockToSingleConversation Boolean     @default(true) @map("lock_to_single_conversation")
-  allowAutoAssign          Boolean     @default(false) @map("allow_auto_assign")
-  vendedorSeeAll           Boolean     @default(false) @map("vendedor_see_all")
-  timezone                 String      @default("America/Sao_Paulo")
-  createdAt                DateTime    @default(now()) @map("created_at")
-  updatedAt                DateTime    @updatedAt @map("updated_at")
+  id                               String      @id
+  tenantId                         String      @map("tenant_id")
+  name                             String
+  channelType                      ChannelType @default(whatsapp) @map("channel_type")
+  greeting                         String?
+  oooMessage                       String?     @map("ooo_message")
+  csatEnabled                      Boolean     @default(false) @map("csat_enabled")
+  lockToSingleConversation         Boolean     @default(true) @map("lock_to_single_conversation")
+  allowAutoAssign                  Boolean     @default(false) @map("allow_auto_assign")
+  vendedorSeeAll                   Boolean     @default(false) @map("vendedor_see_all")
+  timezone                         String      @default("America/Sao_Paulo")
+  defaultSlaPolicyId               String?     @map("default_sla_policy_id")
+  requiredAttributeKeysOnResolveJson String    @default("[]") @map("required_attribute_keys_on_resolve_json")
+  createdAt                        DateTime    @default(now()) @map("created_at")
+  updatedAt                        DateTime    @updatedAt @map("updated_at")
 
   tenant                Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  defaultSlaPolicy      SlaPolicy?             @relation("InboxDefaultSla", fields: [defaultSlaPolicyId], references: [id], onDelete: SetNull)
   channelWhatsapp       ChannelWhatsapp?
   channelWebsiteWidget  ChannelWebsiteWidget?
   channelEmail          ChannelEmail?
   channelSocial         ChannelSocial?
   channelSms            ChannelSms?
   channelApi            ChannelApi?
+  channelVoice          ChannelVoice?
   widgetSessions        WidgetSession[]
   members               InboxMember[]
   conversations         Conversation[]
@@ -518,6 +545,7 @@ model Inbox {
   campaigns             Campaign[]
 
   @@index([tenantId, channelType])
+  @@index([tenantId, defaultSlaPolicyId])
   @@map("inboxes")
 }
 
@@ -657,6 +685,24 @@ model ChannelApi {
   @@map("channel_api")
 }
 
+model ChannelVoice {
+  id                String             @id
+  tenantId          String             @map("tenant_id")
+  inboxId           String             @unique @map("inbox_id")
+  provider          String             @default("twilio_voice")
+  secretsCiphertext String?            @map("secrets_ciphertext")
+  connectionStatus  WaConnectionStatus @default(not_configured) @map("connection_status")
+  metadataJson      String?            @map("metadata_json")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inbox  Inbox  @relation(fields: [inboxId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("channel_voice")
+}
+
 model EmailTemplate {
   id                String   @id
   tenantId          String   @map("tenant_id")
@@ -725,6 +771,7 @@ model Conversation {
   botAgentBotId        String?               @map("bot_agent_bot_id")
   csatToken            String?               @unique @map("csat_token")
   csatSentAt           DateTime?             @map("csat_sent_at")
+  slaPolicyId          String?               @map("sla_policy_id")
   lastActivityAt       DateTime              @default(now()) @map("last_activity_at")
   createdAt            DateTime              @default(now()) @map("created_at")
   updatedAt            DateTime              @updatedAt @map("updated_at")
@@ -738,6 +785,9 @@ model Conversation {
   cadastroRequest CadastroRequest?      @relation("ConversationCadastro", fields: [cadastroRequestId], references: [id], onDelete: SetNull)
   orcamento       Orcamento?            @relation(fields: [orcamentoId], references: [id], onDelete: SetNull)
   botAgentBot     AgentBot?             @relation(fields: [botAgentBotId], references: [id], onDelete: SetNull)
+  slaPolicy       SlaPolicy?            @relation("ConversationSlaPolicy", fields: [slaPolicyId], references: [id], onDelete: SetNull)
+  conversationSla ConversationSla?
+  captainSuggestions CaptainSuggestion[]
   messages        Message[]
   labels          ConversationLabel[]
   drafts          ConversationDraft[]
@@ -752,6 +802,7 @@ model Conversation {
   @@index([tenantId, inboxId])
   @@index([tenantId, contactId])
   @@index([tenantId, botAgentBotId])
+  @@index([tenantId, slaPolicyId])
   @@map("conversations")
 }
 
@@ -1124,21 +1175,25 @@ model AssignmentPolicy {
 }
 
 model CsatResponse {
-  id               String   @id
-  tenantId         String   @map("tenant_id")
-  conversationId   String   @map("conversation_id")
-  inboxId          String   @map("inbox_id")
-  contactId        String?  @map("contact_id")
+  id               String    @id
+  tenantId         String    @map("tenant_id")
+  conversationId   String    @map("conversation_id")
+  inboxId          String    @map("inbox_id")
+  contactId        String?   @map("contact_id")
   rating           Int
-  feedbackMessage  String?  @map("feedback_message")
-  assignedAgentId  String?  @map("assigned_agent_id")
-  submittedAt      DateTime @default(now()) @map("submitted_at")
+  feedbackMessage  String?   @map("feedback_message")
+  assignedAgentId  String?   @map("assigned_agent_id")
+  reviewNote       String?   @map("review_note")
+  reviewedByUserId String?   @map("reviewed_by_user_id")
+  reviewedAt       DateTime? @map("reviewed_at")
+  submittedAt      DateTime  @default(now()) @map("submitted_at")
 
   tenant         Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   inbox          Inbox        @relation(fields: [inboxId], references: [id], onDelete: Cascade)
   contact        Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
   assignedAgent  User?        @relation("CsatAssignedAgent", fields: [assignedAgentId], references: [id], onDelete: SetNull)
+  reviewedBy     User?        @relation("CsatReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
 
   @@unique([conversationId])
   @@index([tenantId, inboxId])
@@ -1232,17 +1287,19 @@ model CampaignRecipient {
 }
 
 model Portal {
-  id          String   @id
-  tenantId    String   @map("tenant_id")
-  name        String
-  slug        String
-  headerText  String?  @map("header_text")
-  homepageMd  String?  @map("homepage_md")
-  locale      String   @default("pt-BR")
-  enabled     Boolean  @default(true)
-  customDomain String? @map("custom_domain")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id                              String   @id
+  tenantId                        String   @map("tenant_id")
+  name                            String
+  slug                            String
+  headerText                      String?  @map("header_text")
+  homepageMd                      String?  @map("homepage_md")
+  locale                          String   @default("pt-BR")
+  enabled                         Boolean  @default(true)
+  customDomain                    String?  @unique @map("custom_domain")
+  customDomainVerified            Boolean  @default(false) @map("custom_domain_verified")
+  customDomainVerificationToken   String?  @map("custom_domain_verification_token")
+  createdAt                       DateTime @default(now()) @map("created_at")
+  updatedAt                       DateTime @updatedAt @map("updated_at")
 
   tenant     Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   categories HelpCategory[]
@@ -1558,4 +1615,211 @@ model Session {
 
   @@index([tenantId, userId])
   @@map("sessions")
+}
+
+// --- Phase E enterprise & AI ---
+
+model SlaPolicy {
+  id          String   @id
+  tenantId    String   @map("tenant_id")
+  name        String
+  frtSeconds  Int      @map("frt_seconds")
+  nrtSeconds  Int      @map("nrt_seconds")
+  rtSeconds   Int      @map("rt_seconds")
+  active      Boolean  @default(true)
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant             Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  defaultForInboxes  Inbox[]          @relation("InboxDefaultSla")
+  conversations      Conversation[]   @relation("ConversationSlaPolicy")
+  conversationSlas   ConversationSla[]
+
+  @@index([tenantId, active])
+  @@map("sla_policies")
+}
+
+model ConversationSla {
+  id             String    @id
+  tenantId       String    @map("tenant_id")
+  conversationId String    @unique @map("conversation_id")
+  slaPolicyId    String    @map("sla_policy_id")
+  frtDueAt       DateTime  @map("frt_due_at")
+  nrtDueAt       DateTime? @map("nrt_due_at")
+  rtDueAt        DateTime  @map("rt_due_at")
+  frtHitAt       DateTime? @map("frt_hit_at")
+  nrtHitAt       DateTime? @map("nrt_hit_at")
+  rtHitAt        DateTime? @map("rt_hit_at")
+  frtBreached    Boolean   @default(false) @map("frt_breached")
+  nrtBreached    Boolean   @default(false) @map("nrt_breached")
+  rtBreached     Boolean   @default(false) @map("rt_breached")
+  appliedAt      DateTime  @default(now()) @map("applied_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  slaPolicy    SlaPolicy    @relation(fields: [slaPolicyId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, frtDueAt])
+  @@map("conversation_slas")
+}
+
+model AgentCapacity {
+  id                    String   @id
+  tenantId              String   @map("tenant_id")
+  userId                String   @map("user_id")
+  maxOpenConversations  Int      @map("max_open_conversations")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId])
+  @@map("agent_capacities")
+}
+
+model CaptainAssistant {
+  id               String   @id
+  tenantId         String   @map("tenant_id")
+  name             String
+  mode             String
+  systemPromptStub String?  @map("system_prompt_stub")
+  active           Boolean  @default(true)
+  configJson       String?  @map("config_json")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  suggestions CaptainSuggestion[]
+
+  @@index([tenantId, active])
+  @@map("captain_assistants")
+}
+
+model CaptainSuggestion {
+  id               String    @id
+  tenantId         String    @map("tenant_id")
+  conversationId   String    @map("conversation_id")
+  assistantId      String?   @map("assistant_id")
+  mode             String
+  status           String    @default("pending")
+  proposalJson     String    @map("proposal_json")
+  createdBy        String    @default("agent") @map("created_by")
+  actorUserId      String?   @map("actor_user_id")
+  resolvedByUserId String?   @map("resolved_by_user_id")
+  resolvedAt       DateTime? @map("resolved_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  tenant       Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversation Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  assistant    CaptainAssistant? @relation(fields: [assistantId], references: [id], onDelete: SetNull)
+  actor        User?             @relation("CaptainSuggestionActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  resolvedBy   User?             @relation("CaptainSuggestionResolver", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, conversationId, status])
+  @@map("captain_suggestions")
+}
+
+model AuditEvent {
+  id            String   @id
+  tenantId      String   @map("tenant_id")
+  actorUserId   String?  @map("actor_user_id")
+  action        String
+  aggregateType String   @map("aggregate_type")
+  aggregateId   String   @map("aggregate_id")
+  payloadJson   String   @default("{}") @map("payload_json")
+  ip            String?
+  userAgent     String?  @map("user_agent")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actor  User?  @relation("AuditEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, action, createdAt])
+  @@map("audit_events")
+}
+
+model SamlConfig {
+  id                       String   @id
+  tenantId                 String   @unique @map("tenant_id")
+  enabled                  Boolean  @default(false)
+  idpEntityId              String?  @map("idp_entity_id")
+  idpSsoUrl                String?  @map("idp_sso_url")
+  idpCertificateCiphertext String?  @map("idp_certificate_ciphertext")
+  spEntityId               String?  @map("sp_entity_id")
+  jitProvision             Boolean  @default(false) @map("jit_provision")
+  updatedAt                DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("saml_configs")
+}
+
+model MfaDevice {
+  id                    String    @id
+  tenantId              String    @map("tenant_id")
+  userId                String    @map("user_id")
+  secretCiphertext      String    @map("secret_ciphertext")
+  enabled               Boolean   @default(false)
+  recoveryCodesHashJson String    @default("[]") @map("recovery_codes_hash_json")
+  confirmedAt           DateTime? @map("confirmed_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId])
+  @@map("mfa_devices")
+}
+
+model CustomRole {
+  id              String   @id
+  tenantId        String   @map("tenant_id")
+  name            String
+  description     String?
+  permissionsJson String   @default("[]") @map("permissions_json")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  memberships Membership[]
+
+  @@unique([tenantId, name])
+  @@map("custom_roles")
+}
+
+model IntegrationInstall {
+  id                  String   @id
+  tenantId            String   @map("tenant_id")
+  provider            String
+  connectionStatus    String   @default("not_configured") @map("connection_status")
+  metadataJson        String?  @map("metadata_json")
+  secretsCiphertext   String?  @map("secrets_ciphertext")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, provider])
+  @@map("integration_installs")
+}
+
+model DashboardApp {
+  id           String   @id
+  tenantId     String   @map("tenant_id")
+  title        String
+  url          String
+  enabled      Boolean  @default(true)
+  inboxIdsJson String?  @map("inbox_ids_json")
+  position     Int      @default(0)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, enabled])
+  @@map("dashboard_apps")
 }

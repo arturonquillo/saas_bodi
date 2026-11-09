@@ -14,7 +14,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
 }
 
 const putSchema = z.object({
-  kind: z.literal("round_robin").optional(),
+  kind: z.enum(["round_robin", "balanced"]).optional(),
   enabled: z.boolean(),
 });
 

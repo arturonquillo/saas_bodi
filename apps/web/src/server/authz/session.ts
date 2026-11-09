@@ -24,6 +24,9 @@ export type SessionContext = {
   cnpjLast4?: string;
   clienteId?: string;
   cadastroRequestId?: string;
+  /** Phase E — CustomRole bits (admin implies all). */
+  customRoleId?: string | null;
+  permissionBits?: string[];
 };
 
 function hashToken(token: string) {
@@ -111,6 +114,25 @@ export async function readSession(surface: Surface): Promise<SessionContext | nu
   const membership = row.user.memberships.find((m) => m.tenantId === row.tenantId);
   if (!membership) return null;
   const clienteCtx = await resolveClienteContext(row.userId, row.tenantId);
+  let permissionBits: string[] = [];
+  let customRoleId: string | null = membership.customRoleId ?? null;
+  if (customRoleId) {
+    const role = await db.customRole.findFirst({
+      where: { id: customRoleId, tenantId: row.tenantId },
+    });
+    if (role) {
+      try {
+        const parsed = JSON.parse(role.permissionsJson || "[]") as unknown;
+        if (Array.isArray(parsed)) {
+          permissionBits = parsed.filter((x): x is string => typeof x === "string");
+        }
+      } catch {
+        permissionBits = [];
+      }
+    } else {
+      customRoleId = null;
+    }
+  }
   return {
     userId: row.userId,
     tenantId: row.tenantId,
@@ -118,6 +140,8 @@ export async function readSession(surface: Surface): Promise<SessionContext | nu
     surface,
     saasRole: membership.saasRole,
     isCustomer: membership.isCustomer,
+    customRoleId,
+    permissionBits,
     ...clienteCtx,
   };
 }
@@ -152,6 +176,23 @@ export async function loginSurface(input: {
   }
   if (input.surface === "saas" && !membership.saasRole) {
     throw new ApiError("forbidden", "Esta conta não tem papel no SaaS.");
+  }
+
+  if (input.surface === "saas") {
+    const device = await db.mfaDevice.findFirst({
+      where: { tenantId: tenant.id, userId: user.id, enabled: true },
+    });
+    if (device?.confirmedAt) {
+      const { createMfaChallenge } = await import("../crm/security");
+      const mfaToken = createMfaChallenge(user.id, tenant.id);
+      return {
+        userId: user.id,
+        tenantId: tenant.id,
+        saasRole: membership.saasRole,
+        mfa_required: true as const,
+        mfa_token: mfaToken,
+      };
+    }
   }
 
   await createSession({ userId: user.id, tenantId: tenant.id, surface: input.surface });

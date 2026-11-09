@@ -1,4 +1,4 @@
-/** Chatwoot-parity CRM Phase A+B+C contracts (packages/shared). */
+/** Chatwoot-parity CRM Phase A+B+C+D contracts (packages/shared). */
 
 export const CONVERSATION_STATUSES = ["open", "pending", "snoozed", "resolved"] as const;
 export type ConversationStatus = (typeof CONVERSATION_STATUSES)[number];
@@ -9,8 +9,18 @@ export type ConversationPriority = (typeof CONVERSATION_PRIORITIES)[number];
 export const MESSAGE_TYPES = ["incoming", "outgoing", "activity"] as const;
 export type MessageType = (typeof MESSAGE_TYPES)[number];
 
-export const MESSAGE_CONTENT_TYPES = ["text", "attachment"] as const;
+export const MESSAGE_CONTENT_TYPES = [
+  "text",
+  "attachment",
+  "input_select",
+  "cards",
+  "form",
+] as const;
 export type MessageContentType = (typeof MESSAGE_CONTENT_TYPES)[number];
+
+/** Interactive types allowed only on web_widget + api inboxes (Phase D). */
+export const INTERACTIVE_CONTENT_TYPES = ["input_select", "cards", "form"] as const;
+export type InteractiveContentType = (typeof INTERACTIVE_CONTENT_TYPES)[number];
 
 export const MESSAGE_DELIVERY_STATUSES = [
   "queued",
@@ -21,8 +31,42 @@ export const MESSAGE_DELIVERY_STATUSES = [
 ] as const;
 export type MessageDeliveryStatus = (typeof MESSAGE_DELIVERY_STATUSES)[number];
 
-export const CHANNEL_TYPES = ["whatsapp"] as const;
+export const CHANNEL_TYPES = [
+  "whatsapp",
+  "web_widget",
+  "email",
+  "facebook",
+  "instagram",
+  "tiktok",
+  "twitter",
+  "telegram",
+  "line",
+  "sms",
+  "api",
+] as const;
 export type ChannelType = (typeof CHANNEL_TYPES)[number];
+
+export const SOCIAL_CHANNEL_TYPES = [
+  "facebook",
+  "instagram",
+  "tiktok",
+  "twitter",
+  "telegram",
+  "line",
+] as const;
+export type SocialChannelType = (typeof SOCIAL_CHANNEL_TYPES)[number];
+
+export const WIDGET_CONTINUITIES = ["session", "contact"] as const;
+export type WidgetContinuity = (typeof WIDGET_CONTINUITIES)[number];
+
+export const EMAIL_CHANNEL_PROVIDERS = ["smtp_imap", "google", "microsoft"] as const;
+export type EmailChannelProvider = (typeof EMAIL_CHANNEL_PROVIDERS)[number];
+
+export const SMS_CHANNEL_PROVIDERS = ["twilio", "bandwidth"] as const;
+export type SmsChannelProvider = (typeof SMS_CHANNEL_PROVIDERS)[number];
+
+/** Channels that may carry interactive message content_types. */
+export const INTERACTIVE_CHANNEL_TYPES = ["web_widget", "api"] as const;
 
 export const WA_CONNECTION_STATUSES = [
   "not_configured",
@@ -32,8 +76,9 @@ export const WA_CONNECTION_STATUSES = [
 ] as const;
 export type WaConnectionStatus = (typeof WA_CONNECTION_STATUSES)[number];
 
-/** Phase A max reachable status — API rejects `live`. */
+/** Phase A–D max reachable status — API rejects `live`. */
 export const WA_CONNECTION_MAX_PHASE_A: WaConnectionStatus = "ready_stub";
+export const CHANNEL_CONNECTION_MAX_PHASE_D: WaConnectionStatus = "ready_stub";
 
 export const AGENT_AVAILABILITIES = ["online", "busy", "offline"] as const;
 export type AgentAvailability = (typeof AGENT_AVAILABILITIES)[number];
@@ -88,6 +133,13 @@ export const CRM_DOMAIN_EVENT_TYPES = [
   "portal.updated",
   "article.published",
   "article.unpublished",
+  // Phase D
+  "channel.updated",
+  "widget.session_started",
+  "widget.message_created",
+  "campaign.displayed",
+  "push.subscribed",
+  "push.failed",
 ] as const;
 export type CrmDomainEventType = (typeof CRM_DOMAIN_EVENT_TYPES)[number];
 
@@ -101,6 +153,9 @@ export const BACKGROUND_JOB_KINDS = [
   "contact.import_csv",
   "assignment.round_robin",
   "report.rollup_daily",
+  "push.notify",
+  "email.channel_stub_deliver",
+  "channel.simulate_social_ingest",
 ] as const;
 
 export const CAMPAIGN_KINDS = ["one_off", "ongoing"] as const;

@@ -273,6 +273,17 @@ async function handleJob(kind: string, payload: unknown, tenantId: string): Prom
     case "assignment.round_robin":
       await handleRoundRobin(p);
       return;
+    case "push.notify": {
+      const { handlePushNotify } = await import("../crm/push");
+      await handlePushNotify(p as { tenant_id?: string; user_id?: string; title?: string; body?: string });
+      return;
+    }
+    case "email.channel_stub_deliver":
+      // Stub — no SMTP; optional outbox row handled by caller.
+      return;
+    case "channel.simulate_social_ingest":
+      // Optional job kind reserved; admin simulate runs inline in Phase D.
+      return;
     default:
       return;
   }

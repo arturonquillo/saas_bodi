@@ -1,5 +1,5 @@
 import { AvisosScreen } from "@/ui/saas/AvisosScreen";
 
-export default function AvisosPage() {
+export default function Page() {
   return <AvisosScreen />;
 }

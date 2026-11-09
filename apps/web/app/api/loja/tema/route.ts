@@ -1,11 +1,10 @@
-import { env } from "@/server/env";
+import { getPublicTheme } from "@/server/theme/service";
+import { publicTenantSlug } from "@/server/http/request";
 import { handleError, ok } from "@/server/http/respond";
-import { getTenantTheme } from "@/server/modules/catalog/projection";
 
 export async function GET(req: Request) {
   try {
-    const tenant = new URL(req.url).searchParams.get("tenant") ?? env.defaultTenantSlug;
-    return ok(await getTenantTheme(tenant));
+    return ok(await getPublicTheme(publicTenantSlug(req)));
   } catch (err) {
     return handleError(err);
   }

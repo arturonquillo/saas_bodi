@@ -1,5 +1,5 @@
 import { CatalogScreen } from "@/ui/store/CatalogScreen";
 
-export default function LojaCatalogoPage() {
+export default function Page() {
   return <CatalogScreen />;
 }

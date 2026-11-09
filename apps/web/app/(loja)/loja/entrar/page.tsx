@@ -1,11 +1,18 @@
 import { Suspense } from "react";
-import { StoreEntrarScreen } from "@/ui/store/EntrarScreen";
-import { CardSkeleton } from "@/ui/states";
+import { EntrarScreen } from "@/ui/store/EntrarScreen";
+import { FormSkeleton } from "@/ui/states";
+import { AuthStage } from "@/ui/layout";
 
-export default function LojaEntrarPage() {
+export default function Page() {
   return (
-    <Suspense fallback={<CardSkeleton />}>
-      <StoreEntrarScreen />
+    <Suspense
+      fallback={
+        <AuthStage>
+          <FormSkeleton />
+        </AuthStage>
+      }
+    >
+      <EntrarScreen />
     </Suspense>
   );
 }

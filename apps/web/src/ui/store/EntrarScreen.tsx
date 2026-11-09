@@ -2,25 +2,31 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BrandMark } from "../BrandMark";
 import { COPY } from "../copy";
 import { AUTH_CARD, AuthStage } from "../layout";
 import { LoginForm } from "../LoginForm";
 
-export function StoreEntrarScreen() {
-  const params = useSearchParams();
-  const redirectTo = params.get("return") || "/loja";
+export function EntrarScreen() {
+  const search = useSearchParams();
+  const redirectTo = search.get("return") || "/loja";
+
   return (
-    <AuthStage className="bg-muted">
+    <AuthStage>
       <Card className={AUTH_CARD}>
-        <CardContent className="space-y-4 p-0">
-          <CardDescription className="text-[13px]">{COPY.store.auth_kicker}</CardDescription>
-          <CardTitle className="text-[22px] font-semibold">{COPY.actions.entrar}</CardTitle>
+        <CardHeader className="space-y-4">
+          <BrandMark href="/loja" />
+          <CardTitle className="font-display text-xl">{COPY.login_title_loja}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
           <LoginForm surface="loja" redirectTo={redirectTo} />
-          <Button variant="link" asChild className="h-auto px-0">
-            <Link href="/loja/cadastro">{COPY.actions.cadastrar}</Link>
-          </Button>
+          <p className="text-sm text-muted-foreground">
+            Não tem conta?{" "}
+            <Link href="/loja/cadastro" className="text-primary hover:underline">
+              {COPY.cta_cadastrar}
+            </Link>
+          </p>
         </CardContent>
       </Card>
     </AuthStage>

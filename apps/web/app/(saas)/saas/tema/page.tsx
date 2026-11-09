@@ -1,5 +1,5 @@
 import { TemaScreen } from "@/ui/saas/TemaScreen";
 
-export default function TemaPage() {
+export default function Page() {
   return <TemaScreen />;
 }

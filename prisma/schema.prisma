@@ -7,47 +7,93 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum SubscriptionStatus {
-  ativa
-  inadimplente
-  cancelada
-}
-
 enum CanalAviso {
   email
   whatsapp
   ambos
 }
 
+enum LojaModo {
+  pedido_direto
+  orcamento
+}
+
 enum SaasRole {
-  supervisor
+  admin
   vendedor
-  estoquista
-  entregador
 }
 
-enum DocumentType {
-  cpf
-  cnpj
+enum Surface {
+  loja
+  saas
 }
 
-enum OrderStatus {
-  novo
+enum CadastroStatus {
+  pendente
+  aprovado
+  recusado
+}
+
+enum CadastroSource {
+  loja
+  whatsapp
+  saas
+}
+
+enum ClienteStatus {
+  aprovado
+}
+
+enum WhatsappIntent {
+  cadastro
+  orcamento
+  info_empresa
+  outro
+}
+
+enum WhatsappThreadStatus {
+  aberta
+  arquivada
+}
+
+enum WhatsappMessageDirection {
+  inbound
+  outbound_note
+}
+
+enum OrcamentoStatus {
+  rascunho
+  enviado
+  aceito
+  recusado
+  expirado
+  cancelado
+}
+
+enum OrcamentoChannel {
+  saas
+  whatsapp
+  loja
+}
+
+enum PedidoStatus {
   confirmado
-  separando
+  em_separacao
   despachado
   entregue
   cancelado
 }
 
-enum OrderChannel {
+enum PedidoChannel {
   loja
   saas
+  orcamento
 }
 
-enum PriceList {
-  varejo
-  atacado
+enum VendaStatus {
+  rascunho
+  faturado
+  cancelado
 }
 
 enum MovementType {
@@ -55,7 +101,6 @@ enum MovementType {
   release
   consume
   adjust
-  import_apply
 }
 
 enum OutboxChannel {
@@ -65,7 +110,7 @@ enum OutboxChannel {
 
 enum OutboxRecipientRole {
   customer
-  seller
+  vendedor
 }
 
 enum OutboxStatus {
@@ -74,46 +119,33 @@ enum OutboxStatus {
   falha
 }
 
-enum ImportBatchStatus {
-  preview
-  applied
-  discarded
-}
-
-enum ImportRowAction {
-  create
-  update
-  error
-}
-
-enum Surface {
-  loja
-  saas
-  conta
-}
-
 model Tenant {
-  id                   String             @id
-  slug                 String             @unique
-  nome                 String
-  aceitaCpf            Boolean            @default(true) @map("aceita_cpf")
-  aceitaCnpj           Boolean            @default(true) @map("aceita_cnpj")
-  canaisAviso          CanalAviso         @default(ambos) @map("canais_aviso")
-  defaultSellerUserId  String?            @map("default_seller_user_id")
-  subscriptionStatus   SubscriptionStatus @default(ativa) @map("subscription_status")
-  planDisplayName      String             @map("plan_display_name")
-  createdAt            DateTime           @default(now()) @map("created_at")
+  id                   String    @id
+  slug                 String    @unique
+  razaoSocial          String    @map("razao_social")
+  nomeFantasia         String    @map("nome_fantasia")
+  cnpjDigits           String    @map("cnpj_digits")
+  cnpjLast4            String    @map("cnpj_last4")
+  whatsappComercial    String?   @map("whatsapp_comercial")
+  canaisAviso          CanalAviso @default(whatsapp) @map("canais_aviso")
+  lojaModo             LojaModo  @default(pedido_direto) @map("loja_modo")
+  defaultVendedorUserId String?  @map("default_vendedor_user_id")
+  createdAt            DateTime  @default(now()) @map("created_at")
 
-  theme       Theme?
-  memberships Membership[]
-  customers   CustomerProfile[]
-  skus        Sku[]
-  balances    InventoryBalance[]
-  movements   InventoryMovement[]
-  orders      Order[]
-  outbox      NotificationOutbox[]
-  imports     InventoryImportBatch[]
-  sessions    Session[]
+  theme              Theme?
+  memberships        Membership[]
+  cadastroRequests   CadastroRequest[]
+  clientes           Cliente[]
+  whatsappThreads    WhatsappThread[]
+  whatsappMessages   WhatsappMessage[]
+  orcamentos         Orcamento[]
+  pedidos            PedidoVenda[]
+  vendas             VendaFaturamento[]
+  skus               Sku[]
+  balances           InventoryBalance[]
+  movements          InventoryMovement[]
+  outbox             NotificationOutbox[]
+  sessions           Session[]
 
   @@map("tenants")
 }
@@ -137,28 +169,31 @@ model User {
   passwordHash String   @map("password_hash")
   nome         String
   whatsapp     String?
+  ativo        Boolean  @default(true)
   createdAt    DateTime @default(now()) @map("created_at")
 
-  memberships     Membership[]
-  customerOf      CustomerProfile[]
-  sessions        Session[]
-  ordersAsCustomer Order[]           @relation("OrderCustomer")
-  ordersAsSeller   Order[]           @relation("OrderSeller")
-  movements        InventoryMovement[]
-  importBatches    InventoryImportBatch[]
-  statusChanges    OrderStatusHistory[]
+  memberships            Membership[]
+  clientes               Cliente[]
+  sessions               Session[]
+  cadastrosReviewed      CadastroRequest[]      @relation("CadastroReviewer")
+  orcamentosAsVendedor   Orcamento[]            @relation("OrcamentoVendedor")
+  pedidosAsVendedor      PedidoVenda[]          @relation("PedidoVendedor")
+  vendasCreated          VendaFaturamento[]     @relation("VendaCreator")
+  movements              InventoryMovement[]
+  orcamentoStatusChanges OrcamentoStatusHistory[]
+  pedidoStatusChanges    PedidoStatusHistory[]
+  vendaStatusChanges     VendaStatusHistory[]
 
   @@map("users")
 }
 
 model Membership {
-  id            String    @id
-  tenantId      String    @map("tenant_id")
-  userId        String    @map("user_id")
-  saasRole      SaasRole? @map("saas_role")
-  accountOwner  Boolean   @default(false) @map("account_owner")
-  isCustomer    Boolean   @default(false) @map("is_customer")
-  createdAt     DateTime  @default(now()) @map("created_at")
+  id         String    @id
+  tenantId   String    @map("tenant_id")
+  userId     String    @map("user_id")
+  saasRole   SaasRole? @map("saas_role")
+  isCustomer Boolean   @default(false) @map("is_customer")
+  createdAt  DateTime  @default(now()) @map("created_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -168,22 +203,261 @@ model Membership {
   @@map("memberships")
 }
 
-model CustomerProfile {
-  id                    String       @id
-  tenantId              String       @map("tenant_id")
-  userId                String       @map("user_id")
-  documentType          DocumentType @map("document_type")
-  documentDigits        String       @map("document_digits")
-  documentLast4         String       @map("document_last4")
-  cnpjRegistroPendente  Boolean      @default(false) @map("cnpj_registro_pendente")
-  razaoSocial           String?      @map("razao_social")
+model CadastroRequest {
+  id                   String         @id
+  tenantId             String         @map("tenant_id")
+  cnpjDigits           String         @map("cnpj_digits")
+  cnpjLast4            String         @map("cnpj_last4")
+  cnpjRegistroPendente Boolean        @default(false) @map("cnpj_registro_pendente")
+  razaoSocial          String         @map("razao_social")
+  contatoNome          String         @map("contato_nome")
+  email                String
+  whatsapp             String
+  status               CadastroStatus @default(pendente)
+  motivoRecusa         String?        @map("motivo_recusa")
+  source               CadastroSource
+  threadId             String?        @map("thread_id")
+  clienteId            String?        @map("cliente_id")
+  reviewedByUserId     String?        @map("reviewed_by_user_id")
+  createdAt            DateTime       @default(now()) @map("created_at")
+  updatedAt            DateTime       @updatedAt @map("updated_at")
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant     Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  thread     WhatsappThread? @relation("CadastroThread", fields: [threadId], references: [id], onDelete: SetNull)
+  cliente    Cliente?        @relation("CadastroToCliente", fields: [clienteId], references: [id], onDelete: SetNull)
+  reviewedBy User?           @relation("CadastroReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  clienteOrigin Cliente?     @relation("ClienteFromCadastro")
+  orcamentos Orcamento[]
+  outbox     NotificationOutbox[]
+  threadsLinked WhatsappThread[] @relation("ThreadCadastro")
 
-  @@unique([tenantId, documentDigits])
-  @@unique([tenantId, userId])
-  @@map("customer_profiles")
+  @@index([tenantId, status])
+  @@index([tenantId, cnpjDigits])
+  @@map("cadastro_requests")
+}
+
+model Cliente {
+  id                   String        @id
+  tenantId             String        @map("tenant_id")
+  userId               String?       @map("user_id")
+  cnpjDigits           String        @map("cnpj_digits")
+  cnpjLast4            String        @map("cnpj_last4")
+  cnpjRegistroPendente Boolean       @default(false) @map("cnpj_registro_pendente")
+  razaoSocial          String        @map("razao_social")
+  contatoNome          String        @map("contato_nome")
+  email                String
+  whatsapp             String
+  status               ClienteStatus @default(aprovado)
+  cadastroRequestId    String?       @unique @map("cadastro_request_id")
+  createdAt            DateTime      @default(now()) @map("created_at")
+
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user            User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  cadastroOrigin  CadastroRequest? @relation("ClienteFromCadastro", fields: [cadastroRequestId], references: [id], onDelete: SetNull)
+  cadastros       CadastroRequest[] @relation("CadastroToCliente")
+  threads         WhatsappThread[]
+  orcamentos      Orcamento[]
+  pedidos         PedidoVenda[]
+
+  @@unique([tenantId, cnpjDigits])
+  @@index([tenantId, userId])
+  @@map("clientes")
+}
+
+model WhatsappThread {
+  id                String               @id
+  tenantId          String               @map("tenant_id")
+  phoneE164         String               @map("phone_e164")
+  intent            WhatsappIntent?
+  clienteId         String?              @map("cliente_id")
+  cadastroRequestId String?              @map("cadastro_request_id")
+  orcamentoId       String?              @map("orcamento_id")
+  status            WhatsappThreadStatus @default(aberta)
+  createdAt         DateTime             @default(now()) @map("created_at")
+  updatedAt         DateTime             @updatedAt @map("updated_at")
+
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cliente         Cliente?         @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  cadastroRequest CadastroRequest? @relation("ThreadCadastro", fields: [cadastroRequestId], references: [id], onDelete: SetNull)
+  orcamento       Orcamento?       @relation(fields: [orcamentoId], references: [id], onDelete: SetNull)
+  messages        WhatsappMessage[]
+  cadastrosFromThread CadastroRequest[] @relation("CadastroThread")
+
+  @@index([tenantId, phoneE164])
+  @@index([tenantId, intent])
+  @@map("whatsapp_threads")
+}
+
+model WhatsappMessage {
+  id        String                    @id
+  tenantId  String                    @map("tenant_id")
+  threadId  String                    @map("thread_id")
+  direction WhatsappMessageDirection
+  body      String
+  simulated Boolean                   @default(true)
+  createdAt DateTime                  @default(now()) @map("created_at")
+
+  tenant Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  thread WhatsappThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, threadId, createdAt])
+  @@map("whatsapp_messages")
+}
+
+model Orcamento {
+  id                String           @id
+  tenantId          String           @map("tenant_id")
+  clienteId         String?          @map("cliente_id")
+  cadastroRequestId String?          @map("cadastro_request_id")
+  vendedorUserId    String           @map("vendedor_user_id")
+  status            OrcamentoStatus
+  validoAte         DateTime?        @map("valido_ate")
+  channel           OrcamentoChannel
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+
+  tenant          Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cliente         Cliente?                @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  cadastroRequest CadastroRequest?        @relation(fields: [cadastroRequestId], references: [id], onDelete: SetNull)
+  vendedor        User                    @relation("OrcamentoVendedor", fields: [vendedorUserId], references: [id])
+  pedido          PedidoVenda?            @relation("PedidoFromOrcamento")
+  lines           OrcamentoLine[]
+  history         OrcamentoStatusHistory[]
+  outbox          NotificationOutbox[]
+  threads         WhatsappThread[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, clienteId])
+  @@map("orcamentos")
+}
+
+model OrcamentoLine {
+  id                String  @id
+  tenantId          String  @map("tenant_id")
+  orcamentoId       String  @map("orcamento_id")
+  skuId             String  @map("sku_id")
+  codigoSnapshot    String  @map("codigo_snapshot")
+  nomeSnapshot      String  @map("nome_snapshot")
+  qty               Int
+  unitPriceCentavos Int     @map("unit_price_centavos")
+  notas             String?
+
+  orcamento Orcamento @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+  sku       Sku       @relation(fields: [skuId], references: [id])
+
+  @@index([tenantId, orcamentoId])
+  @@map("orcamento_lines")
+}
+
+model OrcamentoStatusHistory {
+  id          String          @id
+  tenantId    String          @map("tenant_id")
+  orcamentoId String          @map("orcamento_id")
+  fromStatus  String?         @map("from_status")
+  toStatus    OrcamentoStatus @map("to_status")
+  actorUserId String?         @map("actor_user_id")
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  orcamento Orcamento @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+  actor     User?     @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, orcamentoId, createdAt])
+  @@map("orcamento_status_histories")
+}
+
+model PedidoVenda {
+  id             String        @id
+  tenantId       String        @map("tenant_id")
+  clienteId      String        @map("cliente_id")
+  vendedorUserId String        @map("vendedor_user_id")
+  orcamentoId    String?       @unique @map("orcamento_id")
+  channel        PedidoChannel
+  status         PedidoStatus
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  tenant    Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cliente   Cliente               @relation(fields: [clienteId], references: [id])
+  vendedor  User                  @relation("PedidoVendedor", fields: [vendedorUserId], references: [id])
+  orcamento Orcamento?            @relation("PedidoFromOrcamento", fields: [orcamentoId], references: [id], onDelete: SetNull)
+  lines     PedidoLine[]
+  history   PedidoStatusHistory[]
+  vendas    VendaFaturamento[]
+  outbox    NotificationOutbox[]
+  movements InventoryMovement[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, clienteId])
+  @@map("pedidos_venda")
+}
+
+model PedidoLine {
+  id                String @id
+  tenantId          String @map("tenant_id")
+  pedidoId          String @map("pedido_id")
+  skuId             String @map("sku_id")
+  codigoSnapshot    String @map("codigo_snapshot")
+  nomeSnapshot      String @map("nome_snapshot")
+  qty               Int
+  unitPriceCentavos Int    @map("unit_price_centavos")
+
+  pedido PedidoVenda @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  sku    Sku         @relation(fields: [skuId], references: [id])
+
+  @@index([tenantId, pedidoId])
+  @@map("pedido_lines")
+}
+
+model PedidoStatusHistory {
+  id          String       @id
+  tenantId    String       @map("tenant_id")
+  pedidoId    String       @map("pedido_id")
+  fromStatus  String?      @map("from_status")
+  toStatus    PedidoStatus @map("to_status")
+  actorUserId String?      @map("actor_user_id")
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  pedido PedidoVenda @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  actor  User?       @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, pedidoId, createdAt])
+  @@map("pedido_status_histories")
+}
+
+model VendaFaturamento {
+  id              String      @id
+  tenantId        String      @map("tenant_id")
+  pedidoId        String      @map("pedido_id")
+  status          VendaStatus
+  createdByUserId String      @map("created_by_user_id")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  tenant    Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pedido    PedidoVenda          @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  createdBy User                 @relation("VendaCreator", fields: [createdByUserId], references: [id])
+  history   VendaStatusHistory[]
+  outbox    NotificationOutbox[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, pedidoId])
+  @@map("vendas_faturamento")
+}
+
+model VendaStatusHistory {
+  id          String      @id
+  tenantId    String      @map("tenant_id")
+  vendaId     String      @map("venda_id")
+  fromStatus  String?     @map("from_status")
+  toStatus    VendaStatus @map("to_status")
+  actorUserId String?     @map("actor_user_id")
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  venda VendaFaturamento @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+  actor User?            @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, vendaId, createdAt])
+  @@map("venda_status_histories")
 }
 
 model Sku {
@@ -191,22 +465,22 @@ model Sku {
   tenantId             String  @map("tenant_id")
   codigo               String
   nome                 String
-  precoVarejoCentavos  Int     @map("preco_varejo_centavos")
   precoAtacadoCentavos Int     @map("preco_atacado_centavos")
   qtdMinAtacado        Int     @default(1) @map("qtd_min_atacado")
   visivelLoja          Boolean @default(true) @map("visivel_loja")
 
-  tenant    Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  balance   InventoryBalance?
-  movements InventoryMovement[]
-  lines     OrderLine[]
+  tenant          Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  balance         InventoryBalance?
+  movements       InventoryMovement[]
+  orcamentoLines  OrcamentoLine[]
+  pedidoLines     PedidoLine[]
 
   @@unique([tenantId, codigo])
   @@index([tenantId, visivelLoja])
   @@map("skus")
 }
 
-/// The only inventory ledger. Store stock is a projection of this row + visivel_loja.
+/// The only inventory ledger. Loja stock is a projection of this row + visivel_loja.
 model InventoryBalance {
   skuId    String @id @map("sku_id")
   tenantId String @map("tenant_id")
@@ -221,140 +495,49 @@ model InventoryBalance {
 }
 
 model InventoryMovement {
-  id             String       @id
-  tenantId       String       @map("tenant_id")
-  skuId          String       @map("sku_id")
-  orderId        String?      @map("order_id")
-  importBatchId  String?      @map("import_batch_id")
-  type           MovementType
-  deltaOnHand    Int          @map("delta_on_hand")
-  deltaReserved  Int          @map("delta_reserved")
-  reason         String?
-  actorUserId    String?      @map("actor_user_id")
-  createdAt      DateTime     @default(now()) @map("created_at")
+  id            String       @id
+  tenantId      String       @map("tenant_id")
+  skuId         String       @map("sku_id")
+  pedidoId      String?      @map("pedido_id")
+  type          MovementType
+  deltaOnHand   Int          @map("delta_on_hand")
+  deltaReserved Int          @map("delta_reserved")
+  reason        String?
+  actorUserId   String?      @map("actor_user_id")
+  createdAt     DateTime     @default(now()) @map("created_at")
 
-  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  sku    Sku     @relation(fields: [skuId], references: [id], onDelete: Cascade)
-  order  Order?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  actor  User?   @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
-  batch  InventoryImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  tenant Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sku    Sku          @relation(fields: [skuId], references: [id], onDelete: Cascade)
+  pedido PedidoVenda? @relation(fields: [pedidoId], references: [id], onDelete: SetNull)
+  actor  User?        @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, skuId, createdAt])
   @@map("inventory_movements")
 }
 
-model Order {
-  id              String       @id
-  tenantId        String       @map("tenant_id")
-  customerUserId  String       @map("customer_user_id")
-  sellerUserId    String       @map("seller_user_id")
-  channel         OrderChannel
-  priceList       PriceList    @map("price_list")
-  status          OrderStatus
-  createdAt       DateTime     @default(now()) @map("created_at")
-  updatedAt       DateTime     @updatedAt @map("updated_at")
-
-  tenant    Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  customer  User                 @relation("OrderCustomer", fields: [customerUserId], references: [id])
-  seller    User                 @relation("OrderSeller", fields: [sellerUserId], references: [id])
-  lines     OrderLine[]
-  history   OrderStatusHistory[]
-  outbox    NotificationOutbox[]
-  movements InventoryMovement[]
-
-  @@index([tenantId, status])
-  @@index([tenantId, customerUserId])
-  @@index([tenantId, createdAt])
-  @@map("orders")
-}
-
-model OrderLine {
-  id                 String    @id
-  tenantId           String    @map("tenant_id")
-  orderId            String    @map("order_id")
-  skuId              String    @map("sku_id")
-  codigoSnapshot     String    @map("codigo_snapshot")
-  nomeSnapshot       String    @map("nome_snapshot")
-  qty                Int
-  unitPriceCentavos  Int       @map("unit_price_centavos")
-  priceList          PriceList @map("price_list")
-
-  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  sku   Sku   @relation(fields: [skuId], references: [id])
-
-  @@index([tenantId, orderId])
-  @@map("order_lines")
-}
-
-model OrderStatusHistory {
-  id          String      @id
-  tenantId    String      @map("tenant_id")
-  orderId     String      @map("order_id")
-  fromStatus  String?     @map("from_status")
-  toStatus    OrderStatus @map("to_status")
-  actorUserId String?     @map("actor_user_id")
-  createdAt   DateTime    @default(now()) @map("created_at")
-
-  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  actor User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
-
-  @@index([tenantId, orderId, createdAt])
-  @@map("order_status_histories")
-}
-
 model NotificationOutbox {
-  id            String              @id
-  tenantId      String              @map("tenant_id")
-  orderId       String              @map("order_id")
-  channel       OutboxChannel
-  recipientRole OutboxRecipientRole @map("recipient_role")
-  recipient     String
-  templateKey   String              @map("template_key")
-  payloadJson   String              @map("payload_json")
-  status        OutboxStatus        @default(pendente)
-  createdAt     DateTime            @default(now()) @map("created_at")
+  id                String              @id
+  tenantId          String              @map("tenant_id")
+  channel           OutboxChannel
+  recipientRole     OutboxRecipientRole @map("recipient_role")
+  recipient         String
+  templateKey       String              @map("template_key")
+  payloadJson       String              @map("payload_json")
+  status            OutboxStatus        @default(pendente)
+  orcamentoId       String?             @map("orcamento_id")
+  pedidoId          String?             @map("pedido_id")
+  vendaId           String?             @map("venda_id")
+  cadastroRequestId String?             @map("cadastro_request_id")
+  createdAt         DateTime            @default(now()) @map("created_at")
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orcamento       Orcamento?       @relation(fields: [orcamentoId], references: [id], onDelete: SetNull)
+  pedido          PedidoVenda?     @relation(fields: [pedidoId], references: [id], onDelete: SetNull)
+  venda           VendaFaturamento? @relation(fields: [vendaId], references: [id], onDelete: SetNull)
+  cadastroRequest CadastroRequest? @relation(fields: [cadastroRequestId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, status])
-  @@index([tenantId, orderId])
   @@map("notification_outbox")
-}
-
-model InventoryImportBatch {
-  id              String             @id
-  tenantId        String             @map("tenant_id")
-  createdById     String             @map("created_by_id")
-  instructionText String?            @map("instruction_text")
-  status          ImportBatchStatus  @default(preview)
-  fileName        String             @map("file_name")
-  createdAt       DateTime           @default(now()) @map("created_at")
-  appliedAt       DateTime?          @map("applied_at")
-
-  tenant    Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  createdBy User                   @relation(fields: [createdById], references: [id])
-  rows      InventoryImportRow[]
-  movements InventoryMovement[]
-
-  @@index([tenantId, createdAt])
-  @@map("inventory_import_batches")
-}
-
-model InventoryImportRow {
-  id        String          @id
-  batchId   String          @map("batch_id")
-  tenantId  String          @map("tenant_id")
-  rowIndex  Int             @map("row_index")
-  action    ImportRowAction
-  payloadJson String        @map("payload_json")
-  errorMessage String?      @map("error_message")
-  applied   Boolean         @default(false)
-
-  batch InventoryImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
-
-  @@index([tenantId, batchId])
-  @@map("inventory_import_rows")
 }
 
 model Session {

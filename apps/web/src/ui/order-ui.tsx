@@ -1,99 +1,170 @@
 "use client";
 
-import type { OrderStatus, SaasRole } from "@saas-frota/shared";
+import type {
+  CadastroStatus,
+  CanalAviso,
+  OrcamentoStatus,
+  PedidoStatus,
+  VendaStatus,
+  WhatsappIntent,
+} from "@saas-frota/shared";
+import {
+  LEGAL_ORCAMENTO_TRANSITIONS,
+  LEGAL_PEDIDO_TRANSITIONS,
+  LEGAL_VENDA_TRANSITIONS,
+} from "@saas-frota/shared";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { COPY } from "./copy";
 import { formatMoney } from "./format";
-import type { CanalAviso } from "./api";
 
-const TRAIL: OrderStatus[] = ["novo", "confirmado", "separando", "despachado", "entregue"];
-
-export const ROLE_TRANSITIONS: Record<SaasRole, Partial<Record<OrderStatus, OrderStatus[]>>> = {
-  supervisor: {
-    novo: ["confirmado", "cancelado"],
-    confirmado: ["separando", "cancelado"],
-    separando: ["despachado", "cancelado"],
-    despachado: ["entregue"],
-  },
-  vendedor: {
-    novo: ["confirmado", "cancelado"],
-    confirmado: ["cancelado"],
-  },
-  estoquista: {
-    confirmado: ["separando"],
-    separando: ["despachado"],
-  },
-  entregador: {
-    despachado: ["entregue"],
-  },
-};
-
-export function legalTargets(role: SaasRole | null | undefined, status: OrderStatus): OrderStatus[] {
-  if (!role) return [];
-  return ROLE_TRANSITIONS[role][status] ?? [];
+export function legalOrcamentoTargets(status: OrcamentoStatus): OrcamentoStatus[] {
+  return [...(LEGAL_ORCAMENTO_TRANSITIONS[status] ?? [])];
 }
 
-export function transitionLabel(to: OrderStatus) {
-  if (to === "confirmado") return COPY.saas.to_confirmado;
-  if (to === "cancelado") return COPY.saas.to_cancelado;
-  if (to === "separando") return COPY.saas.to_separando;
-  if (to === "despachado") return COPY.saas.to_despachado;
-  if (to === "entregue") return COPY.saas.to_entregue;
-  return COPY.status[to];
+export function legalPedidoTargets(status: PedidoStatus): PedidoStatus[] {
+  return [...(LEGAL_PEDIDO_TRANSITIONS[status] ?? [])];
+}
+
+export function legalVendaTargets(status: VendaStatus): VendaStatus[] {
+  return [...(LEGAL_VENDA_TRANSITIONS[status] ?? [])];
+}
+
+export function orcamentoTransitionLabel(to: OrcamentoStatus) {
+  if (to === "enviado") return COPY.orcamento_enviar;
+  if (to === "aceito") return COPY.orcamento_aceitar;
+  if (to === "recusado") return COPY.orcamento_recusar;
+  if (to === "cancelado") return COPY.orcamento_cancelar;
+  return COPY.orcamento[to];
+}
+
+export function pedidoTransitionLabel(to: PedidoStatus) {
+  if (to === "em_separacao") return COPY.to_em_separacao;
+  if (to === "despachado") return COPY.to_despachado;
+  if (to === "entregue") return COPY.to_entregue;
+  if (to === "cancelado") return COPY.cancel_pedido;
+  return COPY.pedido[to];
+}
+
+export function vendaTransitionLabel(to: VendaStatus) {
+  if (to === "faturado") return COPY.confirmar_faturamento;
+  if (to === "cancelado") return COPY.cancel_venda;
+  return COPY.venda[to];
 }
 
 export function notifyCopy(canais: CanalAviso | undefined) {
-  const channel = canais ?? "ambos";
+  const channel = canais ?? "whatsapp";
   return {
     customer: COPY.notify[channel],
-    seller: COPY.notify.seller,
+    seller: COPY.notify.seller_same,
   };
 }
 
-function statusClass(status: string) {
-  if (status === "separando") return "bg-[var(--color-warning)]/15 text-[var(--color-warning)] border-transparent";
-  if (status === "despachado") return "border-transparent bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]";
-  if (status === "entregue") return "bg-[var(--color-success)]/15 text-[var(--color-success)] border-transparent";
+function toneClass(tone: "muted" | "primary" | "warning" | "success" | "danger" | "accent") {
+  if (tone === "warning") return "border-transparent bg-[var(--color-warning)]/15 text-[var(--color-warning)]";
+  if (tone === "success") return "border-transparent bg-[var(--color-success)]/15 text-[var(--color-success)]";
+  if (tone === "danger") return undefined;
+  if (tone === "accent") return "border-transparent bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]";
+  if (tone === "primary") return undefined;
   return undefined;
 }
 
-function statusVariant(status: string): "outline" | "default" | "secondary" | "destructive" {
-  if (status === "novo") return "outline";
-  if (status === "confirmado") return "default";
-  if (status === "cancelado") return "destructive";
-  return "secondary";
+function toneVariant(tone: "muted" | "primary" | "warning" | "success" | "danger" | "accent") {
+  if (tone === "danger") return "destructive" as const;
+  if (tone === "primary") return "default" as const;
+  if (tone === "muted") return "secondary" as const;
+  return "outline" as const;
 }
 
-export function StatusBadge({ status, large }: { status: OrderStatus | string; large?: boolean }) {
-  const label = COPY.status[status as OrderStatus] ?? status;
+function StatusBadgeBase({
+  label,
+  tone,
+  large,
+}: {
+  label: string;
+  tone: "muted" | "primary" | "warning" | "success" | "danger" | "accent";
+  large?: boolean;
+}) {
   return (
-    <Badge
-      variant={statusVariant(status)}
-      className={cn(statusClass(status), large && "h-8 px-3 text-sm")}
-    >
+    <Badge variant={toneVariant(tone)} className={cn(toneClass(tone), large && "h-8 px-3 text-sm")}>
       {label}
     </Badge>
   );
 }
 
-export function PlanBadge({ status }: { status: "ativa" | "inadimplente" | "cancelada" }) {
+export function OrcamentoStatusBadge({ status, large }: { status: OrcamentoStatus | string; large?: boolean }) {
+  const tone =
+    status === "rascunho"
+      ? "muted"
+      : status === "enviado"
+        ? "primary"
+        : status === "aceito"
+          ? "success"
+          : status === "expirado"
+            ? "warning"
+            : status === "recusado" || status === "cancelado"
+              ? "danger"
+              : "muted";
+  const label = COPY.orcamento[status as OrcamentoStatus] ?? status;
+  return <StatusBadgeBase label={label} tone={tone} large={large} />;
+}
+
+export function PedidoStatusBadge({ status, large }: { status: PedidoStatus | string; large?: boolean }) {
+  const tone =
+    status === "confirmado"
+      ? "primary"
+      : status === "em_separacao"
+        ? "warning"
+        : status === "despachado"
+          ? "accent"
+          : status === "entregue"
+            ? "success"
+            : status === "cancelado"
+              ? "danger"
+              : "muted";
+  const label = COPY.pedido[status as PedidoStatus] ?? status;
+  return <StatusBadgeBase label={label} tone={tone} large={large} />;
+}
+
+/** @deprecated Prefer PedidoStatusBadge — alias for gradual migration */
+export function StatusBadge({ status, large }: { status: PedidoStatus | string; large?: boolean }) {
+  return <PedidoStatusBadge status={status} large={large} />;
+}
+
+export function VendaStatusBadge({ status, large }: { status: VendaStatus | string; large?: boolean }) {
+  const tone =
+    status === "rascunho" ? "muted" : status === "faturado" ? "success" : status === "cancelado" ? "danger" : "muted";
+  const label = COPY.venda[status as VendaStatus] ?? status;
+  return <StatusBadgeBase label={label} tone={tone} large={large} />;
+}
+
+export function CadastroStatusBadge({ status }: { status: CadastroStatus | string }) {
+  const tone =
+    status === "pendente" ? "warning" : status === "aprovado" ? "success" : status === "recusado" ? "danger" : "muted";
   const label =
-    status === "ativa"
-      ? COPY.account.status_ativa
-      : status === "inadimplente"
-        ? COPY.account.status_inadimplente
-        : COPY.account.status_cancelada;
-  const variant = status === "cancelada" ? "destructive" : "secondary";
-  const extra =
-    status === "ativa"
-      ? "bg-[var(--color-success)]/15 text-[var(--color-success)] border-transparent"
-      : status === "inadimplente"
-        ? "bg-[var(--color-warning)]/15 text-[var(--color-warning)] border-transparent"
-        : undefined;
+    status === "pendente"
+      ? COPY.status_pendente
+      : status === "aprovado"
+        ? COPY.status_aprovado
+        : status === "recusado"
+          ? COPY.status_recusado
+          : status;
+  return <StatusBadgeBase label={label} tone={tone} />;
+}
+
+export function IntentBadge({ intent }: { intent: WhatsappIntent | null | undefined }) {
+  if (!intent) return <Badge variant="secondary">—</Badge>;
+  const label =
+    intent === "cadastro"
+      ? COPY.intent_cadastro
+      : intent === "orcamento"
+        ? COPY.intent_orcamento
+        : intent === "info_empresa"
+          ? COPY.intent_info_empresa
+          : COPY.intent_outro;
   return (
-    <Badge variant={variant} className={cn("h-8 px-3 text-sm", extra)}>
+    <Badge variant="outline" className="border-transparent bg-[var(--brand-accent)]/12 text-[var(--brand-accent)]">
       {label}
     </Badge>
   );
@@ -102,123 +173,55 @@ export function PlanBadge({ status }: { status: "ativa" | "inadimplente" | "canc
 export function OutboxBadge({ status }: { status: string }) {
   if (status === "enviado") {
     return (
-      <Badge variant="secondary" className="bg-[var(--color-success)]/15 text-[var(--color-success)] border-transparent">
+      <Badge variant="secondary" className="border-transparent bg-[var(--color-success)]/15 text-[var(--color-success)]">
         {COPY.outbox.enviado}
       </Badge>
     );
   }
-  if (status === "falha") {
-    return <Badge variant="destructive">{COPY.outbox.falha}</Badge>;
-  }
+  if (status === "falha") return <Badge variant="destructive">{COPY.outbox.falha}</Badge>;
   return <Badge variant="outline">{COPY.outbox.pendente}</Badge>;
 }
 
-export function StatusTrail({ status }: { status: OrderStatus }) {
-  const current = TRAIL.indexOf(status);
+const PEDIDO_TRAIL: PedidoStatus[] = ["confirmado", "em_separacao", "despachado", "entregue"];
+
+export function PedidoStatusTrail({ status }: { status: PedidoStatus }) {
+  const current = PEDIDO_TRAIL.indexOf(status);
   const cancelled = status === "cancelado";
   return (
-    <div className="space-y-3">
+    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+      {PEDIDO_TRAIL.map((step, i) => {
+        const active = !cancelled && i <= current;
+        const isCurrent = !cancelled && step === status;
+        return (
+          <span key={step} className="inline-flex items-center gap-2">
+            {i > 0 ? <span aria-hidden="true">→</span> : null}
+            <span className={cn(active && "text-foreground", isCurrent && "font-semibold text-primary")}>
+              {COPY.pedido[step]}
+            </span>
+          </span>
+        );
+      })}
       {cancelled ? (
-        <Alert variant="destructive">
-          <AlertDescription>{COPY.status.cancelado}</AlertDescription>
-        </Alert>
+        <>
+          <span aria-hidden="true">·</span>
+          <span className="font-semibold text-destructive">{COPY.pedido.cancelado}</span>
+        </>
       ) : null}
-      <ol className="flex max-w-[280px] items-start" aria-label={COPY.trail}>
-        {TRAIL.map((step, i) => {
-          const done = !cancelled && i < current;
-          const here = !cancelled && i === current;
-          const stop = cancelled && i === TRAIL.length - 1;
-          const filled = done || here || stop;
-          return (
-            <li
-              key={step}
-              className={cn(
-                "relative flex min-w-0 flex-1 flex-col items-center gap-1.5 text-center text-[11px] text-muted-foreground",
-                here && "font-semibold text-primary",
-                done && "text-foreground",
-                stop && "text-destructive",
-                cancelled && !done && !stop && "opacity-55",
-              )}
-            >
-              {i < TRAIL.length - 1 ? (
-                <span
-                  aria-hidden
-                  className={cn(
-                    "absolute top-[5px] left-[calc(50%+8px)] right-[calc(-50%+8px)] h-0.5",
-                    done && !cancelled ? "bg-primary" : "bg-border",
-                  )}
-                />
-              ) : null}
-              <span
-                aria-hidden
-                className={cn(
-                  "relative z-1 size-[12px] rounded-full border-2 box-border",
-                  filled
-                    ? stop
-                      ? "border-destructive bg-destructive"
-                      : "border-primary bg-primary"
-                    : "border-border bg-card",
-                  here && "shadow-[0_0_0_2px_#fff,0_0_0_4px_var(--primary)]",
-                )}
-              />
-              <span>{COPY.status[step]}</span>
-            </li>
-          );
-        })}
-      </ol>
     </div>
   );
 }
 
-export function ChannelChip({ list, moq }: { list: "varejo" | "atacado"; moq?: number }) {
+export function NotifyAlert({ canais }: { canais?: CanalAviso }) {
+  const copy = notifyCopy(canais);
   return (
-    <span className="inline-flex flex-wrap items-center gap-2">
-      {list === "atacado" ? (
-        <Badge className="border-transparent bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]">
-          {COPY.stock.atacado}
-        </Badge>
-      ) : (
-        <Badge variant="outline" className="border-primary text-primary">
-          {COPY.stock.varejo}
-        </Badge>
-      )}
-      {list === "atacado" && moq ? (
-        <span className="text-xs text-muted-foreground">{COPY.stock.qtd_min(moq)}</span>
-      ) : null}
-    </span>
+    <Alert role="status" className="border-[var(--brand-accent)]/30 bg-[var(--brand-accent)]/8">
+      <AlertDescription>
+        {copy.customer} {copy.seller}
+      </AlertDescription>
+    </Alert>
   );
 }
 
-export function RoleChip({ label }: { label: string }) {
-  return (
-    <Badge className="border-transparent bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]">
-      {label}
-    </Badge>
-  );
-}
-
-export function PriceLine({
-  list,
-  cents,
-  moq,
-  size = "md",
-}: {
-  list: "varejo" | "atacado";
-  cents: number;
-  moq?: number;
-  size?: "md" | "lg";
-}) {
-  return (
-    <p className="m-0 flex flex-wrap items-center gap-2">
-      <strong
-        className={cn(
-          "font-semibold tabular-nums text-primary",
-          size === "lg" ? "text-2xl" : "text-base",
-        )}
-      >
-        {formatMoney(cents)}
-      </strong>
-      <ChannelChip list={list} moq={list === "atacado" ? moq : undefined} />
-    </p>
-  );
+export function MoneyCell({ centavos }: { centavos: number }) {
+  return <span className="tabular-nums">{formatMoney(centavos)}</span>;
 }

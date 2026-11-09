@@ -2,8 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { SessionDto, Surface } from "@saas-frota/shared";
-import { writesAllowed } from "@saas-frota/shared";
-import { api, apiSend, isApiError, type SessionDto as Sess } from "./api";
+import { api, apiSend, isApiError } from "./api";
 
 type Status = "loading" | "guest" | "auth";
 
@@ -27,8 +26,10 @@ export function useSession() {
   return useContext(Ctx);
 }
 
-export function writesOpen(session: SessionDto | null) {
-  return !!session && writesAllowed(session.subscription_status);
+/** MVP: no subscription entitlement gate. */
+export function writesOpen(_session: SessionDto | null) {
+  void _session;
+  return true;
 }
 
 export function SessionProvider({
@@ -39,12 +40,12 @@ export function SessionProvider({
   children: React.ReactNode;
 }) {
   const [status, setStatus] = useState<Status>("loading");
-  const [session, setSession] = useState<Sess | null>(null);
+  const [session, setSession] = useState<SessionDto | null>(null);
   const [forbidden, setForbidden] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
-      const data = await api<Sess>(`/api/${surface}/sessao`);
+      const data = await api<SessionDto>(`/api/${surface}/sessao`);
       setSession(data);
       setForbidden(false);
       setStatus("auth");

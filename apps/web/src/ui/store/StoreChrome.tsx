@@ -1,160 +1,154 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { ShoppingCart } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Menu } from "lucide-react";
 import { BrandMark } from "../BrandMark";
 import { useCart } from "../cart";
+import { apiGet, whatsappLink, type LojaConfigDto } from "../api";
 import { COPY } from "../copy";
 import { SkipLink } from "../layout";
 import { useSession } from "../session";
-import { useTenantTheme } from "../theme/TenantTheme";
-
-function cartCountLabel(count: number) {
-  return count === 1 ? COPY.store.cart_item_one : COPY.store.cart_itens(count);
-}
-
-function navClass(active: boolean) {
-  return cn(
-    active && "font-semibold underline decoration-2 underline-offset-4 decoration-primary",
-  );
-}
 
 export function StoreChrome({ children }: { children: React.ReactNode }) {
   const { status, session, logout } = useSession();
   const { count } = useCart();
-  const { tokens } = useTenantTheme();
   const pathname = usePathname();
-  const router = useRouter();
-  const loggedIn = status === "auth" && !!session;
-  const marca = tokens?.marca ?? "Norte Atacado";
-  const countLabel = cartCountLabel(count);
-  const authFullBleed = pathname === "/loja/entrar" || pathname === "/loja/cadastro";
+  const [config, setConfig] = useState<LojaConfigDto | null>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  async function onLogout() {
-    await logout();
-    router.push("/loja");
-  }
+  useEffect(() => {
+    void apiGet<LojaConfigDto>("/api/loja/config?tenant=casa-dos-frios")
+      .then(setConfig)
+      .catch(() => setConfig(null));
+  }, []);
 
-  const entrarHref = `/loja/entrar${pathname && pathname !== "/loja/entrar" ? `?return=${encodeURIComponent(pathname)}` : ""}`;
+  const autenticado = status === "auth";
+  const prospecto = session?.cliente_status === "pendente";
+  const aprovado = session?.cliente_status === "aprovado";
+  const wa = whatsappLink(config?.whatsapp_comercial, "Olá, Casa dos Frios! Vim pela loja.");
 
-  return (
-    <div className="flex min-h-dvh flex-col bg-background">
-      <SkipLink />
-      <div className="flex h-9 items-center bg-[var(--color-background)] px-4 text-[13px] font-semibold text-foreground md:px-6">
-        {marca}
-      </div>
-      <header className="sticky top-0 z-12 flex min-h-14 flex-wrap items-center justify-between gap-x-5 gap-y-2 border-b border-border bg-card px-4 md:min-h-16 md:px-6">
-        <BrandMark href="/loja" className="text-lg text-foreground md:text-xl" />
-        <nav aria-label="Loja" className="flex flex-wrap items-center gap-5">
-          <Button variant="ghost" asChild className={cn("min-h-11", navClass(pathname === "/loja"))}>
-            <Link href="/loja">{COPY.store.nav_catalogo}</Link>
-          </Button>
-          {loggedIn ? (
-            <Button
-              variant="ghost"
-              asChild
-              className={cn("min-h-11", navClass(pathname.startsWith("/loja/pedidos")))}
-            >
-              <Link href="/loja/pedidos">{COPY.store.nav_pedidos}</Link>
-            </Button>
-          ) : null}
-        </nav>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <Button
-            variant="ghost"
-            asChild
-            className={cn("min-h-11 gap-2", navClass(pathname.startsWith("/loja/carrinho")))}
-          >
-            <Link href="/loja/carrinho" aria-label={`${COPY.store.nav_carrinho} ${countLabel}`}>
-              <ShoppingCart className="size-4" aria-hidden />
-              {COPY.store.nav_carrinho}
-              <Badge variant="secondary">{countLabel}</Badge>
+  const nav = (
+    <>
+      <Button variant="ghost" asChild>
+        <Link href="/loja#catalogo" onClick={() => setMobileOpen(false)}>
+          {COPY.nav_catalogo}
+        </Link>
+      </Button>
+      {wa ? (
+        <Button variant="outline" asChild className="border-[var(--brand-accent)] text-[var(--brand-accent)]">
+          <a href={wa} target="_blank" rel="noreferrer" onClick={() => setMobileOpen(false)}>
+            {COPY.cta_whatsapp}
+          </a>
+        </Button>
+      ) : null}
+      <Button variant="ghost" asChild>
+        <Link href="/loja/carrinho" onClick={() => setMobileOpen(false)}>
+          {COPY.nav_carrinho}
+          {count > 0 ? ` (${count})` : ""}
+        </Link>
+      </Button>
+      {!autenticado ? (
+        <>
+          <Button variant="ghost" asChild>
+            <Link href="/loja/cadastro" onClick={() => setMobileOpen(false)}>
+              {COPY.nav_cadastro}
             </Link>
           </Button>
-          {loggedIn ? (
-            <Button type="button" variant="ghost" className="min-h-11" onClick={() => void onLogout()}>
-              {COPY.actions.sair}
+          <Button asChild>
+            <Link href="/loja/entrar" onClick={() => setMobileOpen(false)}>
+              {COPY.submit_login}
+            </Link>
+          </Button>
+        </>
+      ) : (
+        <>
+          {(prospecto || aprovado) && (
+            <Button variant="ghost" asChild>
+              <Link href="/loja/meus-docs" onClick={() => setMobileOpen(false)}>
+                {COPY.nav_meus_docs}
+              </Link>
             </Button>
-          ) : (
-            <>
-              <Button variant="ghost" asChild className="min-h-11">
-                <Link href={entrarHref}>{COPY.actions.entrar}</Link>
-              </Button>
-              <Button asChild size="sm">
-                <Link href="/loja/cadastro">{COPY.actions.cadastrar}</Link>
-              </Button>
-            </>
           )}
+          {prospecto ? (
+            <Button variant="ghost" asChild>
+              <Link href="/loja/cadastro" onClick={() => setMobileOpen(false)}>
+                {COPY.status_pendente}
+              </Link>
+            </Button>
+          ) : null}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost">{COPY.nav_meus_docs}</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => {
+                  void logout();
+                }}
+              >
+                {COPY.logout}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </>
+      )}
+    </>
+  );
+
+  const hideChrome =
+    pathname.startsWith("/loja/entrar") || pathname.startsWith("/loja/cadastro");
+
+  if (hideChrome) {
+    return (
+      <>
+        <SkipLink />
+        {children}
+      </>
+    );
+  }
+
+  return (
+    <div className="flex min-h-dvh flex-col">
+      <SkipLink />
+      <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-[1200px] items-center justify-between gap-3 px-4 md:px-6">
+          <BrandMark href="/loja" />
+          <nav className="hidden items-center gap-1 md:flex">{nav}</nav>
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="md:hidden" aria-label="Menu">
+                <Menu className="size-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="flex flex-col gap-2 pt-10">
+              {nav}
+            </SheetContent>
+          </Sheet>
         </div>
       </header>
       {children}
-      {authFullBleed ? null : (
-        <footer className="mt-auto bg-[#2c2d33] px-4 py-8 text-[#f0f0f1] md:px-6 md:py-10">
-          <div className="mx-auto grid max-w-[1200px] gap-8 md:grid-cols-3">
-            <div>
-              <p className="m-0 text-base font-semibold text-white">{marca}</p>
-            </div>
-            <div>
-              <h2 className="mb-3 text-sm font-semibold text-white">{COPY.store.footer_col_loja}</h2>
-              <ul className="m-0 flex list-none flex-col gap-2 p-0">
-                <li>
-                  <Button variant="link" asChild className="h-auto p-0 text-white">
-                    <Link href="/loja">{COPY.store.nav_catalogo}</Link>
-                  </Button>
-                </li>
-                <li>
-                  <Button variant="link" asChild className="h-auto p-0 text-white">
-                    <Link href="/loja/carrinho">{COPY.store.nav_carrinho}</Link>
-                  </Button>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h2 className="mb-3 text-sm font-semibold text-white">{COPY.store.footer_col_conta}</h2>
-              <Separator className="mb-3 hidden bg-white/10" />
-              <ul className="m-0 flex list-none flex-col gap-2 p-0">
-                {loggedIn ? (
-                  <>
-                    <li>
-                      <Button variant="link" asChild className="h-auto p-0 text-white">
-                        <Link href="/loja/pedidos">{COPY.store.nav_pedidos}</Link>
-                      </Button>
-                    </li>
-                    <li>
-                      <Button
-                        type="button"
-                        variant="link"
-                        className="h-auto p-0 text-white"
-                        onClick={() => void onLogout()}
-                      >
-                        {COPY.actions.sair}
-                      </Button>
-                    </li>
-                  </>
-                ) : (
-                  <>
-                    <li>
-                      <Button variant="link" asChild className="h-auto p-0 text-white">
-                        <Link href={entrarHref}>{COPY.actions.entrar}</Link>
-                      </Button>
-                    </li>
-                    <li>
-                      <Button variant="link" asChild className="h-auto p-0 text-white">
-                        <Link href="/loja/cadastro">{COPY.actions.cadastrar}</Link>
-                      </Button>
-                    </li>
-                  </>
-                )}
-              </ul>
-            </div>
-          </div>
-        </footer>
-      )}
+      <footer className="mt-auto border-t border-border bg-[var(--color-background)]">
+        <div className="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-3 px-4 py-8 md:px-6">
+          <BrandMark href="/loja" />
+          {wa ? (
+            <Button variant="outline" asChild className="border-[var(--brand-accent)] text-[var(--brand-accent)]">
+              <a href={wa} target="_blank" rel="noreferrer">
+                {COPY.cta_whatsapp}
+              </a>
+            </Button>
+          ) : null}
+        </div>
+      </footer>
     </div>
   );
 }

@@ -9,7 +9,7 @@ import { DeskWrap } from "./layout";
 import { productInitials } from "./PlaceholderMedia";
 import { useTenantTheme } from "./theme/TenantTheme";
 
-export type EmptyArt = "catalog" | "cart" | "pedidos" | "warehouse" | "outbox";
+export type EmptyArt = "catalog" | "cart" | "pedidos" | "warehouse" | "outbox" | "inbox";
 
 export function EmptyState({
   title,
@@ -23,7 +23,7 @@ export function EmptyState({
   const { tokens } = useTenantTheme();
   const kind = art ?? "pedidos";
   const initials = kind === "catalog" && tokens?.marca ? productInitials(tokens.marca) : "";
-  const desk = kind === "warehouse" || kind === "outbox" || kind === "pedidos";
+  const desk = kind === "warehouse" || kind === "outbox" || kind === "pedidos" || kind === "inbox";
 
   return (
     <div className="mx-auto flex max-w-[360px] flex-col items-center gap-3 py-8 text-center">
@@ -31,11 +31,11 @@ export function EmptyState({
         aria-hidden="true"
         className={
           desk
-            ? "grid size-14 place-items-center rounded-xl border border-border bg-card text-xl font-semibold text-muted-foreground"
+            ? "grid size-14 place-items-center rounded-md border border-border bg-card text-xl font-semibold text-muted-foreground"
             : "relative grid size-[72px] place-items-center overflow-hidden rounded-lg bg-[linear-gradient(152deg,var(--primary)_0%,color-mix(in_srgb,var(--brand-accent)_52%,var(--primary))_100%)] text-[22px] font-semibold text-primary-foreground"
         }
       >
-        {initials || (kind === "cart" ? "○" : kind === "warehouse" ? "▢" : kind === "outbox" ? "…" : "—")}
+        {initials || (kind === "cart" ? "○" : kind === "warehouse" ? "▢" : kind === "outbox" || kind === "inbox" ? "…" : "—")}
       </span>
       <p className="m-0 text-base font-semibold">{title}</p>
       {action}
@@ -53,10 +53,10 @@ export function ErrorState({
   return (
     <Alert>
       <AlertDescription className="flex flex-wrap items-center gap-3">
-        <span>{message ?? COPY.errors.load_error}</span>
+        <span>{message ?? COPY.load_fail}</span>
         {onRetry ? (
           <Button type="button" variant="outline" onClick={onRetry}>
-            {COPY.actions.tentar_de_novo}
+            {COPY.retry}
           </Button>
         ) : null}
       </AlertDescription>
@@ -67,7 +67,15 @@ export function ErrorState({
 export function ForbiddenState({ message }: { message?: string }) {
   return (
     <Alert>
-      <AlertDescription>{message ?? COPY.errors.forbidden}</AlertDescription>
+      <AlertDescription>{message ?? COPY.forbidden}</AlertDescription>
+    </Alert>
+  );
+}
+
+export function GateBanner({ message }: { message?: string }) {
+  return (
+    <Alert role="status" className="border-[var(--color-warning)]/40 bg-[var(--color-warning)]/10">
+      <AlertDescription>{message ?? COPY.cadastro_pendente_gate}</AlertDescription>
     </Alert>
   );
 }
@@ -114,4 +122,17 @@ export function FormSkeleton() {
 
 export function CardSkeleton() {
   return <Skeleton className="h-48 w-full max-w-[420px] rounded-lg" />;
+}
+
+export function InboxSkeleton() {
+  return (
+    <div className="grid gap-0 md:grid-cols-[360px_1fr]" aria-busy="true">
+      <div className="space-y-0 border-r border-border">
+        {Array.from({ length: 6 }, (_, i) => (
+          <Skeleton key={i} className="h-16 w-full rounded-none border-b border-border" />
+        ))}
+      </div>
+      <Skeleton className="min-h-[320px] w-full rounded-none" />
+    </div>
+  );
 }

@@ -18,22 +18,11 @@ export type OutboxTransportPort = {
   }) => Promise<void>;
 };
 
-export type CanonicalImportRow = {
-  sku: string;
-  nome?: string;
-  quantidade: number;
-  preco_varejo_centavos?: number;
-  preco_atacado_centavos?: number;
-  qtd_min_atacado?: number;
-  visivel_loja?: boolean;
-};
-
-export type InventoryFileParsePort = {
-  parse: (input: {
-    bytes: Uint8Array;
-    filename: string;
-    instruction?: string;
-  }) => Promise<{
-    rows: Array<CanonicalImportRow | { error: string; raw: unknown }>;
-  }>;
+export type WhatsappInboxSimulatePort = {
+  ingestInbound: (input: {
+    tenantId: string;
+    phoneE164: string;
+    body: string;
+    intentHint?: "cadastro" | "orcamento" | "info_empresa" | "outro";
+  }) => Promise<{ threadId: string; messageId: string }>;
 };

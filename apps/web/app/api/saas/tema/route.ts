@@ -1,22 +1,21 @@
 import { z } from "zod";
-import { requireEntitlementAtiva, requireSaasRole } from "@/server/authz/gates";
+import { getSaasTheme, putSaasTheme } from "@/server/theme/service";
+import { requireSaasRole } from "@/server/authz/gates";
 import { readJson } from "@/server/http/request";
 import { fail, handleError, ok } from "@/server/http/respond";
-import { getTenantTheme } from "@/server/modules/catalog/projection";
-import { updateTheme } from "@/server/theme/service";
 
 const schema = z.object({
   marca: z.string().min(1),
-  primary: z.string().min(1),
-  accent: z.string().min(1),
-  background: z.string().min(1),
+  primary: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+  accent: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+  background: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
   logo_url: z.string().nullable(),
 });
 
 export async function GET() {
   try {
-    const session = await requireSaasRole("supervisor");
-    return ok(await getTenantTheme(session.tenantSlug));
+    const session = await requireSaasRole("admin");
+    return ok(await getSaasTheme(session));
   } catch (err) {
     return handleError(err);
   }
@@ -24,11 +23,10 @@ export async function GET() {
 
 export async function PUT(req: Request) {
   try {
-    const session = await requireSaasRole("supervisor");
-    requireEntitlementAtiva(session);
+    const session = await requireSaasRole("admin");
     const parsed = schema.safeParse(await readJson(req));
     if (!parsed.success) return fail("validacao", "Tema inválido.");
-    return ok(await updateTheme(session, parsed.data));
+    return ok(await putSaasTheme(session, parsed.data));
   } catch (err) {
     return handleError(err);
   }

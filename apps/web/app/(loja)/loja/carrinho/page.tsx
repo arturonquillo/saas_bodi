@@ -1,5 +1,5 @@
 import { CartScreen } from "@/ui/store/CartScreen";
 
-export default function CarrinhoPage() {
+export default function Page() {
   return <CartScreen />;
 }

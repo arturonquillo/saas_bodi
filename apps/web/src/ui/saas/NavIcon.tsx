@@ -1,24 +1,28 @@
 import {
   Bell,
   ClipboardList,
-  MessageSquare,
+  FileText,
+  Inbox,
   Package,
   Palette,
+  Receipt,
   Settings,
-  Truck,
-  Warehouse,
+  UserPlus,
+  Users,
 } from "lucide-react";
 import type { NavIconName } from "./nav";
 
 const icons = {
+  inbox: Inbox,
+  cadastros: UserPlus,
+  orcamentos: FileText,
   pedidos: ClipboardList,
+  vendas: Receipt,
   estoque: Package,
-  chat: MessageSquare,
+  usuarios: Users,
   tema: Palette,
   config: Settings,
   avisos: Bell,
-  fila: Warehouse,
-  entregas: Truck,
 } as const;
 
 export function NavIcon({ name }: { name: NavIconName }) {

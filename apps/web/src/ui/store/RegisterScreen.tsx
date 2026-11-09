@@ -1,166 +1,114 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
-import { isValidTaxId } from "@saas-frota/shared";
+import { isValidCnpj, onlyDigits } from "@saas-frota/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
-import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { apiGet, apiSend, isApiError, type StoreConfigDto } from "../api";
+import { apiSend, isApiError, type CadastroDto } from "../api";
+import { BrandMark } from "../BrandMark";
 import { COPY } from "../copy";
-import { DocumentInput, DocumentSwitch, useCnpjLookup, useDocumentType } from "../documents";
-import { AUTH_CARD, AuthStage, StoreMain } from "../layout";
-import { CardSkeleton, ErrorState } from "../states";
+import { CnpjField } from "../documents";
+import { AUTH_CARD, AuthStage } from "../layout";
 
 export function RegisterScreen() {
-  const [config, setConfig] = useState<StoreConfigDto | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const { type, setType, both } = useDocumentType(config);
-  const [digits, setDigits] = useState("");
-  const [checksumError, setChecksumError] = useState<string | null>(null);
-  const [nome, setNome] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [cnpj, setCnpj] = useState("");
+  const [razao, setRazao] = useState("");
+  const [registroPendente, setRegistroPendente] = useState(false);
   const [busy, setBusy] = useState(false);
-  const cnpj = useCnpjLookup();
+  const [error, setError] = useState<string | null>(null);
+  const [ok, setOk] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoadError(null);
-    try {
-      setConfig(await apiGet<StoreConfigDto>("/api/loja/config?tenant=demo"));
-    } catch (err) {
-      setLoadError(isApiError(err) ? err.message : COPY.store.load_error);
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  useEffect(() => {
-    setDigits("");
-    setChecksumError(null);
-    cnpj.reset();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [type]);
-
-  async function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setSubmitError(null);
-    if (!isValidTaxId(type, digits)) {
-      setChecksumError(COPY.doc.checksum_invalid);
+    const digits = onlyDigits(cnpj);
+    if (!isValidCnpj(digits)) {
+      setError(COPY.cnpj_invalid);
       return;
     }
     setBusy(true);
+    setError(null);
+    const fd = new FormData(e.currentTarget);
     try {
-      await apiSend("/api/loja/registrar", "POST", {
-        email,
-        password,
-        nome,
-        document_type: type,
-        document_digits: digits,
-        tenant: "demo",
+      await apiSend<CadastroDto>("/api/loja/cadastro", "POST", {
+        cnpj: digits,
+        razao_social: razao || fd.get("razao_social"),
+        contato_nome: fd.get("contato_nome"),
+        whatsapp: fd.get("whatsapp"),
+        email: fd.get("email"),
+        senha: fd.get("password"),
+        cnpj_registro_pendente: registroPendente,
       });
-      window.location.href = "/loja";
+      setOk(true);
     } catch (err) {
-      setSubmitError(isApiError(err) ? err.message : COPY.errors.save_error);
+      setError(isApiError(err) ? err.message : COPY.save_fail);
       setBusy(false);
     }
   }
 
-  if (loadError) {
-    return (
-      <StoreMain className="max-w-[720px]">
-        <ErrorState message={loadError} onRetry={() => void load()} />
-      </StoreMain>
-    );
-  }
-
-  if (!config) {
-    return (
-      <StoreMain className="max-w-[720px]">
-        <CardSkeleton />
-      </StoreMain>
-    );
-  }
-
   return (
-    <AuthStage className="bg-muted">
+    <AuthStage>
       <Card className={AUTH_CARD}>
-        <CardContent className="space-y-4 p-0">
-          <CardDescription className="text-[13px]">{COPY.store.auth_kicker}</CardDescription>
-          <CardTitle className="text-[22px] font-semibold">{COPY.actions.cadastrar}</CardTitle>
-          <form className="flex flex-col gap-4" onSubmit={(e) => void onSubmit(e)}>
-            <DocumentSwitch type={type} both={both} onChange={setType} />
-            <Field data-invalid={!!checksumError}>
-              <FieldLabel>{type === "cnpj" ? COPY.doc.cnpj : COPY.doc.cpf}</FieldLabel>
-              <DocumentInput
-                className="h-11"
-                type={type}
-                value={digits}
-                onChange={(next) => {
-                  setDigits(next);
-                  setChecksumError(null);
-                }}
-                onBlurValid={(valid) => {
-                  setChecksumError(null);
-                  if (type === "cnpj") void cnpj.lookup(valid);
+        <CardHeader className="space-y-4">
+          <BrandMark href="/loja" />
+          <CardTitle className="font-display text-xl">{COPY.cadastro_title}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {ok ? (
+            <Alert className="border-[var(--color-success)]/30 bg-[var(--color-success)]/10">
+              <AlertDescription>{COPY.cadastro_ok}</AlertDescription>
+            </Alert>
+          ) : (
+            <form className="space-y-4" onSubmit={onSubmit}>
+              <CnpjField
+                value={cnpj}
+                onChange={setCnpj}
+                onRegistry={({ razao_social, cnpj_registro_pendente }) => {
+                  if (razao_social) setRazao(razao_social);
+                  setRegistroPendente(cnpj_registro_pendente);
                 }}
               />
-              {cnpj.loading ? <FieldDescription>{COPY.doc.cnpj_loading}</FieldDescription> : null}
-              {cnpj.hint && !cnpj.loading ? <FieldDescription>{cnpj.hint}</FieldDescription> : null}
-              {checksumError ? <FieldError>{checksumError}</FieldError> : null}
-            </Field>
-            {cnpj.warning ? (
-              <Alert className="bg-[var(--color-warning)]/12">
-                <AlertDescription>{cnpj.warning}</AlertDescription>
-              </Alert>
-            ) : null}
-            {type === "cnpj" ? (
               <Field>
-                <FieldLabel>{COPY.doc.razao_social}</FieldLabel>
-                <Input className="h-11" value={cnpj.razao} onChange={(e) => cnpj.setRazao(e.target.value)} />
-                <FieldDescription>{COPY.doc.cnpj_filled}</FieldDescription>
+                <FieldLabel htmlFor="razao_social">{COPY.razao_social}</FieldLabel>
+                <Input
+                  id="razao_social"
+                  name="razao_social"
+                  required
+                  value={razao}
+                  onChange={(e) => setRazao(e.target.value)}
+                />
               </Field>
-            ) : null}
-            <Field>
-              <FieldLabel>{COPY.store.nome}</FieldLabel>
-              <Input className="h-11" value={nome} onChange={(e) => setNome(e.target.value)} required autoComplete="name" />
-            </Field>
-            <Field>
-              <FieldLabel>{COPY.store.email}</FieldLabel>
-              <Input
-                className="h-11"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-              />
-            </Field>
-            <Field>
-              <FieldLabel>{COPY.store.password}</FieldLabel>
-              <Input
-                className="h-11"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="new-password"
-                minLength={8}
-              />
-            </Field>
-            {submitError ? <FieldError>{submitError}</FieldError> : null}
-            <Button type="submit" className="h-11 w-full" disabled={busy}>
-              {COPY.store.submit_register}
-            </Button>
-            <Button variant="link" asChild className="h-auto px-0">
-              <Link href="/loja/entrar">{COPY.actions.entrar}</Link>
-            </Button>
-          </form>
+              <Field>
+                <FieldLabel htmlFor="contato_nome">{COPY.contato}</FieldLabel>
+                <Input id="contato_nome" name="contato_nome" required />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="whatsapp">{COPY.whatsapp}</FieldLabel>
+                <Input id="whatsapp" name="whatsapp" required />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="email">{COPY.email}</FieldLabel>
+                <Input id="email" name="email" type="email" required />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="password">{COPY.password}</FieldLabel>
+                <Input id="password" name="password" type="password" required />
+              </Field>
+              {error ? <FieldError>{error}</FieldError> : null}
+              <Button type="submit" className="h-11 w-full" disabled={busy}>
+                {COPY.cadastro_submit}
+              </Button>
+              <p className="text-sm text-muted-foreground">
+                Já tem conta?{" "}
+                <Link href="/loja/entrar" className="text-primary hover:underline">
+                  {COPY.submit_login}
+                </Link>
+              </p>
+            </form>
+          )}
         </CardContent>
       </Card>
     </AuthStage>

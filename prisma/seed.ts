@@ -73,6 +73,11 @@ async function main() {
   await prisma.customAttributeDefinition.deleteMany();
   await prisma.macro.deleteMany();
   await prisma.automationRule.deleteMany();
+  await prisma.article.deleteMany();
+  await prisma.helpCategory.deleteMany();
+  await prisma.portal.deleteMany();
+  await prisma.campaignRecipient.deleteMany();
+  await prisma.campaign.deleteMany();
   await prisma.message.deleteMany();
   await prisma.conversationDraft.deleteMany();
   await prisma.conversationLabel.deleteMany();
@@ -488,6 +493,10 @@ async function main() {
       connectionStatus: "ready_stub",
       messageTemplatesJson: JSON.stringify([
         { key: "greeting", body: "Olá {{contact.nome}}, somos a Casa dos Frios." },
+        {
+          key: "campaign.wa_one_off",
+          body: "Olá {{contact.nome}}, promoção da Casa dos Frios (envio simulado).",
+        },
       ]),
     },
   });
@@ -738,7 +747,102 @@ async function main() {
     },
   });
 
-  console.log("Seed OK — tenant casa-dos-frios CRM Phase A (password Demo@1234)");
+  // Phase C — campaigns + help center (no auto-send)
+  await prisma.contactLabel.create({
+    data: {
+      id: "ctl_cliente_info",
+      tenantId: TENANT,
+      contactId: ids.contactCliente,
+      labelId: "lbl_info",
+    },
+  });
+  await prisma.campaign.create({
+    data: {
+      id: "cmp_one_off_draft",
+      tenantId: TENANT,
+      title: "Promoção frios (rascunho)",
+      description: "One-off stub — não enviar no boot",
+      kind: "one_off",
+      status: "draft",
+      inboxId: ids.inboxWa,
+      channel: "whatsapp",
+      audienceLabelIdsJson: JSON.stringify(["lbl_info"]),
+      templateKey: "campaign.wa_one_off",
+      createdByUserId: ids.admin,
+    },
+  });
+  await prisma.campaign.create({
+    data: {
+      id: "cmp_ongoing_draft",
+      tenantId: TENANT,
+      title: "Banner loja (aguardando widget)",
+      kind: "ongoing",
+      status: "draft",
+      channel: "whatsapp",
+      audienceLabelIdsJson: JSON.stringify([]),
+      message: "Confira nossas ofertas no atacado.",
+      displayStatus: "awaiting_widget",
+      createdByUserId: ids.admin,
+    },
+  });
+
+  await prisma.portal.create({
+    data: {
+      id: "por_ajuda",
+      tenantId: TENANT,
+      name: "Central de Ajuda Casa dos Frios",
+      slug: "casa-dos-frios-ajuda",
+      headerText: "Como podemos ajudar?",
+      homepageMd: "# Central de Ajuda\n\nArtigos em **português (Brasil)**.",
+      locale: "pt-BR",
+      enabled: true,
+    },
+  });
+  await prisma.helpCategory.create({
+    data: {
+      id: "hcat_pedidos",
+      tenantId: TENANT,
+      portalId: "por_ajuda",
+      name: "Pedidos",
+      slug: "pedidos",
+      description: "Dúvidas sobre pedidos e entrega",
+      position: 0,
+    },
+  });
+  await prisma.article.createMany({
+    data: [
+      {
+        id: "art_como_pedir",
+        tenantId: TENANT,
+        portalId: "por_ajuda",
+        categoryId: "hcat_pedidos",
+        title: "Como fazer um pedido",
+        slug: "como-fazer-um-pedido",
+        contentMd: "## Passo a passo\n\n1. Acesse a loja\n2. Adicione itens\n3. Envie o pedido",
+        contentHtml:
+          "<h2>Passo a passo</h2>\n<p>1. Acesse a loja 2. Adicione itens 3. Envie o pedido</p>",
+        status: "published",
+        authorUserId: ids.admin,
+        publishedAt: now,
+        position: 0,
+      },
+      {
+        id: "art_rascunho",
+        tenantId: TENANT,
+        portalId: "por_ajuda",
+        categoryId: "hcat_pedidos",
+        title: "Artigo interno (rascunho)",
+        slug: "artigo-rascunho",
+        contentMd: "Conteúdo ainda não publicado.",
+        contentHtml: "<p>Conteúdo ainda não publicado.</p>",
+        status: "draft",
+        authorUserId: ids.admin,
+        position: 1,
+      },
+    ],
+  });
+
+  console.log("Seed OK — tenant casa-dos-frios CRM Phase C (password Demo@1234)");
 }
 
 main()

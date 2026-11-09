@@ -1,10 +1,12 @@
 openapi: 3.1.0
 info:
-  title: saas_frota API
-  version: 0.1.0
+  title: Casa dos Frios CRM + atacado API
+  version: 0.2.0
   description: |
-    Canonical HTTP shapes. TypeScript unions in packages/shared win if this file lags.
-    Money is integer centavos. Authenticated tenant comes from the session cookie, not the body.
+    Canonical HTTP shapes for the Casa dos Frios MVP. TypeScript unions in packages/shared
+    win if this file lags. Money is integer centavos. Authenticated tenant comes from the
+    session cookie, not the body. No Account/billing routes. WhatsApp inbox is simulated;
+    outbox is a transport stub.
 servers:
   - url: http://localhost:3000
 paths:
@@ -14,29 +16,50 @@ paths:
       responses:
         "200":
           description: OK
+
+  /api/identidade/cnpj:
+    post:
+      summary: CNPJ checksum + registry lookup (degrade allowed)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cnpj]
+              properties:
+                cnpj: { type: string }
+      responses:
+        "200": { description: Registry ok or unavailable with warning flags }
+        "422": { description: checksum_invalido }
+        "429": { description: rate_limit }
+
   /api/loja/tema:
     get:
-      summary: Tenant theme tokens (Store/SaaS pipeline)
+      summary: Tenant theme tokens
       parameters:
         - $ref: "#/components/parameters/TenantSlug"
       responses:
         "200": { description: ThemeTokens }
+
   /api/loja/config:
     get:
-      summary: aceita_cpf / aceita_cnpj
+      summary: loja_modo + WhatsApp comercial config for CTA
       parameters:
         - $ref: "#/components/parameters/TenantSlug"
       responses:
-        "200": { description: Store document flags }
+        "200": { description: LojaConfig }
+
   /api/loja/catalogo:
     get:
-      summary: Store projection of the single inventory ledger
+      summary: Loja projection of the single inventory ledger
       parameters:
         - $ref: "#/components/parameters/TenantSlug"
         - $ref: "#/components/parameters/Cursor"
         - $ref: "#/components/parameters/Limit"
       responses:
         "200": { description: Catalog page }
+
   /api/loja/produtos/{id}:
     get:
       parameters:
@@ -45,25 +68,29 @@ paths:
       responses:
         "200": { description: Product }
         "404": { description: Hidden or other tenant }
-  /api/loja/registrar:
+
+  /api/loja/cadastro:
     post:
+      summary: Public B2B cadastro request (CNPJ)
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [email, password, nome, document_type, document_digits]
+              required: [email, password, contato_nome, cnpj, whatsapp]
               properties:
                 email: { type: string }
                 password: { type: string }
-                nome: { type: string }
-                document_type: { enum: [cpf, cnpj] }
-                document_digits: { type: string }
+                contato_nome: { type: string }
+                cnpj: { type: string }
                 whatsapp: { type: string }
+                razao_social: { type: string }
       responses:
-        "201": { description: Created + session }
-        "422": { description: checksum or flags }
+        "201": { description: Cadastro pendente created }
+        "422": { description: checksum or validation }
+        "429": { description: rate_limit }
+
   /api/loja/login:
     post:
       requestBody:
@@ -72,23 +99,26 @@ paths:
             schema:
               $ref: "#/components/schemas/LoginBody"
       responses:
-        "200": { description: Session cookie sf_sessao_loja }
+        "200": { description: Session cookie cdf_sessao_loja }
         "401": { description: Invalid }
+
   /api/loja/logout:
     post:
       responses:
         "204": { description: Cleared }
+
   /api/loja/sessao:
     get:
       responses:
         "200": { description: SessionDto }
         "401": { description: Unauthenticated }
+
   /api/loja/pedidos:
     get:
       responses:
-        "200": { description: Own orders }
+        "200": { description: Own pedidos }
     post:
-      description: Checkout. Server freezes prices. Requires ativa.
+      description: Direct checkout for Cliente aprovado. Server freezes atacado prices and reserves stock.
       requestBody:
         content:
           application/json:
@@ -105,66 +135,16 @@ paths:
                       sku_id: { type: string }
                       qty: { type: integer, minimum: 1 }
       responses:
-        "201": { description: Order novo }
-        "403": { description: entitlement_bloqueada }
-        "422": { description: moq / validacao }
+        "201": { description: Pedido confirmado }
+        "403": { description: cadastro_nao_aprovado or forbidden }
         "409": { description: estoque_insuficiente }
-  /api/loja/pedidos/{id}:
-    get:
-      parameters:
-        - $ref: "#/components/parameters/Id"
-      responses:
-        "200": { description: Own order }
-        "404": { description: Not own / other tenant }
-  /api/identidade/cnpj:
-    post:
-      description: Rate-limited. Checksum first. Registry port may degrade.
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [cnpj]
-              properties:
-                cnpj: { type: string }
-      responses:
-        "200": { description: ok or cnpj_registro_pendente }
-        "422": { description: checksum_invalido }
-        "429": { description: rate_limit }
-  /api/saas/login:
-    post:
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/LoginBody"
-      responses:
-        "200": { description: Cookie sf_sessao_saas }
-  /api/saas/logout:
-    post:
-      responses:
-        "204": { description: Cleared }
-  /api/saas/sessao:
+
+  /api/loja/orcamentos:
     get:
       responses:
-        "200": { description: SessionDto }
-  /api/saas/pedidos:
-    get:
-      description: Role-filtered
-      responses:
-        "200": { description: Order list }
-    post:
-      description: supervisor/vendedor + ativa
-      responses:
-        "201": { description: Order novo }
-  /api/saas/pedidos/{id}:
-    get:
-      parameters:
-        - $ref: "#/components/parameters/Id"
-      responses:
-        "200": { description: Order }
-        "404": { description: Hidden from role or other tenant }
-  /api/saas/pedidos/{id}/transicao:
+        "200": { description: Own orcamentos }
+
+  /api/loja/orcamentos/{id}/transicao:
     post:
       parameters:
         - $ref: "#/components/parameters/Id"
@@ -175,101 +155,13 @@ paths:
               type: object
               required: [para]
               properties:
-                para:
-                  $ref: "#/components/schemas/OrderStatus"
+                para: { enum: [aceito, recusado] }
       responses:
-        "200": { description: Transitioned }
-        "403": { description: forbidden or entitlement_bloqueada }
-        "409": { description: transicao_ilegal or estoque_insuficiente }
-  /api/saas/clientes:
-    get:
-      responses:
-        "200": { description: Customer picker }
-  /api/saas/estoque:
-    get:
-      responses:
-        "200": { description: Balances from the single ledger }
-  /api/saas/estoque/{id}:
-    get:
-      parameters:
-        - $ref: "#/components/parameters/Id"
-      responses:
-        "200": { description: Sku + on_hand + reserved + available }
-  /api/saas/estoque/{id}/movimentos:
-    get:
-      parameters:
-        - $ref: "#/components/parameters/Id"
-      responses:
-        "200": { description: Movement list }
-  /api/saas/estoque/{id}/ajuste:
-    post:
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [on_hand, reason]
-              properties:
-                on_hand: { type: integer, minimum: 0 }
-                reason: { type: string }
-      responses:
-        "200": { description: Adjusted }
-  /api/saas/estoque/{id}/visibilidade:
-    patch:
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [visivel_loja]
-              properties:
-                visivel_loja: { type: boolean }
-      responses:
-        "200": { description: Flag only — no on_hand change }
-  /api/saas/tema:
-    get:
-      responses:
-        "200": { description: ThemeTokens }
-    put:
-      responses:
-        "200": { description: Saved }
-  /api/saas/config:
-    get:
-      responses:
-        "200": { description: Tenant config }
-    put:
-      responses:
-        "200": { description: Saved }
-        "409": { description: both document flags false }
-  /api/saas/avisos:
-    get:
-      responses:
-        "200": { description: Outbox rows }
-  /api/saas/importacoes:
-    post:
-      requestBody:
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              required: [file]
-              properties:
-                file: { type: string, format: binary }
-                instruction: { type: string }
-      responses:
-        "201": { description: preview_id — ledger untouched }
-  /api/saas/importacoes/{id}:
-    get:
-      parameters:
-        - $ref: "#/components/parameters/Id"
-      responses:
-        "200": { description: Preview rows }
-  /api/saas/importacoes/{id}/confirmar:
-    post:
-      description: Only apply path. Absolute quantidade.
-      responses:
-        "200": { description: applied / skipped }
-  /api/conta/login:
+        "200": { description: Transitioned; aceito may create Pedido }
+        "403": { description: cadastro_nao_aprovado or forbidden }
+        "409": { description: transicao_ilegal }
+
+  /api/saas/login:
     post:
       requestBody:
         content:
@@ -277,43 +169,183 @@ paths:
             schema:
               $ref: "#/components/schemas/LoginBody"
       responses:
-        "200": { description: Cookie sf_sessao_conta }
-        "403": { description: not account_owner }
-  /api/conta/logout:
+        "200": { description: Session cookie cdf_sessao_saas }
+
+  /api/saas/logout:
     post:
       responses:
         "204": { description: Cleared }
-  /api/conta/sessao:
+
+  /api/saas/sessao:
     get:
       responses:
         "200": { description: SessionDto }
-  /api/conta/assinatura:
+
+  /api/saas/usuarios:
     get:
+      summary: Admin user list
       responses:
-        "200": { description: plan + subscription_status }
+        "200": { description: Users }
+        "403": { description: vendedor forbidden }
     post:
+      summary: Create worker
+      responses:
+        "201": { description: Created }
+        "403": { description: forbidden }
+
+  /api/saas/inbox:
+    get:
+      summary: WhatsApp simulated threads
+      responses:
+        "200": { description: Thread page }
+
+  /api/saas/inbox/simular:
+    post:
+      summary: Admin-only inbound simulator
       requestBody:
         content:
           application/json:
             schema:
               type: object
-              required: [subscription_status]
+              required: [phone_e164, body]
               properties:
-                subscription_status:
-                  $ref: "#/components/schemas/SubscriptionStatus"
+                phone_e164: { type: string }
+                body: { type: string }
+                intent_hint:
+                  enum: [cadastro, orcamento, info_empresa, outro]
       responses:
-        "200": { description: Updated }
+        "201": { description: Thread + message }
+        "403": { description: admin only }
+
+  /api/saas/cadastros:
+    get:
+      responses:
+        "200": { description: Cadastro requests }
+
+  /api/saas/cadastros/{id}/transicao:
+    post:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [para]
+              properties:
+                para: { enum: [aprovado, recusado] }
+                motivo_recusa: { type: string }
+      responses:
+        "200": { description: Transitioned; aprovado creates Cliente }
+        "422": { description: motivo required on recusado }
+
+  /api/saas/orcamentos:
+    get:
+      responses:
+        "200": { description: Orcamento list }
+    post:
+      responses:
+        "201": { description: Orcamento rascunho }
+
+  /api/saas/orcamentos/{id}/transicao:
+    post:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StatusTransition"
+      responses:
+        "200": { description: Transitioned }
+        "403": { description: forbidden or cadastro_nao_aprovado }
+        "409": { description: transicao_ilegal }
+
+  /api/saas/pedidos:
+    get:
+      responses:
+        "200": { description: Pedido list }
+    post:
+      description: Direct pedido for Cliente aprovado
+      responses:
+        "201": { description: Pedido confirmado + reserve }
+        "403": { description: cadastro_nao_aprovado }
+
+  /api/saas/pedidos/{id}/transicao:
+    post:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StatusTransition"
+      responses:
+        "200": { description: Transitioned with stock side effects when applicable }
+        "409": { description: transicao_ilegal or estoque_insuficiente }
+
+  /api/saas/pedidos/{id}/faturar:
+    post:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "201": { description: Venda rascunho }
+        "409": { description: conflito if non-cancelled Venda exists }
+
+  /api/saas/vendas/{id}/transicao:
+    post:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [para]
+              properties:
+                para: { enum: [faturado, cancelado] }
+      responses:
+        "200": { description: Transitioned; faturado enqueues outbox }
+
+  /api/saas/estoque:
+    get:
+      responses:
+        "200": { description: SKU + ledger page }
+    post:
+      summary: Admin create SKU
+      responses:
+        "201": { description: Created }
+        "403": { description: vendedor forbidden }
+
+  /api/saas/estoque/{id}/ajuste:
+    post:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [delta_on_hand, reason]
+              properties:
+                delta_on_hand: { type: integer }
+                reason: { type: string }
+      responses:
+        "200": { description: Adjusted }
+        "403": { description: admin only }
+
+  /api/saas/avisos:
+    get:
+      summary: Notification outbox (stub rows)
+      responses:
+        "200": { description: Outbox page }
+
 components:
   parameters:
     TenantSlug:
       name: tenant
       in: query
-      schema: { type: string, default: demo }
-    Id:
-      name: id
-      in: path
-      required: true
-      schema: { type: string }
+      schema: { type: string, default: casa-dos-frios }
     Cursor:
       name: cursor
       in: query
@@ -322,6 +354,11 @@ components:
       name: limit
       in: query
       schema: { type: integer, default: 20, maximum: 100 }
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
   schemas:
     LoginBody:
       type: object
@@ -329,21 +366,8 @@ components:
       properties:
         email: { type: string }
         password: { type: string }
-        tenant: { type: string, default: demo }
-    OrderStatus:
-      type: string
-      enum: [novo, confirmado, separando, despachado, entregue, cancelado]
-    SubscriptionStatus:
-      type: string
-      enum: [ativa, inadimplente, cancelada]
-    ApiError:
+    StatusTransition:
       type: object
-      required: [error]
+      required: [para]
       properties:
-        error:
-          type: object
-          required: [code, message]
-          properties:
-            code: { type: string }
-            message: { type: string }
-            details: {}
+        para: { type: string }

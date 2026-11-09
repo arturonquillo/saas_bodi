@@ -1,6 +1,6 @@
 # API
 
-Base: `/api`. JSON envelope. pt-BR `message`. Types: `@saas-frota/shared`.
+Base: `/api`. JSON envelope. pt-BR `message`. Types: `packages/shared`.
 
 ```ts
 type ApiOk<T> = { data: T };
@@ -9,7 +9,7 @@ type ApiErr = { error: { code: string; message: string; details?: unknown } };
 
 Pagination on lists: `?cursor=&limit=` (default 20, max 100) → `{ data: { items, next_cursor } }`.
 
-Tenant on public Store GETs: `?tenant=demo` or default env slug. Authenticated routes use session `tenantId` only.
+Tenant on public Loja GETs: `?tenant=casa-dos-frios` or default env slug. Authenticated routes use session `tenantId` only.
 
 ## Error codes
 
@@ -17,32 +17,37 @@ Tenant on public Store GETs: `?tenant=demo` or default env slug. Authenticated r
 |---|---|---|
 | 401 | `unauthenticated` | missing/expired session |
 | 403 | `forbidden` | wrong surface or role |
-| 403 | `entitlement_bloqueada` | write while not `ativa` |
+| 403 | `cadastro_nao_aprovado` | Pedido/Venda/accept blocked by cadastro gate |
 | 404 | `nao_encontrado` | unknown or **other tenant** (same body) |
 | 409 | `transicao_ilegal` | status not allowed from current state |
 | 409 | `estoque_insuficiente` | reserve would exceed available |
-| 409 | `conflito` | e.g. last remaining document flag |
+| 409 | `conflito` | e.g. second Venda, duplicate Pedido for Orçamento |
 | 422 | `validacao` | Zod / business field |
-| 422 | `checksum_invalido` | CPF/CNPJ módulo 11 |
+| 422 | `checksum_invalido` | CNPJ módulo 11 |
 | 422 | `moq_atacado` | qty &lt; `qtd_min_atacado` |
-| 413 | `arquivo_grande` | import upload |
-| 415 | `tipo_arquivo` | not CSV/XLSX |
-| 429 | `rate_limit` | public register / CNPJ lookup |
+| 429 | `rate_limit` | public cadastro / CNPJ lookup / simulate abuse |
 | 501 | `nao_implementado` | scaffold stub (remove as backend fills) |
 
-Illegal transition by **role** while the state would be legal for someone else → **403** `forbidden`. Illegal **state** (e.g. `entregue` → `cancelado`) → **409** `transicao_ilegal`. Neither writes stock nor outbox.
+Illegal transition by **role** while the state would be legal for someone else → **403** `forbidden`. Illegal **state** → **409** `transicao_ilegal`. Neither writes stock nor outbox.
 
-## Store — public
+## Public / identity
 
 | Method | Path | Auth | Notes |
 |---|---|---|---|
-| GET | `/api/loja/tema` | public | tenant tokens only |
-| GET | `/api/loja/config` | public | `aceita_cpf`, `aceita_cnpj` |
-| GET | `/api/loja/catalogo` | public | projection: `visivel_loja` + `available`; guest prices = varejo |
-| GET | `/api/loja/produtos/:id` | public | 404 if hidden; `sem_estoque` if available 0 |
-| POST | `/api/loja/registrar` | public | checksum; CNPJ port; tenant flags |
+| GET | `/api/health` | public | `{ ok: true }` |
+| POST | `/api/identidade/cnpj` | public, rate-limit | `{ cnpj }` → registry or degrade; do not log full CNPJ |
+
+## Loja — public
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| GET | `/api/loja/tema` | public | tenant tokens |
+| GET | `/api/loja/config` | public | `loja_modo`, `whatsapp_comercial` (masked/wa link inputs) |
+| GET | `/api/loja/catalogo` | public | projection: `visivel_loja` + `available` + `preco_atacado` |
+| GET | `/api/loja/produtos/:id` | public | 404 if hidden |
+| POST | `/api/loja/cadastro` | public, rate-limit | creates CadastroRequest `pendente` |
 | POST | `/api/loja/login` | public | customer membership |
-| POST | `/api/identidade/cnpj` | public, rate-limit | `{ cnpj }` → registry or degrade; do not echo full CNPJ in logs |
+| POST | `/api/loja/whatsapp-cta` | public, optional | may enqueue simulated inbound for demo; rate-limited |
 
 Catalog item:
 
@@ -51,75 +56,93 @@ Catalog item:
   id: string
   sku: string
   nome: string
-  preco_varejo_centavos: number
   preco_atacado_centavos: number
   qtd_min_atacado: number
-  available: number          // max(0, on_hand - reserved)
+  available: number
   sem_estoque: boolean
 }
 ```
 
-Logged-in CNPJ customers still receive both prices; UI shows atacado. Server re-picks the list on checkout.
-
-## Store — customer session
+## Loja — customer session
 
 | Method | Path | Authz |
 |---|---|---|
 | POST | `/api/loja/logout` | customer |
 | GET | `/api/loja/sessao` | customer |
-| GET | `/api/loja/pedidos` | own orders |
-| GET | `/api/loja/pedidos/:id` | own; 404 otherwise |
-| POST | `/api/loja/pedidos` | customer + `ativa` |
+| GET | `/api/loja/me/cadastro` | own cadastro/cliente status |
+| GET | `/api/loja/orcamentos` | own |
+| GET | `/api/loja/orcamentos/:id` | own; 404 else |
+| POST | `/api/loja/orcamentos/:id/transicao` | own; `aceito` \| `recusado` from `enviado` only |
+| GET | `/api/loja/pedidos` | own |
+| GET | `/api/loja/pedidos/:id` | own |
+| POST | `/api/loja/pedidos` | Cliente `aprovado` + `loja_modo=pedido_direto` |
 
-`POST /api/loja/pedidos` body: `{ linhas: { sku_id, qty }[] }`. Server sets `novo`, price list from `document_type`, freezes line prices, assigns `default_seller_user_id`. Reject guest, MOQ, hidden SKU, `available < qty`, client `unit_price`.
+`POST /api/loja/pedidos` body: `{ linhas: { sku_id, qty }[] }`. Server creates Pedido `confirmado`, freezes atacado prices, reserves stock, assigns `default_vendedor_user_id`. Reject guest, prospect, MOQ, hidden SKU, insufficient available, client `unit_price`.
 
-## SaaS
+`POST .../orcamentos/:id/transicao` with `aceito` runs cadastro gate; on success creates Pedido `confirmado`.
+
+## SaaS — auth & admin
 
 | Method | Path | Authz |
 |---|---|---|
 | POST | `/api/saas/login` | worker |
 | POST | `/api/saas/logout` | session |
 | GET | `/api/saas/sessao` | worker |
-| GET | `/api/saas/pedidos` | role-filtered list |
-| POST | `/api/saas/pedidos` | supervisor, vendedor + `ativa` |
-| GET | `/api/saas/pedidos/:id` | if visible to role |
-| POST | `/api/saas/pedidos/:id/transicao` | matrix + `ativa` |
-| GET | `/api/saas/clientes` | supervisor, vendedor (create-order picker) |
-| GET | `/api/saas/estoque` | supervisor, vendedor (read), estoquista |
-| GET | `/api/saas/estoque/:id` | same |
-| GET | `/api/saas/estoque/:id/movimentos` | same |
-| POST | `/api/saas/estoque/:id/ajuste` | supervisor, estoquista + `ativa` |
-| PATCH | `/api/saas/estoque/:id/visibilidade` | supervisor + `ativa` |
-| GET | `/api/saas/tema` | supervisor |
-| PUT | `/api/saas/tema` | supervisor + `ativa` |
-| GET | `/api/saas/config` | supervisor |
-| PUT | `/api/saas/config` | supervisor + `ativa`; keep ≥1 document flag |
-| GET | `/api/saas/avisos` | supervisor, vendedor |
-| POST | `/api/saas/importacoes` | supervisor + `ativa` (multipart file) |
-| GET | `/api/saas/importacoes/:id` | supervisor |
-| POST | `/api/saas/importacoes/:id/confirmar` | supervisor + `ativa` |
+| GET | `/api/saas/usuarios` | admin |
+| POST | `/api/saas/usuarios` | admin |
+| PATCH | `/api/saas/usuarios/:id` | admin (deactivate / role within admin\|vendedor) |
+| GET | `/api/saas/tema` | admin |
+| PUT | `/api/saas/tema` | admin |
+| GET | `/api/saas/config` | admin |
+| PUT | `/api/saas/config` | admin (`canais_aviso`, `loja_modo`, profile fields) |
+| GET | `/api/saas/avisos` | admin, vendedor (outbox list) |
 
-`POST .../transicao` body: `{ para: OrderStatus }`. Side effects only after the matrix + stock checks succeed in one transaction: history + outbox + movements.
-
-SaaS create order: `{ customer_user_id, linhas: { sku_id, qty }[] }`. Price list from that customer's document type.
-
-Estoque list returns `on_hand`, `reserved`, `available` (computed), `visivel_loja`. No second qty field.
-
-Import upload returns `{ preview_id, rows }`. Confirm returns `{ applied, skipped }`.
-
-## Account
+## SaaS — inbox & cadastro
 
 | Method | Path | Authz |
 |---|---|---|
-| POST | `/api/conta/login` | `account_owner` |
-| POST | `/api/conta/logout` | session |
-| GET | `/api/conta/sessao` | owner |
-| GET | `/api/conta/assinatura` | owner |
-| POST | `/api/conta/assinatura` | owner (not entitlement-gated) |
+| GET | `/api/saas/inbox` | admin, vendedor |
+| GET | `/api/saas/inbox/:threadId` | admin, vendedor |
+| PATCH | `/api/saas/inbox/:threadId` | admin, vendedor (intent, links) |
+| POST | `/api/saas/inbox/simular` | **admin** |
+| GET | `/api/saas/cadastros` | admin, vendedor |
+| GET | `/api/saas/cadastros/:id` | admin, vendedor |
+| POST | `/api/saas/cadastros/:id/transicao` | admin, vendedor — `{ para: "aprovado" \| "recusado", motivo_recusa? }` |
 
-`POST /api/conta/assinatura` body: `{ subscription_status: "ativa" \| "inadimplente" \| "cancelada" }`.
+Approve creates Cliente (+ optional User invite/password already from form), outbox notice. Refuse requires `motivo_recusa`.
 
-No pedidos/estoque/tema routes under `/api/conta`.
+## SaaS — sales pipeline
+
+| Method | Path | Authz |
+|---|---|---|
+| GET/POST | `/api/saas/orcamentos` | admin, vendedor |
+| GET | `/api/saas/orcamentos/:id` | admin, vendedor |
+| POST | `/api/saas/orcamentos/:id/transicao` | matrix |
+| GET/POST | `/api/saas/pedidos` | admin, vendedor; POST requires Cliente aprovado |
+| GET | `/api/saas/pedidos/:id` | admin, vendedor |
+| POST | `/api/saas/pedidos/:id/transicao` | matrix + stock |
+| POST | `/api/saas/pedidos/:id/faturar` | creates Venda `rascunho` |
+| GET | `/api/saas/vendas` | admin, vendedor |
+| GET | `/api/saas/vendas/:id` | admin, vendedor |
+| POST | `/api/saas/vendas/:id/transicao` | `faturado` \| `cancelado` from `rascunho` |
+
+`POST .../transicao` body: `{ para: <Status> }`. Side effects only after matrix + stock + cadastro checks succeed in one transaction: history + outbox + movements.
+
+Direct Pedido create: `{ cliente_id, linhas: { sku_id, qty }[] }`.
+
+## SaaS — catalog / stock
+
+| Method | Path | Authz |
+|---|---|---|
+| GET | `/api/saas/estoque` | admin, vendedor (read) |
+| GET | `/api/saas/estoque/:id` | same |
+| GET | `/api/saas/estoque/:id/movimentos` | same |
+| POST | `/api/saas/estoque` | admin (create SKU + balance) |
+| PATCH | `/api/saas/estoque/:id` | admin |
+| POST | `/api/saas/estoque/:id/ajuste` | admin |
+| PATCH | `/api/saas/estoque/:id/visibilidade` | admin |
+
+Estoque returns `on_hand`, `reserved`, `available` (computed), `visivel_loja`, `preco_atacado_centavos`. No second qty field. No import/AI routes in MVP.
 
 ## Session DTO
 
@@ -128,15 +151,12 @@ No pedidos/estoque/tema routes under `/api/conta`.
   user_id: string
   tenant_id: string
   tenant_slug: string
-  surface: "loja" | "saas" | "conta"
-  saas_role: SaasRole | null
-  account_owner: boolean
+  surface: "loja" | "saas"
+  saas_role: "admin" | "vendedor" | null
   is_customer: boolean
-  subscription_status: SubscriptionStatus
-  document_type?: "cpf" | "cnpj"  // store only
+  cliente_status?: "aprovado" | "pendente" | null
+  cnpj_last4?: string
 }
 ```
 
-## Health
-
-`GET /api/health` → `{ data: { ok: true } }`.
+No `account_owner`, no `subscription_status` in MVP session.

@@ -4,68 +4,75 @@ MVP threat notes. Blockers if a PR ships the failure mode.
 
 ## Tenant isolation / IDOR
 
-**Risk:** Authenticated user on tenant A reads B’s orders, SKUs, outbox, or import preview.
+**Risk:** Authenticated user on tenant A reads B’s inbox, cadastros, orçamentos, pedidos, outbox, or stock.
 
-**Rule:** Every query includes `tenant_id = session.tenantId`. Foreign ids that fail the scope check return **404** `nao_encontrado`, not 403 with a useful distinction. Do not accept `tenant_id` from the JSON body on authenticated routes.
+**Rule:** Every query includes `tenant_id = session.tenantId`. Foreign ids that fail the scope check return **404** `nao_encontrado`. Do not accept `tenant_id` from the JSON body on authenticated routes.
 
-**Tests:** seed a second tenant in backend tests (not required in demo seed); prove 404.
+**Tests:** seed a second tenant fixture in backend tests (not in demo seed); prove 404.
 
 ## Client-trusted role, price, stock
 
 **Risk:** Body includes `saas_role`, `unit_price_centavos`, `available`, or `on_hand` and the server persists it.
 
-**Rule:** Role comes from `memberships`. Price list from `customer_profiles.document_type` (guest = varejo). Qty from `inventory_balances`. Strip unknown/trusted fields in Zod.
+**Rule:** Role from `memberships`. Unit price from SKU `preco_atacado_centavos` at line freeze. Qty from `inventory_balances`. Strip unknown/trusted fields in Zod.
 
-## Entitlement bypass
+## Cadastro gate bypass
 
-**Risk:** Store checkout or SaaS transition succeeds while `inadimplente` / `cancelada`.
+**Risk:** Prospect creates Pedido, accepts Orçamento into Pedido, or opens Venda without `aprovado`.
 
-**Rule:** `requireEntitlementAtiva()` on those writes. UI banner is not sufficient. Account owner can still change the flag.
+**Rule:** Domain `requireClienteAprovado` on those writes. UI hide is insufficient. Return **403** `cadastro_nao_aprovado` with no stock/outbox side effects.
 
 ## Tax ID leakage (LGPD)
 
-**Risk:** Full CPF/CNPJ in logs, URLs, outbox payload, HTML page source, or error messages.
+**Risk:** Full CNPJ in logs, URLs, outbox payload, HTML, or error messages.
 
-**Rule:** Persist digits; expose `document_last4` + mask (`***.***.***-00` / `**.***.***/****-00`). URLs use opaque `user_id` / `order_id`, never the document. Structured logs: `document_last4` only. Import files are tenant-scoped and not served publicly.
+**Rule:** Persist digits; expose `cnpj_last4` + mask (`**.***.***/****-00`). URLs use opaque ids. Structured logs: last4 only. Never put CNPJ in query strings.
 
-## File upload
+## WhatsApp stub confused with production
 
-**Risk:** XLSX with macros, path traversal, unbounded size, apply without confirm.
+**Risk:** Someone wires Meta Cloud API webhooks or outbound Graph calls to “finish” inbox/outbox without a product decision.
 
-**Rule:** MIME allow-list CSV/XLSX; 2 MB cap; store under tenant id; parse to rows only; **never execute**. Apply only via confirm endpoint. Preview id is tenant-scoped (IDOR).
+**Rule:** `WhatsappInboxSimulatePort` + `StubOutboxTransport` are MVP adapters. Real providers need product + architect change. Acceptance proves **rows**, not provider HTTP.
+
+## Simulated inbox abuse
+
+**Risk:** Unauthenticated caller injects inbound threads; or vendedor escalates to simulate without admin.
+
+**Rule:** `POST /api/saas/inbox/simular` is **admin-only**, tenant-scoped. Public Loja WhatsApp CTA may log a simulated inbound only through a documented, rate-limited demo endpoint if enabled — default seed path is admin simulate + seed data.
 
 ## CNPJ lookup abuse
 
 **Risk:** Open proxy to BrasilAPI; scraping.
 
-**Rule:** Rate limit per IP. Enable live registry only with `CNPJ_REGISTRY_ENABLED`. Time out. Degrade path is intentional — do not retry-storm.
+**Rule:** Rate limit per IP on `POST /api/identidade/cnpj` and public cadastro. Enable live registry only with `CNPJ_REGISTRY_ENABLED`. Timeout ~3s. Degrade path is intentional — no retry-storm.
 
 ## Session / CSRF
 
-**Risk:** Cookie reused across surfaces; CSRF on state-changing POST.
+**Risk:** Cookie reused across surfaces; CSRF on mutating POST.
 
-**Rule:** Cookie name is surface-specific; handler checks `session.surface`. SameSite=Lax. Same-origin Next app; reject cross-site POSTs (Origin check on mutations). No session token in query strings.
+**Rule:** Cookie name is surface-specific; handler checks `session.surface`. SameSite=Lax. Same-origin Next app; Origin check on mutations. No session token in query strings. Deactivated users cannot keep valid sessions (reject on load).
 
-## Billing chrome leak
+## Account / entitlement regression
 
-**Risk:** SaaS nav or API teaches workers how to change `subscription_status`.
+**Risk:** Reintroducing Account chrome or blocking writes on a subscription flag “from the old MVP”.
 
-**Rule:** No `/conta` links in SaaS layout. Only `/api/conta/assinatura` writes the flag, and only with Account cookie + `account_owner`.
+**Rule:** No `/conta` in nav or API for MVP. No `entitlement_bloqueada` on ops writes. Selling this SaaS is later.
 
-## Notification stub confused with production send
+## Illegal transition side effects
 
-**Risk:** Someone “finishes” WhatsApp by posting to Meta without a product decision.
+**Risk:** 403/409 after partial stock or outbox write.
 
-**Rule:** `StubOutboxTransport` is the MVP adapter. Real providers need a product + architect change. Outbox rows are the acceptance proof.
+**Rule:** Status change + history + stock + outbox in **one transaction**. On failure, zero side effects.
 
-## Performance (not security, but contract)
+## Performance (contract)
 
-Catalog: single join, paginate if &gt;100 SKUs. Orders/stock lists: use `(tenant_id, status)` indexes. No N+1 on lines — `include` in one query.
+Catalog: single join, paginate. Lists indexed by `(tenant_id, status)`. No N+1 on document lines — include in one query. Inbox thread list paginated.
 
 ## Residual risks (accepted for MVP)
 
 - SQLite file on disk is not encrypted at rest; local demo only.
 - `SESSION_SECRET` in `.env` is a placeholder; rotate before any shared host.
-- WhatsApp numbers stored in plaintext (PII); encrypt-at-rest is a later hardening.
+- WhatsApp numbers stored in plaintext (PII); encrypt-at-rest later.
 - No second-tenant in the demo seed — isolation tests are backend’s job.
-- Single Next process means a bug in one route handler shares memory with others; mitigate with tenant checks, not process isolation.
+- Single Next process shares memory across surfaces; mitigate with tenant checks, not process isolation.
+- Venda/Faturamento is an internal stub — not fiscal proof.

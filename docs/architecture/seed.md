@@ -1,91 +1,105 @@
-# Seed contract — tenant `demo`
+# Seed contract — tenant `casa-dos-frios`
 
 `npm run db:seed` must realize this table exactly. Password (dev only): `Demo@1234`.
 
-There is **no** onboarding wizard. QA signs in with these emails.
+There is **no** onboarding wizard. QA signs in with these emails. Default slug env: `NEXT_PUBLIC_DEFAULT_TENANT_SLUG=casa-dos-frios`.
 
 ## Tenant
 
 | Field | Value |
 |---|---|
-| `slug` | `demo` |
-| `nome` | `Norte Atacado` |
-| `aceita_cpf` | `true` |
-| `aceita_cnpj` | `true` |
-| `canais_aviso` | `ambos` |
-| `subscription_status` | `ativa` |
-| `plan_display_name` | `Plano Demo` |
-| `default_seller_user_id` | user `vendedor@demo.local` |
+| `slug` | `casa-dos-frios` |
+| `nome_fantasia` | `Casa dos Frios` |
+| `razao_social` | `Casa dos Frios Distribuidora LTDA` (or equivalent seed string) |
+| `cnpj_digits` | valid checksum fixture (document in seed comments; mask in UI) |
+| `whatsapp_comercial` | `+5511988877766` (fixture) |
+| `canais_aviso` | `whatsapp` |
+| `loja_modo` | `pedido_direto` |
+| `default_vendedor_user_id` | user `vendedor@casadosfrios.local` |
 
 ## Theme (must be visibly non-default)
 
-Matches `docs/design/tokens.md` seed.
+Until design locks hex values, seed **must not** ship purple-default / generic shadcn violet. Use a meat/cold-cut wholesale lean (example acceptable until `docs/design/` exists):
 
 | Field | Value |
 |---|---|
-| `marca` | `Norte Atacado` |
-| `primary` | `#0F4F3E` |
-| `accent` | `#C2410C` |
-| `background` | `#F6EFE3` |
-| `logo_url` | `null` |
+| `marca` | `Casa dos Frios` |
+| `primary` | `#7A1F1F` (deep carmine) |
+| `accent` | `#C4A35A` (warm brass) |
+| `background` | `#F3EDE4` |
+| `logo_url` | `null` (placeholder wordmark) |
 
-## Users
+Design may replace hex later without changing slug/marca.
 
-| Email | Surfaces / role | Notes |
+## Users / memberships
+
+| Email | Role / surface | Notes |
 |---|---|---|
-| `dono@demo.local` | Account owner **and** supervisor | two chromes |
-| `supervisora@demo.local` | Supervisor only | Account denied |
-| `vendedor@demo.local` | Vendedor | default Store-order assignee |
-| `estoque@demo.local` | Estoquista | |
-| `entregador@demo.local` | Entregador | |
-| `cliente.cpf@demo.local` | Store customer, CPF, varejo | digits `52998224725` (valid checksum) |
-| `cliente.cnpj@demo.local` | Store customer, CNPJ, atacado | digits `11222333000181` (valid checksum); `cnpj_registro_pendente = false` |
+| `admin@casadosfrios.local` | SaaS `admin` | full admin |
+| `vendedor@casadosfrios.local` | SaaS `vendedor` | default assignee |
+| `cliente@mercadoexemplo.local` | Loja customer + Cliente `aprovado` | CNPJ buyer |
+| `prospecto@novaloja.local` | Loja login + Cadastro `pendente` | cannot checkout |
 
-`whatsapp` on customers and `vendedor` may be fixture strings (`+5511999990001` etc.) so outbox has a recipient. Do not log them.
+Shared password: `Demo@1234`. All `ativo=true`.
 
-## SKUs (minimum)
+### Cliente aprovado
 
-| `codigo` | Dual prices | MOQ | `visivel_loja` | Ledger | Purpose |
-|---|---|---|---|---|---|
-| `CAMISETA-BASICA` | yes | 1 | true | available &gt; 0 | happy path |
-| `KIT-ATACADO-10` | yes | **10** | true | available ≥ 10 | MOQ |
-| `OCULTO-INTERNO` | yes | 1 | **false** | any | hidden from Store |
-| `ESGOTADO-VITRINE` | yes | 1 | true | **available = 0** | “sem estoque” |
+| Field | Value |
+|---|---|
+| email | `cliente@mercadoexemplo.local` |
+| CNPJ digits | `11222333000181` (valid checksum) |
+| `cnpj_registro_pendente` | `false` |
+| `razao_social` | `Mercado Exemplo LTDA` |
+| whatsapp | `+5511911112222` |
 
-Suggested balances (seed may use these exact numbers):
+### Cadastro pendente
+
+| Field | Value |
+|---|---|
+| email | `prospecto@novaloja.local` |
+| CNPJ digits | `34028316000103` (valid checksum; distinct) |
+| status | `pendente` |
+| `cnpj_registro_pendente` | `true` or `false` (either OK; show degrade path elsewhere in tests) |
+| source | `loja` |
+
+## SKUs (minimum, carnes/frios lean)
+
+| `codigo` | MOQ | `visivel_loja` | Ledger | Purpose |
+|---|---|---|---|---|
+| `PICANHA-KG` | 1 | true | available &gt; 0 | happy path |
+| `LINGUICA-CX` | **5** | true | available ≥ 5 | MOQ |
+| `OCULTO-INTERNO` | 1 | **false** | any | hidden from Loja |
+| `ESGOTADO-VITRINE` | 1 | true | **available = 0** | cannot buy |
+
+Suggested balances:
 
 | codigo | on_hand | reserved | available |
 |---|---|---|---|
-| `CAMISETA-BASICA` | 50 | 5 | 45 |
-| `KIT-ATACADO-10` | 80 | 0 | 80 |
-| `OCULTO-INTERNO` | 20 | 0 | 20 |
-| `ESGOTADO-VITRINE` | 2 | 2 | 0 |
+| `PICANHA-KG` | 40 | 5 | 35 |
+| `LINGUICA-CX` | 30 | 0 | 30 |
+| `OCULTO-INTERNO` | 10 | 0 | 10 |
+| `ESGOTADO-VITRINE` | 3 | 3 | 0 |
 
-`reserved` on CAMISETA and ESGOTADO must match open orders in `confirmado` / `separando` (see below).
+`reserved` must match open Pedidos in `confirmado` / `em_separacao`.
 
-Example prices (centavos): camiseta 5990 / 3990; kit 19900 / 14900; oculto 1000 / 800; esgotado 8900 / 7000.
+## CRM inbox
 
-## Orders (one per status)
+At least one thread per intent: `cadastro`, `orcamento`, `info_empresa` (and optionally `outro`). Messages marked `simulated=true` where created via simulator/seed.
 
-All attributed to seed customers; Store-channel orders use seller `vendedor@demo.local`.
+## Sales documents
 
-| id (stable slug ok) | status | customer | stock already applied |
-|---|---|---|---|
-| `ped-novo` | `novo` | CPF | none |
-| `ped-confirmado` | `confirmado` | CPF | reserve CAMISETA ×3 |
-| `ped-separando` | `separando` | CNPJ | reserve CAMISETA ×2 |
-| `ped-despachado` | `despachado` | CPF | consume already reflected in on_hand |
-| `ped-entregue` | `entregue` | CNPJ | consume already reflected |
-| `ped-cancelado` | `cancelado` | CPF | canceled from `novo` — no stock |
+| Doc | Status | Notes |
+|---|---|---|
+| Orçamento | `enviado` | linked to cliente aprovado **or** prospect; has `valido_ate` future; ≥1 line |
+| Pedido | mid-pipeline e.g. `em_separacao` | cliente aprovado; reserves reflected in ledger |
+| (optional) Venda | omit or `rascunho` | not required if mid-pipeline pedido exists |
 
-Each order has ≥1 line with frozen `unit_price_centavos` and a status history ending at the current status.
-
-`ESGOTADO-VITRINE` reserved 2 belongs to `ped-confirmado` **or** a dedicated confirmado line — do not leave reserved qty without a live reserve.
+Also acceptable: one additional orçamento `rascunho` for demo list density.
 
 ## Outbox
 
-At least one `enviado` example row per channel (`email`, `whatsapp`) for a status change, so Avisos is not empty. Template `pedido.status_alterado`. Payload without full tax IDs.
+At least one `enviado` WhatsApp row for a notifying event (e.g. orçamento enviado or cadastro-related), payload without full tax IDs. Channel matches tenant `whatsapp`.
 
 ## Reset
 
-`npm run db:reset` must return to this contract. Do not add a second demo tenant in the default seed (isolation tests create their own).
+`npm run db:reset` must return to this contract. Do not add a second tenant in the default seed (isolation tests create their own).

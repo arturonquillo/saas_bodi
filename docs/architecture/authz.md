@@ -62,6 +62,8 @@ Chatwoot Administrator → `admin`; Agent → `vendedor`. Custom roles = Phase E
 | SSE event stream | yes (tenant) | yes (filtered) |
 | Automations, bots, webhooks | Phase B — **admin** | — |
 | Campaigns, reports, help center publish | Phase C — **admin** | — |
+| Non-WA channel credentials / widget config / API tokens / email templates | Phase D — **admin** | read membership / desk only |
+| Browser push subscribe | Phase D — self | self |
 
 ### CRM desk matrix (Phase B additions)
 
@@ -97,6 +99,22 @@ Invisible conversation on macro execute / attribute patch / handoff → **404**.
 | Reports all series (`/relatorios/*`) | yes | no |
 
 Vendedor on Phase C admin routes → **403** `forbidden`. Public article draft/archived → **404** (do not leak titles via 403). Campaign send does not grant vendedor outbox category bypass — commerce avisos stay `commerce`-filtered for both roles.
+
+### CRM desk matrix (Phase D additions)
+
+| Action | admin | vendedor |
+|---|---|---|
+| Create inbox with any D `channel_type` | yes | no |
+| Channel credentials PUT / rotate token / simulate non-WA | yes | no |
+| Widget config + embed snippet | yes | no |
+| Email templates CRUD | yes | no |
+| Read inbox list including channel_type + status | yes | yes (member) |
+| Reply on widget/API/email/social conversations (visible) | yes | yes |
+| Browser push VAPID public + own subscriptions | self | self |
+| Loja widget public routes | n/a (website_token / session) | n/a |
+| Public CRM client API | n/a (inbox API Bearer) | n/a |
+
+Vendedor channel credential mutate → **403**. Widget/client APIs: missing/invalid token → **401**; wrong origin vs `allowed_origins` → **403**. Cross-tenant website_token guess → **404** (same body). Interactive content on non-widget/API inbox → **422**.
 
 ### Conversation visibility helper
 

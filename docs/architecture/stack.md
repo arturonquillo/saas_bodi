@@ -30,16 +30,18 @@ The workspace package names may still say `@saas-frota/*` from the prior product
 | Theme | CSS variables from tenant `themes` row — names in `docs/design/` when present |
 | Package manager | npm workspaces |
 
-Do **not** add Stripe, Meta Cloud API, NF-e/SEFAZ, PIX, or a required SMTP provider. Outbox and WhatsApp channel adapters are stubs (see [ports.md](./ports.md)). Chatwoot-parity CRM is **native** in this app — do not embed Chatwoot OSS as a sidecar.
+Do **not** add Stripe, Meta Cloud API, live social/SMS/SMTP providers, NF-e/SEFAZ, PIX, or a required SMTP provider. Outbox and channel adapters are stubs (see [ports.md](./ports.md)); Loja widget is first-party. Chatwoot-parity CRM is **native** in this app — do not embed Chatwoot OSS as a sidecar.
 
-### CRM runtime add-ons (Phase A)
+### CRM runtime add-ons (Phase A + D)
 
 | Piece | Choice |
 |---|---|
-| Realtime | **SSE** (`/api/saas/crm/events/stream`) + presence POST — [jobs-realtime.md](./jobs-realtime.md) |
+| Realtime (SaaS) | **SSE** (`/api/saas/crm/events/stream`) + presence POST — [jobs-realtime.md](./jobs-realtime.md) |
+| Realtime (Loja widget) | Poll `mensagens?after=` + optional widget SSE — **no WebSocket** in D |
 | Jobs | In-process `background_jobs` tick worker |
-| WA secrets | AES-256-GCM via `CREDENTIALS_ENCRYPTION_KEY` |
-| Desk IA | saas-starter admin shell + shadcn (design) |
+| WA / channel secrets | AES-256-GCM via `CREDENTIALS_ENCRYPTION_KEY` |
+| Channel status ceiling | `ready_stub` (reject `live`) for all channel types until product unlock |
+| Desk IA | saas-starter admin shell + shadcn (design); Loja embed widget |
 
 ## Folder map
 

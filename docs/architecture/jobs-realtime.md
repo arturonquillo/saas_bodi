@@ -48,8 +48,8 @@ If SSE errors, client polls `GET /api/saas/crm/conversas?updated_since=` and `GE
 
 ### Explicitly not Phase A
 
-- WebSocket server.
-- Browser push (Phase D).
+- WebSocket server (also **not** required in Phase D for text widget — SSE + poll).
+- Browser push (Phase D — optional `push.notify` job).
 - Cross-tenant multiplexed streams.
 
 ## Domain events
@@ -174,8 +174,33 @@ Phase B CSAT: `csat.deliver` → outbox `category=csat`, template key `crm.csat_
 
 **Forbidden:** `campaign.send_batch` must not open Graph/Twilio sockets; tests assert adapter allow-list = stub transport only.
 
+### Phase D — widget realtime + jobs
+
+**Widget realtime (locked):**
+
+| Path | Role |
+|---|---|
+| `GET /api/loja/widget/mensagens?after=` | **Primary** visitor poll |
+| `GET /api/loja/widget/events/stream` | Optional SSE; auth = widget `session_token`; events: `message.created`, `agent.typing`, conversation status subset |
+| SaaS `GET /api/saas/crm/events/stream` | Unchanged — agents see widget-originated `message.created` |
+
+After agent outgoing on a `web_widget` conversation: mark delivery via `ChannelSendPort` + fan-out to that conversation’s widget SSE subscribers (in-process). Poll remains source of truth if SSE drops. **No WebSocket.**
+
+**Job consumers (D):**
+
+| Kind | Handler contract |
+|---|---|
+| `push.notify` | Load user PushSubscriptions; call `BrowserPushPort`; on missing VAPID or empty subs → skip; never fail the parent message transaction (enqueue after commit) |
+| `email.channel_stub_deliver` | Optional: for `channel_type=email` outgoing, insert outbox (`category=crm_agent`, channel=email) + StubOutboxTransport; **no** SMTP |
+| `channel.simulate_social_ingest` | Optional async path for admin simulate; MVP may apply simulate inline in the request |
+
+**Forbidden:** No inbound provider webhook workers (Meta hub challenge, Twilio SMS receiver, IMAP idle). Simulate + widget/API first-party only.
+
+**Ongoing campaigns:** no job required to “send” — widget bootstrap reads `Campaign` where `kind=ongoing`, `status=active`, `display_status=ready` (or promotes `awaiting_widget`→`ready` when serving if inbox widget is `ready_stub`). Emit `campaign.displayed` once per session optional.
+
 ## Performance notes
 
 - SSE: one connection per open desk tab; expect tens of agents max per seed tenant — fan-out in memory per process is enough.
+- Widget: prefer poll under embed noise; optional SSE per active chat session — still single-node memory fan-out for Casa demo.
 - Multi-instance deploy later needs a pub/sub (Postgres LISTEN/Redis); document as Phase E/ops — **not** required for Casa seed demo.
 - `domain_events` inserts must not fail the parent transaction on SSE fan-out errors; fan-out is best-effort after commit (read events by id).

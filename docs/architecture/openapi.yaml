@@ -1,15 +1,16 @@
 openapi: 3.1.0
 info:
   title: Casa dos Frios CRM + atacado API
-  version: 0.4.0
+  version: 0.5.0
   description: |
     Canonical HTTP shapes for Casa dos Frios. TypeScript unions in packages/shared win if
     this file lags. Money is integer centavos. Authenticated tenant comes from the session
-    cookie, not the body. No Account/billing routes. Chatwoot-parity CRM Phase A–C under
-    /api/saas/crm/* (see docs/architecture/api.md + crm-chatwoot-parity.md). Legacy
-    /api/saas/inbox* is deprecated after Conversation migration. WhatsApp channel I/O is
-    stubbed; outbox is a transport stub. Phase B webhooks/bots use SSRF egress guard.
-    Phase C campaigns use stub outbox category=campaign only — no Meta.
+    cookie, not the body. No Account/billing routes. Chatwoot-parity CRM Phase A–D under
+    /api/saas/crm/* + Loja widget (see docs/architecture/api.md + crm-chatwoot-parity.md).
+    Legacy /api/saas/inbox* is deprecated after Conversation migration. WhatsApp and
+    non-WA channel I/O is stubbed (connection_status ≤ ready_stub); Loja widget is
+    first-party onto Conversation. Outbox is a transport stub. Phase B webhooks/bots use
+    SSRF egress guard. Phase C campaigns use stub outbox category=campaign only — no Meta.
 servers:
   - url: http://localhost:3000
 paths:
@@ -755,6 +756,141 @@ paths:
     get:
       responses:
         "200": { description: Bot aggregates }
+
+  /api/saas/crm/caixas/{id}/widget:
+    get:
+      summary: Website widget config (admin)
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: Widget config }
+        "404": { description: Not web_widget inbox }
+    put:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: Updated }
+        "403": { description: admin only }
+
+  /api/saas/crm/caixas/{id}/widget/snippet:
+    get:
+      summary: Embed snippet + website_token (no hmac)
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: Snippet }
+
+  /api/saas/crm/caixas/{id}/canal/rotacionar-token:
+    post:
+      summary: Rotate website_token or API access token (plaintext once)
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: New token returned once }
+        "501": { description: live status unreachable }
+
+  /api/saas/crm/modelos-email:
+    get:
+      summary: Email template stubs (admin)
+      responses:
+        "200": { description: Template list }
+    post:
+      responses:
+        "201": { description: Created }
+
+  /api/saas/crm/push/vapid-public:
+    get:
+      responses:
+        "200": { description: VAPID public key }
+        "404": { description: Push not configured }
+
+  /api/saas/crm/push/subscriptions:
+    post:
+      summary: Register browser push (self)
+      responses:
+        "201": { description: Subscribed }
+
+  /api/loja/widget/bootstrap:
+    get:
+      summary: Public widget bootstrap by website_token
+      parameters:
+        - name: website_token
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Greeting, pre_chat, campaigns }
+        "404": { description: Unknown token }
+
+  /api/loja/widget/sessao:
+    post:
+      summary: Create widget session
+      responses:
+        "201": { description: session_token }
+        "403": { description: Origin not allowed }
+
+  /api/loja/widget/pre-chat:
+    post:
+      summary: Submit pre-chat fields (widget session)
+      responses:
+        "200": { description: Contact linked }
+        "401": { description: Missing session }
+        "422": { description: Required fields }
+
+  /api/loja/widget/conversa:
+    get:
+      responses:
+        "200": { description: Current conversation or null }
+        "401": { description: Missing session }
+
+  /api/loja/widget/mensagens:
+    get:
+      summary: Poll messages (primary realtime)
+      responses:
+        "200": { description: Message page }
+    post:
+      summary: Visitor message → CRM Conversation
+      responses:
+        "201": { description: Created on desk }
+        "401": { description: Missing session }
+
+  /api/loja/widget/events/stream:
+    get:
+      summary: Optional widget SSE
+      responses:
+        "200": { description: text/event-stream }
+
+  /api/loja/widget/campanhas:
+    get:
+      summary: Active ongoing campaigns for widget inbox
+      responses:
+        "200": { description: Campaign payloads }
+
+  /api/public/crm-client/mensagens:
+    post:
+      summary: API channel ingest (Bearer inbox token)
+      responses:
+        "201": { description: Message on Conversation }
+        "401": { description: Invalid token }
+
+  /api/public/crm-client/conversas/{source_id}/mensagens:
+    get:
+      parameters:
+        - name: source_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Messages }
+        "401": { description: Invalid token }
+    post:
+      parameters:
+        - name: source_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "201": { description: Created }
 
   /api/saas/cadastros:
     get:

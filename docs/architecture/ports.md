@@ -69,8 +69,9 @@ Phase A evolves the simulator onto Conversation. Prefer these names; keep a depr
 interface ChannelSimulateInboundPort {
   ingestInbound(input: {
     tenantId: string
-    inboxId?: string          // default WA inbox if omitted
-    phoneE164: string
+    inboxId?: string          // default WA inbox if omitted; D: any stub channel inbox
+    phoneE164?: string        // WA / SMS; email/social may use sourceId instead
+    sourceId?: string         // ContactInbox.source_id for email/social/api simulate
     body: string
     intentLabel?: "intent:cadastro" | "intent:orcamento" | "intent:info_empresa" | "intent:outro"
   }): Promise<{ conversationId: string; messageId: string; contactId: string }>
@@ -82,8 +83,9 @@ interface ChannelSendPort {
     inboxId: string
     conversationId: string
     messageId: string
-    toE164: string
+    toE164?: string
     body: string
+    contentType?: string
   }): Promise<{ deliveryStatus: "queued" | "sent" | "failed" }>
 }
 
@@ -151,15 +153,78 @@ interface CampaignSendPort {
 
 Implementation lives behind `campaign.send_batch` job. Ongoing website display is **not** a send port in C (`display_status=awaiting_widget` until Phase D widget).
 
+## Widget + omnichannel (Phase D)
+
+```ts
+interface WidgetSessionPort {
+  bootstrap(websiteToken: string): Promise<{
+    tenantId: string
+    inboxId: string
+    preChatFields: unknown[]
+    greeting?: string
+    campaigns: unknown[]
+  }>
+  createSession(input: {
+    websiteToken: string
+    origin?: string
+  }): Promise<{ sessionToken: string; expiresAt: string }>
+  assertSession(sessionToken: string): Promise<{
+    tenantId: string
+    inboxId: string
+    sessionId: string
+    contactId?: string
+    conversationId?: string
+  }>
+}
+
+interface WidgetMessagingPort {
+  /** Persist visitor message onto CRM Conversation (same desk). */
+  ingestVisitorMessage(input: {
+    sessionToken: string
+    content: string
+    contentType?: "text" | "input_select" | "cards" | "form"
+    contentAttributes?: unknown
+  }): Promise<{ conversationId: string; messageId: string }>
+}
+
+/** ChannelSendPort (A) routes by inbox.channel_type in D:
+ *  web_widget | api → mark sent + fan-out widget/client (first-party);
+ *  all others → StubChannelSendPort (no provider HTTP). */
+
+interface ApiChannelAuthPort {
+  issueToken(inboxId: string): Promise<{ plaintext: string; prefix: string; last4: string }>
+  resolveToken(bearer: string): Promise<{ tenantId: string; inboxId: string } | null>
+}
+
+interface BrowserPushPort {
+  notify(input: {
+    tenantId: string
+    userId: string
+    title: string
+    body: string
+    url?: string
+  }): Promise<{ ok: boolean; skipped?: "no_subscription" | "no_vapid" }>
+}
+```
+
+Behavior:
+
+- Widget bootstrap/session/messaging never accept `tenant_id` from the client — only `website_token` / session.
+- `ChannelSimulateInboundPort` accepts optional `channelType` / `inboxId` for email/social/sms/api admin simulate; still no provider webhooks.
+- `BrowserPushPort` no-ops cleanly without VAPID; failures must not roll back conversation writes (`push.notify` job).
+- Ongoing campaign display is read-model on bootstrap — not a send port.
+
 ## Explicitly forbidden / deferred ports
 
 | Port | Status |
 |---|---|
 | Meta Cloud API inbound/outbound | forbidden until product approves paid integration |
-| SMTP provider | optional later; stub outbox is enough |
+| Live FB / IG / TikTok / X / Telegram / LINE APIs | Phase D **stubs only** (`ready_stub`); forbidden live I/O |
+| Twilio / Bandwidth SMS send | Phase D stubs only |
+| SMTP / IMAP / Google / Microsoft mail live | Phase D config stubs only; stub outbox enough |
 | NF-e / SEFAZ | forbidden |
 | Payment / PIX | forbidden |
 | Inventory file parse / AI apply | deferred (no port required for MVP) |
 | Account billing provider | deferred |
 | Captain / model provider | Phase E |
-| Live channel providers (FB, IG, Telegram, …) | Phase D stubs only until paid unlock |
+| Voice / calling provider | Phase E |

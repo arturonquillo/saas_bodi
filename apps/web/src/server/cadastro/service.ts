@@ -8,6 +8,7 @@ import { decodeCursor, encodeCursor, parsePaging } from "../http/pagination";
 import { ApiError } from "../http/respond";
 import { newId } from "../ids";
 import { lookupCnpj } from "../identity/cnpj-lookup";
+import { linkCadastroApprove } from "../crm/contacts";
 import { deliverOutboxIds, enqueueNotifications } from "../notifications/outbox-enqueue";
 
 function cadastroDto(row: {
@@ -206,6 +207,7 @@ export async function transitionCadastro(
     : null;
 
   let outboxIds: string[] = [];
+  let approvedClienteId: string | null = null;
   await db.$transaction(async (tx) => {
     if (para === "aprovado") {
       const clienteId = newId("cli");
@@ -243,6 +245,7 @@ export async function transitionCadastro(
         payload: { cadastro_request_id: row.id, status: "aprovado", cnpj_last4: row.cnpjLast4 },
         cadastroRequestId: row.id,
       });
+      approvedClienteId = clienteId;
     } else {
       await tx.cadastroRequest.update({
         where: { id: row.id },
@@ -269,5 +272,21 @@ export async function transitionCadastro(
   });
 
   await deliverOutboxIds(outboxIds);
+
+  if (approvedClienteId) {
+    await linkCadastroApprove({
+      tenantId: session.tenantId,
+      clienteId: approvedClienteId,
+      cadastroRequestId: row.id,
+      cnpjDigits: row.cnpjDigits,
+      cnpjLast4: row.cnpjLast4,
+      cnpjRegistroPendente: row.cnpjRegistroPendente,
+      razaoSocial: row.razaoSocial,
+      contatoNome: row.contatoNome,
+      email: row.email,
+      whatsapp: row.whatsapp,
+    });
+  }
+
   return getCadastro(session, id);
 }

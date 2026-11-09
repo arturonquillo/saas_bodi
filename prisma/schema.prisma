@@ -44,23 +44,6 @@ enum ClienteStatus {
   aprovado
 }
 
-enum WhatsappIntent {
-  cadastro
-  orcamento
-  info_empresa
-  outro
-}
-
-enum WhatsappThreadStatus {
-  aberta
-  arquivada
-}
-
-enum WhatsappMessageDirection {
-  inbound
-  outbound_note
-}
-
 enum OrcamentoStatus {
   rascunho
   enviado
@@ -111,6 +94,7 @@ enum OutboxChannel {
 enum OutboxRecipientRole {
   customer
   vendedor
+  agent
 }
 
 enum OutboxStatus {
@@ -119,33 +103,130 @@ enum OutboxStatus {
   falha
 }
 
-model Tenant {
-  id                   String    @id
-  slug                 String    @unique
-  razaoSocial          String    @map("razao_social")
-  nomeFantasia         String    @map("nome_fantasia")
-  cnpjDigits           String    @map("cnpj_digits")
-  cnpjLast4            String    @map("cnpj_last4")
-  whatsappComercial    String?   @map("whatsapp_comercial")
-  canaisAviso          CanalAviso @default(whatsapp) @map("canais_aviso")
-  lojaModo             LojaModo  @default(pedido_direto) @map("loja_modo")
-  defaultVendedorUserId String?  @map("default_vendedor_user_id")
-  createdAt            DateTime  @default(now()) @map("created_at")
+enum OutboxCategory {
+  commerce
+  campaign
+  crm_agent
+  csat
+  agent_email
+}
 
-  theme              Theme?
-  memberships        Membership[]
-  cadastroRequests   CadastroRequest[]
-  clientes           Cliente[]
-  whatsappThreads    WhatsappThread[]
-  whatsappMessages   WhatsappMessage[]
-  orcamentos         Orcamento[]
-  pedidos            PedidoVenda[]
-  vendas             VendaFaturamento[]
-  skus               Sku[]
-  balances           InventoryBalance[]
-  movements          InventoryMovement[]
-  outbox             NotificationOutbox[]
-  sessions           Session[]
+enum ChannelType {
+  whatsapp
+}
+
+enum WaConnectionStatus {
+  not_configured
+  credentials_saved
+  ready_stub
+  live
+}
+
+enum WaProvider {
+  whatsapp_cloud
+  default
+}
+
+enum ConversationStatus {
+  open
+  pending
+  snoozed
+  resolved
+}
+
+enum ConversationPriority {
+  low
+  medium
+  high
+  urgent
+}
+
+enum MessageType {
+  incoming
+  outgoing
+  activity
+}
+
+enum MessageContentType {
+  text
+  attachment
+}
+
+enum MessageDeliveryStatus {
+  queued
+  sent
+  delivered
+  read
+  failed
+}
+
+enum AgentAvailability {
+  online
+  busy
+  offline
+}
+
+enum PresenceState {
+  viewing
+  typing
+  online
+  busy
+  offline
+}
+
+enum BackgroundJobStatus {
+  pendente
+  processando
+  concluido
+  falha
+  morto
+}
+
+model Tenant {
+  id                    String     @id
+  slug                  String     @unique
+  razaoSocial           String     @map("razao_social")
+  nomeFantasia          String     @map("nome_fantasia")
+  cnpjDigits            String     @map("cnpj_digits")
+  cnpjLast4             String     @map("cnpj_last4")
+  whatsappComercial     String?    @map("whatsapp_comercial")
+  canaisAviso           CanalAviso @default(whatsapp) @map("canais_aviso")
+  lojaModo              LojaModo   @default(pedido_direto) @map("loja_modo")
+  defaultVendedorUserId String?    @map("default_vendedor_user_id")
+  createdAt             DateTime   @default(now()) @map("created_at")
+
+  theme                 Theme?
+  memberships           Membership[]
+  cadastroRequests      CadastroRequest[]
+  clientes              Cliente[]
+  companies             Company[]
+  contacts              Contact[]
+  contactInboxes        ContactInbox[]
+  inboxes               Inbox[]
+  channelWhatsapps      ChannelWhatsapp[]
+  inboxMembers          InboxMember[]
+  conversations         Conversation[]
+  messages              Message[]
+  labels                Label[]
+  conversationLabels    ConversationLabel[]
+  contactLabels         ContactLabel[]
+  teams                 Team[]
+  teamMembers           TeamMember[]
+  cannedResponses       CannedResponse[]
+  agentNotifications    AgentNotification[]
+  agentNotificationSettings AgentNotificationSetting[]
+  agentPresences        AgentPresence[]
+  domainEvents          DomainEvent[]
+  backgroundJobs        BackgroundJob[]
+  conversationDrafts    ConversationDraft[]
+  orcamentos            Orcamento[]
+  pedidos               PedidoVenda[]
+  vendas                VendaFaturamento[]
+  skus                  Sku[]
+  balances              InventoryBalance[]
+  movements             InventoryMovement[]
+  outbox                NotificationOutbox[]
+  sessions              Session[]
 
   @@map("tenants")
 }
@@ -164,25 +245,36 @@ model Theme {
 }
 
 model User {
-  id           String   @id
-  email        String   @unique
-  passwordHash String   @map("password_hash")
+  id           String            @id
+  email        String            @unique
+  passwordHash String            @map("password_hash")
   nome         String
   whatsapp     String?
-  ativo        Boolean  @default(true)
-  createdAt    DateTime @default(now()) @map("created_at")
+  ativo        Boolean           @default(true)
+  availability AgentAvailability @default(offline)
+  signature    String?
+  createdAt    DateTime          @default(now()) @map("created_at")
 
   memberships            Membership[]
   clientes               Cliente[]
   sessions               Session[]
-  cadastrosReviewed      CadastroRequest[]      @relation("CadastroReviewer")
-  orcamentosAsVendedor   Orcamento[]            @relation("OrcamentoVendedor")
-  pedidosAsVendedor      PedidoVenda[]          @relation("PedidoVendedor")
-  vendasCreated          VendaFaturamento[]     @relation("VendaCreator")
+  cadastrosReviewed      CadastroRequest[]         @relation("CadastroReviewer")
+  orcamentosAsVendedor   Orcamento[]               @relation("OrcamentoVendedor")
+  pedidosAsVendedor      PedidoVenda[]             @relation("PedidoVendedor")
+  vendasCreated          VendaFaturamento[]        @relation("VendaCreator")
   movements              InventoryMovement[]
   orcamentoStatusChanges OrcamentoStatusHistory[]
   pedidoStatusChanges    PedidoStatusHistory[]
   vendaStatusChanges     VendaStatusHistory[]
+  inboxMembers           InboxMember[]
+  teamMembers            TeamMember[]
+  assignedConversations  Conversation[]            @relation("ConversationAssignee")
+  sentMessages           Message[]                 @relation("MessageSender")
+  agentNotifications     AgentNotification[]
+  agentNotificationSetting AgentNotificationSetting?
+  agentPresences         AgentPresence[]
+  conversationDrafts     ConversationDraft[]
+  domainEvents           DomainEvent[]             @relation("DomainEventActor")
 
   @@map("users")
 }
@@ -216,30 +308,100 @@ model CadastroRequest {
   status               CadastroStatus @default(pendente)
   motivoRecusa         String?        @map("motivo_recusa")
   source               CadastroSource
-  threadId             String?        @map("thread_id")
+  conversationId       String?        @map("conversation_id")
+  contactId            String?        @map("contact_id")
   clienteId            String?        @map("cliente_id")
   reviewedByUserId     String?        @map("reviewed_by_user_id")
   createdAt            DateTime       @default(now()) @map("created_at")
   updatedAt            DateTime       @updatedAt @map("updated_at")
 
-  tenant     Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  thread     WhatsappThread? @relation("CadastroThread", fields: [threadId], references: [id], onDelete: SetNull)
-  cliente    Cliente?        @relation("CadastroToCliente", fields: [clienteId], references: [id], onDelete: SetNull)
-  reviewedBy User?           @relation("CadastroReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
-  clienteOrigin Cliente?     @relation("ClienteFromCadastro")
-  orcamentos Orcamento[]
-  outbox     NotificationOutbox[]
-  threadsLinked WhatsappThread[] @relation("ThreadCadastro")
+  tenant       Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversation Conversation?    @relation("CadastroConversation", fields: [conversationId], references: [id], onDelete: SetNull)
+  contact      Contact?         @relation("CadastroContact", fields: [contactId], references: [id], onDelete: SetNull)
+  cliente      Cliente?         @relation("CadastroToCliente", fields: [clienteId], references: [id], onDelete: SetNull)
+  reviewedBy   User?            @relation("CadastroReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  clienteOrigin Cliente?        @relation("ClienteFromCadastro")
+  orcamentos   Orcamento[]
+  outbox       NotificationOutbox[]
+  conversationsLinked Conversation[] @relation("ConversationCadastro")
+  contactsLinked Contact[] @relation("ContactCadastro")
 
   @@index([tenantId, status])
   @@index([tenantId, cnpjDigits])
   @@map("cadastro_requests")
 }
 
+model Company {
+  id                   String   @id
+  tenantId             String   @map("tenant_id")
+  cnpjDigits           String   @map("cnpj_digits")
+  cnpjLast4            String   @map("cnpj_last4")
+  cnpjRegistroPendente Boolean  @default(false) @map("cnpj_registro_pendente")
+  razaoSocial          String   @map("razao_social")
+  nomeFantasia         String?  @map("nome_fantasia")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contacts Contact[]
+  clientes Cliente[]
+
+  @@unique([tenantId, cnpjDigits])
+  @@map("companies")
+}
+
+model Contact {
+  id                String   @id
+  tenantId          String   @map("tenant_id")
+  nome              String
+  email             String?
+  phoneE164         String?  @map("phone_e164")
+  companyId         String?  @map("company_id")
+  clienteId         String?  @map("cliente_id")
+  cadastroRequestId String?  @map("cadastro_request_id")
+  notas             String?
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company         Company?         @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  cliente         Cliente?         @relation("ContactCliente", fields: [clienteId], references: [id], onDelete: SetNull)
+  cadastroRequest CadastroRequest? @relation("ContactCadastro", fields: [cadastroRequestId], references: [id], onDelete: SetNull)
+  contactInboxes  ContactInbox[]
+  conversations   Conversation[]
+  labels          ContactLabel[]
+  primaryForClientes Cliente[]     @relation("ClientePrimaryContact")
+  cadastrosLinked CadastroRequest[] @relation("CadastroContact")
+
+  @@index([tenantId, phoneE164])
+  @@index([tenantId, email])
+  @@index([tenantId, clienteId])
+  @@map("contacts")
+}
+
+model ContactInbox {
+  id        String   @id
+  tenantId  String   @map("tenant_id")
+  contactId String   @map("contact_id")
+  inboxId   String   @map("inbox_id")
+  sourceId  String   @map("source_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  inbox   Inbox   @relation(fields: [inboxId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, inboxId, sourceId])
+  @@index([tenantId, contactId])
+  @@map("contact_inboxes")
+}
+
 model Cliente {
   id                   String        @id
   tenantId             String        @map("tenant_id")
   userId               String?       @map("user_id")
+  companyId            String?       @map("company_id")
+  primaryContactId     String?       @map("primary_contact_id")
   cnpjDigits           String        @map("cnpj_digits")
   cnpjLast4            String        @map("cnpj_last4")
   cnpjRegistroPendente Boolean       @default(false) @map("cnpj_registro_pendente")
@@ -251,11 +413,14 @@ model Cliente {
   cadastroRequestId    String?       @unique @map("cadastro_request_id")
   createdAt            DateTime      @default(now()) @map("created_at")
 
-  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user            User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
-  cadastroOrigin  CadastroRequest? @relation("ClienteFromCadastro", fields: [cadastroRequestId], references: [id], onDelete: SetNull)
+  tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user            User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  company         Company?          @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  primaryContact  Contact?          @relation("ClientePrimaryContact", fields: [primaryContactId], references: [id], onDelete: SetNull)
+  cadastroOrigin  CadastroRequest?  @relation("ClienteFromCadastro", fields: [cadastroRequestId], references: [id], onDelete: SetNull)
   cadastros       CadastroRequest[] @relation("CadastroToCliente")
-  threads         WhatsappThread[]
+  contacts        Contact[]         @relation("ContactCliente")
+  conversations   Conversation[]
   orcamentos      Orcamento[]
   pedidos         PedidoVenda[]
 
@@ -264,44 +429,325 @@ model Cliente {
   @@map("clientes")
 }
 
-model WhatsappThread {
-  id                String               @id
-  tenantId          String               @map("tenant_id")
-  phoneE164         String               @map("phone_e164")
-  intent            WhatsappIntent?
-  clienteId         String?              @map("cliente_id")
-  cadastroRequestId String?              @map("cadastro_request_id")
-  orcamentoId       String?              @map("orcamento_id")
-  status            WhatsappThreadStatus @default(aberta)
-  createdAt         DateTime             @default(now()) @map("created_at")
-  updatedAt         DateTime             @updatedAt @map("updated_at")
+model Inbox {
+  id                       String      @id
+  tenantId                 String      @map("tenant_id")
+  name                     String
+  channelType              ChannelType @default(whatsapp) @map("channel_type")
+  greeting                 String?
+  oooMessage               String?     @map("ooo_message")
+  csatEnabled              Boolean     @default(false) @map("csat_enabled")
+  lockToSingleConversation Boolean     @default(true) @map("lock_to_single_conversation")
+  allowAutoAssign          Boolean     @default(false) @map("allow_auto_assign")
+  vendedorSeeAll           Boolean     @default(false) @map("vendedor_see_all")
+  createdAt                DateTime    @default(now()) @map("created_at")
+  updatedAt                DateTime    @updatedAt @map("updated_at")
 
-  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  cliente         Cliente?         @relation(fields: [clienteId], references: [id], onDelete: SetNull)
-  cadastroRequest CadastroRequest? @relation("ThreadCadastro", fields: [cadastroRequestId], references: [id], onDelete: SetNull)
-  orcamento       Orcamento?       @relation(fields: [orcamentoId], references: [id], onDelete: SetNull)
-  messages        WhatsappMessage[]
-  cadastrosFromThread CadastroRequest[] @relation("CadastroThread")
+  tenant         Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  channelWhatsapp ChannelWhatsapp?
+  members        InboxMember[]
+  conversations  Conversation[]
+  contactInboxes ContactInbox[]
 
-  @@index([tenantId, phoneE164])
-  @@index([tenantId, intent])
-  @@map("whatsapp_threads")
+  @@index([tenantId, channelType])
+  @@map("inboxes")
 }
 
-model WhatsappMessage {
-  id        String                    @id
-  tenantId  String                    @map("tenant_id")
-  threadId  String                    @map("thread_id")
-  direction WhatsappMessageDirection
-  body      String
-  simulated Boolean                   @default(true)
-  createdAt DateTime                  @default(now()) @map("created_at")
+model ChannelWhatsapp {
+  id                 String             @id
+  tenantId           String             @map("tenant_id")
+  inboxId            String             @unique @map("inbox_id")
+  provider           WaProvider         @default(whatsapp_cloud)
+  phoneE164Display   String?            @map("phone_e164_display")
+  phoneNumberId      String?            @map("phone_number_id")
+  businessAccountId  String?            @map("business_account_id")
+  secretsCiphertext  String?            @map("secrets_ciphertext")
+  connectionStatus   WaConnectionStatus @default(not_configured) @map("connection_status")
+  messageTemplatesJson String           @default("[]") @map("message_templates_json")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
 
-  tenant Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  thread WhatsappThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inbox  Inbox  @relation(fields: [inboxId], references: [id], onDelete: Cascade)
 
-  @@index([tenantId, threadId, createdAt])
-  @@map("whatsapp_messages")
+  @@map("channel_whatsapp")
+}
+
+model InboxMember {
+  id        String   @id
+  tenantId  String   @map("tenant_id")
+  inboxId   String   @map("inbox_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inbox  Inbox  @relation(fields: [inboxId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([inboxId, userId])
+  @@index([tenantId, userId])
+  @@map("inbox_members")
+}
+
+model Conversation {
+  id                String                @id
+  tenantId          String                @map("tenant_id")
+  inboxId           String                @map("inbox_id")
+  contactId         String                @map("contact_id")
+  status            ConversationStatus    @default(open)
+  priority          ConversationPriority?
+  assigneeUserId    String?               @map("assignee_user_id")
+  teamId            String?               @map("team_id")
+  snoozedUntil      DateTime?             @map("snoozed_until")
+  muted             Boolean               @default(false)
+  clienteId         String?               @map("cliente_id")
+  cadastroRequestId String?               @map("cadastro_request_id")
+  orcamentoId       String?               @map("orcamento_id")
+  lastActivityAt    DateTime              @default(now()) @map("last_activity_at")
+  createdAt         DateTime              @default(now()) @map("created_at")
+  updatedAt         DateTime              @updatedAt @map("updated_at")
+
+  tenant          Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inbox           Inbox                 @relation(fields: [inboxId], references: [id], onDelete: Cascade)
+  contact         Contact               @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  assignee        User?                 @relation("ConversationAssignee", fields: [assigneeUserId], references: [id], onDelete: SetNull)
+  team            Team?                 @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  cliente         Cliente?              @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  cadastroRequest CadastroRequest?      @relation("ConversationCadastro", fields: [cadastroRequestId], references: [id], onDelete: SetNull)
+  orcamento       Orcamento?            @relation(fields: [orcamentoId], references: [id], onDelete: SetNull)
+  messages        Message[]
+  labels          ConversationLabel[]
+  drafts          ConversationDraft[]
+  notifications   AgentNotification[]
+  presences       AgentPresence[]
+  outbox          NotificationOutbox[]
+  cadastrosFromConversation CadastroRequest[] @relation("CadastroConversation")
+
+  @@index([tenantId, status, lastActivityAt])
+  @@index([tenantId, assigneeUserId])
+  @@index([tenantId, inboxId])
+  @@index([tenantId, contactId])
+  @@map("conversations")
+}
+
+model Message {
+  id                 String                @id
+  tenantId           String                @map("tenant_id")
+  conversationId     String                @map("conversation_id")
+  messageType        MessageType           @map("message_type")
+  private            Boolean               @default(false)
+  content            String
+  contentType        MessageContentType    @default(text) @map("content_type")
+  attachmentMetaJson String?               @map("attachment_meta_json")
+  senderUserId       String?               @map("sender_user_id")
+  deliveryStatus     MessageDeliveryStatus @default(queued) @map("delivery_status")
+  simulated          Boolean               @default(false)
+  createdAt          DateTime              @default(now()) @map("created_at")
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User?        @relation("MessageSender", fields: [senderUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, conversationId, createdAt])
+  @@map("messages")
+}
+
+model ConversationDraft {
+  id             String   @id
+  tenantId       String   @map("tenant_id")
+  conversationId String   @map("conversation_id")
+  userId         String   @map("user_id")
+  body           String   @default("")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@map("conversation_drafts")
+}
+
+model Label {
+  id            String   @id
+  tenantId      String   @map("tenant_id")
+  title         String
+  color         String   @default("#1F5C6B")
+  showOnSidebar Boolean  @default(true) @map("show_on_sidebar")
+  system        Boolean  @default(false)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  tenant              Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversationLabels  ConversationLabel[]
+  contactLabels       ContactLabel[]
+
+  @@unique([tenantId, title])
+  @@map("labels")
+}
+
+model ConversationLabel {
+  id             String @id
+  tenantId       String @map("tenant_id")
+  conversationId String @map("conversation_id")
+  labelId        String @map("label_id")
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  label        Label        @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, labelId])
+  @@index([tenantId, labelId])
+  @@map("conversation_labels")
+}
+
+model ContactLabel {
+  id        String @id
+  tenantId  String @map("tenant_id")
+  contactId String @map("contact_id")
+  labelId   String @map("label_id")
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  label   Label   @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, labelId])
+  @@map("contact_labels")
+}
+
+model Team {
+  id        String   @id
+  tenantId  String   @map("tenant_id")
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  members       TeamMember[]
+  conversations Conversation[]
+
+  @@unique([tenantId, name])
+  @@map("teams")
+}
+
+model TeamMember {
+  id        String   @id
+  tenantId  String   @map("tenant_id")
+  teamId    String   @map("team_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([tenantId, userId])
+  @@map("team_members")
+}
+
+model CannedResponse {
+  id        String   @id
+  tenantId  String   @map("tenant_id")
+  shortCode String   @map("short_code")
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, shortCode])
+  @@map("canned_responses")
+}
+
+model AgentNotificationSetting {
+  id                     String  @id
+  tenantId               String  @map("tenant_id")
+  userId                 String  @unique @map("user_id")
+  assigned               Boolean @default(true)
+  unassignedConversation Boolean @default(true) @map("unassigned_conversation")
+  conversationActivity   Boolean @default(true) @map("conversation_activity")
+  emailEnabled           Boolean @default(false) @map("email_enabled")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("agent_notification_settings")
+}
+
+model AgentNotification {
+  id             String    @id
+  tenantId       String    @map("tenant_id")
+  userId         String    @map("user_id")
+  type           String
+  title          String
+  body           String
+  conversationId String?   @map("conversation_id")
+  readAt         DateTime? @map("read_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, userId, createdAt])
+  @@map("agent_notifications")
+}
+
+model AgentPresence {
+  id             String        @id
+  tenantId       String        @map("tenant_id")
+  userId         String        @map("user_id")
+  conversationId String?       @map("conversation_id")
+  state          PresenceState
+  expiresAt      DateTime      @map("expires_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, conversationId, expiresAt])
+  @@index([tenantId, userId])
+  @@map("agent_presences")
+}
+
+model DomainEvent {
+  id            String   @id
+  tenantId      String   @map("tenant_id")
+  type          String
+  aggregateType String   @map("aggregate_type")
+  aggregateId   String   @map("aggregate_id")
+  payloadJson   String   @map("payload_json")
+  actorUserId   String?  @map("actor_user_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actor  User?  @relation("DomainEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, aggregateType, aggregateId])
+  @@map("domain_events")
+}
+
+model BackgroundJob {
+  id          String              @id
+  tenantId    String              @map("tenant_id")
+  kind        String
+  payloadJson String              @map("payload_json")
+  status      BackgroundJobStatus @default(pendente)
+  attempts    Int                 @default(0)
+  runAfter    DateTime            @default(now()) @map("run_after")
+  lockedAt    DateTime?           @map("locked_at")
+  lockedBy    String?             @map("locked_by")
+  lastError   String?             @map("last_error")
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([status, runAfter])
+  @@index([tenantId, kind, status])
+  @@map("background_jobs")
 }
 
 model Orcamento {
@@ -316,15 +762,15 @@ model Orcamento {
   createdAt         DateTime         @default(now()) @map("created_at")
   updatedAt         DateTime         @updatedAt @map("updated_at")
 
-  tenant          Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  cliente         Cliente?                @relation(fields: [clienteId], references: [id], onDelete: SetNull)
-  cadastroRequest CadastroRequest?        @relation(fields: [cadastroRequestId], references: [id], onDelete: SetNull)
-  vendedor        User                    @relation("OrcamentoVendedor", fields: [vendedorUserId], references: [id])
-  pedido          PedidoVenda?            @relation("PedidoFromOrcamento")
+  tenant          Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cliente         Cliente?                 @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  cadastroRequest CadastroRequest?         @relation(fields: [cadastroRequestId], references: [id], onDelete: SetNull)
+  vendedor        User                     @relation("OrcamentoVendedor", fields: [vendedorUserId], references: [id])
+  pedido          PedidoVenda?             @relation("PedidoFromOrcamento")
   lines           OrcamentoLine[]
   history         OrcamentoStatusHistory[]
   outbox          NotificationOutbox[]
-  threads         WhatsappThread[]
+  conversations   Conversation[]
 
   @@index([tenantId, status])
   @@index([tenantId, clienteId])
@@ -469,11 +915,11 @@ model Sku {
   qtdMinAtacado        Int     @default(1) @map("qtd_min_atacado")
   visivelLoja          Boolean @default(true) @map("visivel_loja")
 
-  tenant          Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  balance         InventoryBalance?
-  movements       InventoryMovement[]
-  orcamentoLines  OrcamentoLine[]
-  pedidoLines     PedidoLine[]
+  tenant         Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  balance        InventoryBalance?
+  movements      InventoryMovement[]
+  orcamentoLines OrcamentoLine[]
+  pedidoLines    PedidoLine[]
 
   @@unique([tenantId, codigo])
   @@index([tenantId, visivelLoja])
@@ -522,21 +968,26 @@ model NotificationOutbox {
   recipientRole     OutboxRecipientRole @map("recipient_role")
   recipient         String
   templateKey       String              @map("template_key")
+  category          OutboxCategory      @default(commerce)
+  campaignId        String?             @map("campaign_id")
   payloadJson       String              @map("payload_json")
   status            OutboxStatus        @default(pendente)
   orcamentoId       String?             @map("orcamento_id")
   pedidoId          String?             @map("pedido_id")
   vendaId           String?             @map("venda_id")
   cadastroRequestId String?             @map("cadastro_request_id")
+  conversationId    String?             @map("conversation_id")
   createdAt         DateTime            @default(now()) @map("created_at")
 
-  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  orcamento       Orcamento?       @relation(fields: [orcamentoId], references: [id], onDelete: SetNull)
-  pedido          PedidoVenda?     @relation(fields: [pedidoId], references: [id], onDelete: SetNull)
+  tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orcamento       Orcamento?        @relation(fields: [orcamentoId], references: [id], onDelete: SetNull)
+  pedido          PedidoVenda?      @relation(fields: [pedidoId], references: [id], onDelete: SetNull)
   venda           VendaFaturamento? @relation(fields: [vendaId], references: [id], onDelete: SetNull)
-  cadastroRequest CadastroRequest? @relation(fields: [cadastroRequestId], references: [id], onDelete: SetNull)
+  cadastroRequest CadastroRequest?  @relation(fields: [cadastroRequestId], references: [id], onDelete: SetNull)
+  conversation    Conversation?     @relation(fields: [conversationId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, status])
+  @@index([tenantId, category, status])
   @@map("notification_outbox")
 }
 

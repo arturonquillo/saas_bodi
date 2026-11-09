@@ -10,10 +10,20 @@ export async function getLojaConfig(slug?: string) {
     where: { slug: slug || env.defaultTenantSlug },
   });
   if (!tenant) throw new ApiError("nao_encontrado", "Tenant não encontrado.");
+  const widget = await db.channelWebsiteWidget.findFirst({
+    where: {
+      tenantId: tenant.id,
+      connectionStatus: { in: ["ready_stub", "credentials_saved"] },
+    },
+    orderBy: { updatedAt: "desc" },
+    select: { websiteToken: true },
+  });
   return {
     loja_modo: tenant.lojaModo,
     whatsapp_comercial: tenant.whatsappComercial,
     nome_fantasia: tenant.nomeFantasia,
+    /** Phase D — public embed id for Loja chat widget (no hmac). */
+    widget_website_token: widget?.websiteToken ?? null,
   };
 }
 

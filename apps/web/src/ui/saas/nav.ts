@@ -30,7 +30,8 @@ export type NavIconName =
   | "csat"
   | "filtros"
   | "campanhas"
-  | "ajuda";
+  | "ajuda"
+  | "modelos_email";
 
 export type NavItem = {
   href: string;
@@ -64,6 +65,13 @@ const COMERCIO_NAV: NavItem[] = [
 
 const CRM_CONFIG_NAV: NavItem[] = [
   { href: "/saas/crm/caixas", label: COPY.crm.nav_caixas, icon: "caixas", adminOnly: true, crmConfig: true },
+  {
+    href: "/saas/crm/modelos-email",
+    label: COPY.crm.nav_modelos_email,
+    icon: "modelos_email",
+    adminOnly: true,
+    crmConfig: true,
+  },
   { href: "/saas/crm/equipes", label: COPY.crm.nav_equipes, icon: "equipes", adminOnly: true, crmConfig: true },
   { href: "/saas/crm/labels", label: COPY.crm.nav_labels, icon: "labels", crmConfig: true },
   {
@@ -184,6 +192,7 @@ const BOTH_CRM_PATHS = [
 
 const ADMIN_CRM_PATHS = [
   "/saas/crm/caixas",
+  "/saas/crm/modelos-email",
   "/saas/crm/equipes",
   "/saas/crm/relatorios",
   "/saas/crm/automacoes",
@@ -252,6 +261,7 @@ export function currentPageLabel(pathname: string, role: SaasRole | null | undef
   if (pathname.startsWith("/saas/crm/equipes")) return COPY.crm.nav_equipes;
   if (pathname.startsWith("/saas/crm/respostas-rapidas")) return COPY.crm.nav_respostas_rapidas;
   if (pathname.startsWith("/saas/crm/caixas")) return COPY.crm.nav_caixas;
+  if (pathname.startsWith("/saas/crm/modelos-email")) return COPY.crm.nav_modelos_email;
   if (pathname.startsWith("/saas/crm/notificacoes")) return COPY.crm.nav_notificacoes;
   if (pathname.startsWith("/saas/crm/perfil")) return COPY.crm.nav_perfil_crm;
   if (pathname.startsWith("/saas/crm/relatorios")) return COPY.crm.nav_relatorios;

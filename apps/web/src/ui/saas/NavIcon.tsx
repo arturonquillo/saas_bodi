@@ -11,6 +11,7 @@ import {
   Filter,
   Inbox,
   ListChecks,
+  Mail,
   Megaphone,
   MessageSquareText,
   Package,
@@ -58,6 +59,7 @@ const icons = {
   filtros: Filter,
   campanhas: Megaphone,
   ajuda: BookOpen,
+  modelos_email: Mail,
 } as const;
 
 export function NavIcon({ name }: { name: NavIconName }) {

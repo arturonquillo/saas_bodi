@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CHANNEL_TYPES } from "@saas-frota/shared";
 import { requireSaasRole } from "@/server/authz/gates";
 import { createInbox, listInboxes } from "@/server/crm/inboxes";
 import { ApiError, handleError, ok } from "@/server/http/respond";
@@ -14,7 +15,7 @@ export async function GET() {
 
 const createSchema = z.object({
   name: z.string().min(1),
-  channel_type: z.literal("whatsapp").optional(),
+  channel_type: z.enum(CHANNEL_TYPES).optional(),
 });
 
 export async function POST(req: Request) {
@@ -27,4 +28,3 @@ export async function POST(req: Request) {
     return handleError(err);
   }
 }
-

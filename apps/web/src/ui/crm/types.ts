@@ -118,6 +118,117 @@ export type CrmChannelDto = {
   connection_status: WaConnectionStatus | string;
 };
 
+/** Phase D — omnichannel + Loja widget */
+
+export type ChannelTypeD =
+  | "whatsapp"
+  | "web_widget"
+  | "email"
+  | "facebook"
+  | "instagram"
+  | "tiktok"
+  | "twitter"
+  | "telegram"
+  | "line"
+  | "sms"
+  | "api";
+
+export type PreChatField = {
+  name: string;
+  type: string;
+  label_pt: string;
+  required: boolean;
+};
+
+export type CrmCanalDto = {
+  inbox_id: string;
+  channel_type: ChannelTypeD | string;
+  connection_status: WaConnectionStatus | string;
+  secrets_present?: boolean;
+  provider?: string | null;
+  phone_e164_display?: string | null;
+  phone_number_id?: string | null;
+  business_account_id?: string | null;
+  forward_to_email?: string | null;
+  from_email_display?: string | null;
+  email_template_id?: string | null;
+  external_page_or_bot_id?: string | null;
+  from_number_display?: string | null;
+  token_prefix?: string | null;
+  token_last4?: string | null;
+  callback_url?: string | null;
+  website_token?: string | null;
+  allowed_origins?: string[];
+  welcome_title?: string | null;
+  widget_color?: string | null;
+  continuity?: "session" | "contact" | string;
+};
+
+export type CrmWidgetConfigDto = {
+  inbox_id: string;
+  channel_type?: string;
+  website_token?: string | null;
+  hmac_secret_present?: boolean;
+  allowed_origins?: string[];
+  pre_chat_fields?: PreChatField[];
+  welcome_title?: string | null;
+  widget_color?: string | null;
+  continuity?: "session" | "contact" | string;
+  connection_status?: WaConnectionStatus | string;
+};
+
+export type CrmWidgetSnippetDto = {
+  website_token: string;
+  /** Backend field name from getWidgetSnippet. */
+  snippet: string;
+  snippet_html?: string;
+  snippet_js?: string;
+};
+
+export type CrmEmailTemplateDto = {
+  id: string;
+  name: string;
+  slug: string;
+  subject_template: string;
+  body_html_template: string;
+  updated_at?: string;
+  created_at?: string;
+};
+
+export type CrmPushSubscriptionDto = {
+  id: string;
+  endpoint: string;
+  created_at?: string;
+};
+
+export type WidgetBootstrapDto = {
+  inbox_id: string;
+  greeting?: string | null;
+  welcome_title?: string | null;
+  widget_color?: string | null;
+  pre_chat_fields: PreChatField[];
+  campaigns?: Array<{ id: string; title: string; message?: string | null }>;
+  nome_fantasia?: string | null;
+};
+
+export type WidgetSessionDto = {
+  session_token: string;
+};
+
+export type WidgetConversaDto = {
+  id: string;
+  status?: string;
+  updated_at?: string;
+} | null;
+
+export type WidgetMessageDto = {
+  id: string;
+  message_type: string;
+  content: string;
+  content_type?: string;
+  created_at: string;
+};
+
 export type CrmTemplateDto = {
   key: string;
   body: string;

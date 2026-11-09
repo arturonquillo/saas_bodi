@@ -327,13 +327,23 @@ export async function listMensagens(session: SessionContext, conversationId: str
 export async function postMensagem(
   session: SessionContext,
   conversationId: string,
-  input: { content: string; private?: boolean; content_type?: "text" | "attachment" },
+  input: {
+    content: string;
+    private?: boolean;
+    content_type?: "text" | "attachment" | "input_select" | "cards" | "form";
+  },
 ) {
   assertSaasRole(session, "admin", "vendedor");
   const row = await loadConversation(session.tenantId, conversationId);
   if (!row) throw new ApiError("nao_encontrado", "Não encontrado.");
   await assertConversationVisible(session, row);
   if (!input.content?.trim()) throw new ApiError("validacao", "Conteúdo obrigatório.");
+
+  const inboxMeta = await db.inbox.findFirst({
+    where: { id: row.inboxId, tenantId: session.tenantId },
+  });
+  const { assertInteractiveContentAllowed } = await import("./channels");
+  assertInteractiveContentAllowed(inboxMeta?.channelType ?? "whatsapp", input.content_type);
 
   const isPrivate = Boolean(input.private);
   const messageId = newId("msg");

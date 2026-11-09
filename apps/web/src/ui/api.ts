@@ -92,6 +92,8 @@ export type LojaConfigDto = {
   loja_modo: LojaModo;
   whatsapp_comercial: string | null;
   nome_fantasia: string;
+  /** Phase D — public website_token for Loja chat widget (optional until seed). */
+  widget_website_token?: string | null;
 };
 
 export function whatsappLink(phone: string | null | undefined, text?: string) {

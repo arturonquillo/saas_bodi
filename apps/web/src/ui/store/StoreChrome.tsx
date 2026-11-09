@@ -18,6 +18,7 @@ import { apiGet, whatsappLink, type LojaConfigDto } from "../api";
 import { COPY } from "../copy";
 import { SkipLink } from "../layout";
 import { useSession } from "../session";
+import { LojaChatWidget } from "./LojaChatWidget";
 
 export function StoreChrome({ children }: { children: React.ReactNode }) {
   const { status, session, logout } = useSession();
@@ -119,6 +120,7 @@ export function StoreChrome({ children }: { children: React.ReactNode }) {
       <>
         <SkipLink />
         {children}
+        <LojaChatWidget />
       </>
     );
   }
@@ -158,6 +160,7 @@ export function StoreChrome({ children }: { children: React.ReactNode }) {
           ) : null}
         </div>
       </footer>
+      <LojaChatWidget />
     </div>
   );
 }

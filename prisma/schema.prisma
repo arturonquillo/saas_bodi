@@ -114,6 +114,16 @@ enum OutboxCategory {
 
 enum ChannelType {
   whatsapp
+  web_widget
+  email
+  facebook
+  instagram
+  tiktok
+  twitter
+  telegram
+  line
+  sms
+  api
 }
 
 enum WaConnectionStatus {
@@ -151,6 +161,9 @@ enum MessageType {
 enum MessageContentType {
   text
   attachment
+  input_select
+  cards
+  form
 }
 
 enum MessageDeliveryStatus {
@@ -206,6 +219,14 @@ model Tenant {
   contactInboxes        ContactInbox[]
   inboxes               Inbox[]
   channelWhatsapps      ChannelWhatsapp[]
+  channelWebsiteWidgets ChannelWebsiteWidget[]
+  channelEmails         ChannelEmail[]
+  channelSocials        ChannelSocial[]
+  channelSmses          ChannelSms[]
+  channelApis           ChannelApi[]
+  widgetSessions        WidgetSession[]
+  emailTemplates        EmailTemplate[]
+  pushSubscriptions     PushSubscription[]
   inboxMembers          InboxMember[]
   conversations         Conversation[]
   messages              Message[]
@@ -301,6 +322,7 @@ model User {
   csatAssigned           CsatResponse[]            @relation("CsatAssignedAgent")
   campaignsCreated       Campaign[]                @relation("CampaignCreator")
   articlesAuthored       Article[]                 @relation("ArticleAuthor")
+  pushSubscriptions      PushSubscription[]
 
   @@map("users")
 }
@@ -477,17 +499,23 @@ model Inbox {
   createdAt                DateTime    @default(now()) @map("created_at")
   updatedAt                DateTime    @updatedAt @map("updated_at")
 
-  tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  channelWhatsapp ChannelWhatsapp?
-  members         InboxMember[]
-  conversations   Conversation[]
-  contactInboxes  ContactInbox[]
-  workingHours    WorkingHour[]
-  assignmentPolicy AssignmentPolicy?
-  agentBotInboxes AgentBotInbox[]
-  webhooks        Webhook[]
-  csatResponses   CsatResponse[]
-  campaigns       Campaign[]
+  tenant                Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  channelWhatsapp       ChannelWhatsapp?
+  channelWebsiteWidget  ChannelWebsiteWidget?
+  channelEmail          ChannelEmail?
+  channelSocial         ChannelSocial?
+  channelSms            ChannelSms?
+  channelApi            ChannelApi?
+  widgetSessions        WidgetSession[]
+  members               InboxMember[]
+  conversations         Conversation[]
+  contactInboxes        ContactInbox[]
+  workingHours          WorkingHour[]
+  assignmentPolicy      AssignmentPolicy?
+  agentBotInboxes       AgentBotInbox[]
+  webhooks              Webhook[]
+  csatResponses         CsatResponse[]
+  campaigns             Campaign[]
 
   @@index([tenantId, channelType])
   @@map("inboxes")
@@ -511,6 +539,156 @@ model ChannelWhatsapp {
   inbox  Inbox  @relation(fields: [inboxId], references: [id], onDelete: Cascade)
 
   @@map("channel_whatsapp")
+}
+
+model ChannelWebsiteWidget {
+  id                     String             @id
+  tenantId               String             @map("tenant_id")
+  inboxId                String             @unique @map("inbox_id")
+  websiteToken           String             @unique @map("website_token")
+  hmacSecretCiphertext   String?            @map("hmac_secret_ciphertext")
+  allowedOriginsJson     String             @default("[]") @map("allowed_origins_json")
+  preChatFieldsJson      String             @default("[]") @map("pre_chat_fields_json")
+  welcomeTitle           String?            @map("welcome_title")
+  widgetColor            String?            @map("widget_color")
+  continuity             String             @default("session")
+  connectionStatus       WaConnectionStatus @default(not_configured) @map("connection_status")
+  createdAt              DateTime           @default(now()) @map("created_at")
+  updatedAt              DateTime           @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inbox  Inbox  @relation(fields: [inboxId], references: [id], onDelete: Cascade)
+
+  @@map("channel_website_widgets")
+}
+
+model WidgetSession {
+  id                String    @id
+  tenantId          String    @map("tenant_id")
+  inboxId           String    @map("inbox_id")
+  websiteToken      String    @map("website_token")
+  sessionTokenHash  String    @map("session_token_hash")
+  contactId         String?   @map("contact_id")
+  conversationId    String?   @map("conversation_id")
+  preChatJson       String?   @map("pre_chat_json")
+  expiresAt         DateTime  @map("expires_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  lastSeenAt        DateTime  @default(now()) @map("last_seen_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inbox  Inbox  @relation(fields: [inboxId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, sessionTokenHash])
+  @@index([inboxId, contactId])
+  @@index([websiteToken])
+  @@map("widget_sessions")
+}
+
+model ChannelEmail {
+  id                 String             @id
+  tenantId           String             @map("tenant_id")
+  inboxId            String             @unique @map("inbox_id")
+  provider           String             @default("smtp_imap")
+  forwardToEmail     String?            @map("forward_to_email")
+  fromEmailDisplay   String?            @map("from_email_display")
+  secretsCiphertext  String?            @map("secrets_ciphertext")
+  connectionStatus   WaConnectionStatus @default(not_configured) @map("connection_status")
+  emailTemplateId    String?            @map("email_template_id")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inbox         Inbox          @relation(fields: [inboxId], references: [id], onDelete: Cascade)
+  emailTemplate EmailTemplate? @relation(fields: [emailTemplateId], references: [id], onDelete: SetNull)
+
+  @@map("channel_email")
+}
+
+model ChannelSocial {
+  id                   String             @id
+  tenantId             String             @map("tenant_id")
+  inboxId              String             @unique @map("inbox_id")
+  provider             String
+  externalPageOrBotId  String?            @map("external_page_or_bot_id")
+  secretsCiphertext    String?            @map("secrets_ciphertext")
+  connectionStatus     WaConnectionStatus @default(not_configured) @map("connection_status")
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inbox  Inbox  @relation(fields: [inboxId], references: [id], onDelete: Cascade)
+
+  @@map("channel_social")
+}
+
+model ChannelSms {
+  id                 String             @id
+  tenantId           String             @map("tenant_id")
+  inboxId            String             @unique @map("inbox_id")
+  provider           String             @default("twilio")
+  fromNumberDisplay  String?            @map("from_number_display")
+  secretsCiphertext  String?            @map("secrets_ciphertext")
+  connectionStatus   WaConnectionStatus @default(not_configured) @map("connection_status")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inbox  Inbox  @relation(fields: [inboxId], references: [id], onDelete: Cascade)
+
+  @@map("channel_sms")
+}
+
+model ChannelApi {
+  id                   String             @id
+  tenantId             String             @map("tenant_id")
+  inboxId              String             @unique @map("inbox_id")
+  apiAccessTokenHash   String?            @unique @map("api_access_token_hash")
+  tokenPrefix          String?            @map("token_prefix")
+  tokenLast4           String?            @map("token_last4")
+  callbackUrl          String?            @map("callback_url")
+  connectionStatus     WaConnectionStatus @default(not_configured) @map("connection_status")
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inbox  Inbox  @relation(fields: [inboxId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("channel_api")
+}
+
+model EmailTemplate {
+  id                String   @id
+  tenantId          String   @map("tenant_id")
+  name              String
+  slug              String
+  subjectTemplate   String   @map("subject_template")
+  bodyHtmlTemplate  String   @map("body_html_template")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  channelEmails  ChannelEmail[]
+
+  @@unique([tenantId, slug])
+  @@map("email_templates")
+}
+
+model PushSubscription {
+  id        String   @id
+  tenantId  String   @map("tenant_id")
+  userId    String   @map("user_id")
+  endpoint  String
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId, endpoint])
+  @@index([tenantId, userId])
+  @@map("push_subscriptions")
 }
 
 model InboxMember {

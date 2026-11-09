@@ -112,7 +112,10 @@ export async function bootstrapWidget(input: {
 }) {
   ensureJobWorkerStarted();
   const { channel, inbox } = await loadWidgetByToken(input.websiteToken);
-  assertOriginAllowed(channel, input.origin ?? null);
+  // Bootstrap is authenticated by website_token. Origin is required for
+  // session/message writes; allow missing Origin on read-only bootstrap
+  // (some browsers omit it on same-origin GET).
+  if (input.origin) assertOriginAllowed(channel, input.origin);
 
   const campaigns = await listActiveOngoingForInbox(channel.tenantId, inbox.id);
   for (const c of campaigns) {

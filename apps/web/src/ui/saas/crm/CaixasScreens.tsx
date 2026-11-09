@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams, usePathname, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -249,8 +249,12 @@ export function CaixaDetailScreen() {
   const { id } = useParams<{ id: string }>();
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const onCanalRoute = Boolean(pathname?.endsWith("/canal"));
-  const [activeTab, setActiveTab] = useState(onCanalRoute ? "canal" : "geral");
+  const tabParam = searchParams?.get("tab");
+  const initialTab =
+    onCanalRoute ? "canal" : tabParam === "widget" || tabParam === "membros" || tabParam === "canal" ? tabParam : "geral";
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [inbox, setInbox] = useState<CrmInboxDto | null>(null);
   const [channel, setChannel] = useState<CrmCanalDto | null>(null);
   const [widget, setWidget] = useState<CrmWidgetConfigDto | null>(null);
@@ -279,8 +283,12 @@ export function CaixaDetailScreen() {
 
   useEffect(() => {
     if (onCanalRoute) setActiveTab("canal");
-    else setActiveTab((t) => (t === "canal" ? "geral" : t));
-  }, [onCanalRoute]);
+    else if (tabParam === "widget" || tabParam === "membros" || tabParam === "canal" || tabParam === "geral") {
+      setActiveTab(tabParam);
+    } else {
+      setActiveTab((t) => (t === "canal" ? "geral" : t));
+    }
+  }, [onCanalRoute, tabParam]);
 
   const channelType = inbox?.channel_type ?? channel?.channel_type ?? "whatsapp";
   const showWidgetTab = isWidgetChannel(channelType);

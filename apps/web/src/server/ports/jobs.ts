@@ -251,8 +251,18 @@ async function handleJob(kind: string, payload: unknown, tenantId: string): Prom
     case "bot.deliver":
       await handleBotDeliver(p);
       return;
-    case "campaign.send_batch":
-      // Phase C
+    case "campaign.send_batch": {
+      const { handleCampaignSendBatch } = await import("../crm/campaigns");
+      const batch = p as JsonRecord;
+      await handleCampaignSendBatch({
+        tenant_id: String(batch.tenant_id ?? ""),
+        campaign_id: String(batch.campaign_id ?? ""),
+        cursor: batch.cursor != null ? String(batch.cursor) : undefined,
+      });
+      return;
+    }
+    case "report.rollup_daily":
+      // Optional nightly materialization — live queries are enough for Phase C acceptance.
       return;
     case "csat.deliver":
       await handleCsatDeliver(p);
@@ -344,6 +354,13 @@ export async function fanInAfterDomainEvent(input: {
 export const jobWorkerPort: JobWorkerPort = {
   async tick(limit = 10) {
     const now = new Date();
+    // Phase C: promote due scheduled campaigns before claiming jobs.
+    try {
+      const { promoteScheduledCampaigns } = await import("../crm/campaigns");
+      await promoteScheduledCampaigns(20);
+    } catch {
+      // best-effort
+    }
     const due = await db.backgroundJob.findMany({
       where: { status: "pendente", runAfter: { lte: now } },
       orderBy: { runAfter: "asc" },

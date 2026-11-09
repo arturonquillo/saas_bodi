@@ -1,4 +1,4 @@
-/** Chatwoot-parity CRM Phase A+B contracts (packages/shared). */
+/** Chatwoot-parity CRM Phase A+B+C contracts (packages/shared). */
 
 export const CONVERSATION_STATUSES = ["open", "pending", "snoozed", "resolved"] as const;
 export type ConversationStatus = (typeof CONVERSATION_STATUSES)[number];
@@ -79,6 +79,15 @@ export const CRM_DOMAIN_EVENT_TYPES = [
   "contact.merged",
   "contact.imported",
   "mention.created",
+  // Phase C
+  "campaign.created",
+  "campaign.updated",
+  "campaign.started",
+  "campaign.completed",
+  "campaign.cancelled",
+  "portal.updated",
+  "article.published",
+  "article.unpublished",
 ] as const;
 export type CrmDomainEventType = (typeof CRM_DOMAIN_EVENT_TYPES)[number];
 
@@ -91,7 +100,55 @@ export const BACKGROUND_JOB_KINDS = [
   "notification.email_stub",
   "contact.import_csv",
   "assignment.round_robin",
+  "report.rollup_daily",
 ] as const;
+
+export const CAMPAIGN_KINDS = ["one_off", "ongoing"] as const;
+export type CampaignKind = (typeof CAMPAIGN_KINDS)[number];
+
+export const CAMPAIGN_STATUSES = [
+  "draft",
+  "scheduled",
+  "active",
+  "completed",
+  "cancelled",
+] as const;
+export type CampaignStatus = (typeof CAMPAIGN_STATUSES)[number];
+
+export const CAMPAIGN_CHANNELS = ["whatsapp", "sms"] as const;
+export type CampaignChannel = (typeof CAMPAIGN_CHANNELS)[number];
+
+export const CAMPAIGN_DISPLAY_STATUSES = ["awaiting_widget", "ready"] as const;
+export type CampaignDisplayStatus = (typeof CAMPAIGN_DISPLAY_STATUSES)[number];
+
+export const CAMPAIGN_RECIPIENT_STATUSES = [
+  "pendente",
+  "enviado",
+  "falha",
+  "omitido",
+] as const;
+export type CampaignRecipientStatus = (typeof CAMPAIGN_RECIPIENT_STATUSES)[number];
+
+export const ARTICLE_STATUSES = ["draft", "published", "archived"] as const;
+export type ArticleStatus = (typeof ARTICLE_STATUSES)[number];
+
+export const REPORT_SERIES = [
+  "visao-geral",
+  "conversas",
+  "agentes",
+  "labels",
+  "inboxes",
+  "equipes",
+  "csat",
+  "bots",
+] as const;
+export type ReportSeries = (typeof REPORT_SERIES)[number];
+
+/** Max recipients per campaign blast (MVP). */
+export const CAMPAIGN_AUDIENCE_CAP = 5000;
+
+/** Max report date range in days. */
+export const REPORT_MAX_RANGE_DAYS = 90;
 export type BackgroundJobKind = (typeof BACKGROUND_JOB_KINDS)[number];
 
 export const BACKGROUND_JOB_STATUSES = [

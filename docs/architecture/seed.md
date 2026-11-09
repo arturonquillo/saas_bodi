@@ -119,6 +119,21 @@ Additive on top of Phase A seed (do not remove A objects):
 
 Seed must **not** enqueue live egress to example.com on boot. Job kinds idle until operators enable rules/bots.
 
+## CRM desk (Phase C — when that phase seeds)
+
+Additive on top of Phase A+B seed:
+
+| Object | Contract |
+|---|---|
+| **Campaign** one_off | ≥1 `draft` targeting a system or demo label; `inbox_id` = default WA; `template_key` present in channel stub templates; **do not** auto-send on boot |
+| **Campaign** ongoing | optional `draft` with `display_status=awaiting_widget` |
+| **Portal** | one enabled portal, slug e.g. `casa-dos-frios-ajuda`, locale `pt-BR` |
+| **Category** | ≥1 category |
+| **Article** | ≥1 `published` + ≥1 `draft` (public API must 404 the draft) |
+| **Reports** | no mandatory snapshot rows; seed conversations/CSAT from A/B enough for overview queries |
+
+Seed must **not** enqueue `campaign.send_batch` on boot. Outbox seed rows remain `category=commerce` unless an explicit demo campaign row is added (prefer none).
+
 ## Sales documents
 
 | Doc | Status | Notes |

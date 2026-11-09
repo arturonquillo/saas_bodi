@@ -1,14 +1,15 @@
 openapi: 3.1.0
 info:
   title: Casa dos Frios CRM + atacado API
-  version: 0.3.0
+  version: 0.4.0
   description: |
     Canonical HTTP shapes for Casa dos Frios. TypeScript unions in packages/shared win if
     this file lags. Money is integer centavos. Authenticated tenant comes from the session
-    cookie, not the body. No Account/billing routes. Chatwoot-parity CRM Phase A+B under
+    cookie, not the body. No Account/billing routes. Chatwoot-parity CRM Phase A–C under
     /api/saas/crm/* (see docs/architecture/api.md + crm-chatwoot-parity.md). Legacy
     /api/saas/inbox* is deprecated after Conversation migration. WhatsApp channel I/O is
     stubbed; outbox is a transport stub. Phase B webhooks/bots use SSRF egress guard.
+    Phase C campaigns use stub outbox category=campaign only — no Meta.
 servers:
   - url: http://localhost:3000
 paths:
@@ -538,6 +539,222 @@ paths:
       summary: CSV contact import job
       responses:
         "202": { description: Batch enqueued }
+
+  /api/saas/crm/campanhas:
+    get:
+      summary: List campaigns (admin)
+      responses:
+        "200": { description: Campaign list }
+    post:
+      summary: Create campaign draft (admin)
+      responses:
+        "201": { description: Campaign created }
+
+  /api/saas/crm/campanhas/{id}:
+    get:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: Campaign }
+    patch:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: Updated }
+    delete:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204": { description: Deleted draft/cancelled }
+        "409": { description: Not deletable }
+
+  /api/saas/crm/campanhas/{id}/enviar:
+    post:
+      summary: Send one_off (stub outbox) or activate ongoing awaiting_widget
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "202": { description: Batch enqueued or ongoing activated }
+        "422": { description: validacao }
+
+  /api/saas/crm/campanhas/{id}/cancelar:
+    post:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: Cancelled }
+
+  /api/saas/crm/campanhas/{id}/destinatarios:
+    get:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: CampaignRecipient page }
+
+  /api/saas/crm/central-ajuda/portal:
+    get:
+      summary: Tenant help center portal (admin)
+      responses:
+        "200": { description: Portal }
+    put:
+      summary: Upsert portal (admin)
+      responses:
+        "200": { description: Saved }
+
+  /api/saas/crm/central-ajuda/categorias:
+    get:
+      responses:
+        "200": { description: Category list }
+    post:
+      responses:
+        "201": { description: Created }
+
+  /api/saas/crm/central-ajuda/categorias/{id}:
+    get:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: Category }
+    patch:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: Updated }
+    delete:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204": { description: Deleted }
+        "409": { description: Has published articles }
+
+  /api/saas/crm/central-ajuda/artigos:
+    get:
+      responses:
+        "200": { description: Article list }
+    post:
+      responses:
+        "201": { description: Created }
+
+  /api/saas/crm/central-ajuda/artigos/{id}:
+    get:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: Article }
+    patch:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: Updated }
+    delete:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204": { description: Deleted }
+
+  /api/saas/crm/central-ajuda/artigos/{id}/publicar:
+    post:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: Published }
+
+  /api/saas/crm/central-ajuda/artigos/{id}/despublicar:
+    post:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: Unpublished to draft }
+
+  /api/public/central-ajuda/{portalSlug}:
+    get:
+      summary: Public portal metadata
+      parameters:
+        - name: portalSlug
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Portal if enabled }
+        "404": { description: Unknown or disabled }
+
+  /api/public/central-ajuda/{portalSlug}/categorias:
+    get:
+      parameters:
+        - name: portalSlug
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Public categories }
+
+  /api/public/central-ajuda/{portalSlug}/artigos:
+    get:
+      summary: Published articles only
+      parameters:
+        - name: portalSlug
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Article list }
+
+  /api/public/central-ajuda/{portalSlug}/artigos/{articleSlug}:
+    get:
+      parameters:
+        - name: portalSlug
+          in: path
+          required: true
+          schema: { type: string }
+        - name: articleSlug
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Published article }
+        "404": { description: Draft/archived/unknown }
+
+  /api/saas/crm/relatorios/visao-geral:
+    get:
+      summary: Overview report (admin)
+      responses:
+        "200": { description: Totals + daily series }
+        "403": { description: vendedor forbidden }
+
+  /api/saas/crm/relatorios/conversas:
+    get:
+      responses:
+        "200": { description: Conversation series }
+
+  /api/saas/crm/relatorios/agentes:
+    get:
+      responses:
+        "200": { description: Per-agent metrics }
+
+  /api/saas/crm/relatorios/labels:
+    get:
+      responses:
+        "200": { description: Per-label metrics }
+
+  /api/saas/crm/relatorios/inboxes:
+    get:
+      responses:
+        "200": { description: Per-inbox metrics }
+
+  /api/saas/crm/relatorios/equipes:
+    get:
+      responses:
+        "200": { description: Per-team metrics }
+
+  /api/saas/crm/relatorios/csat:
+    get:
+      responses:
+        "200": { description: CSAT aggregates }
+
+  /api/saas/crm/relatorios/bots:
+    get:
+      responses:
+        "200": { description: Bot aggregates }
 
   /api/saas/cadastros:
     get:

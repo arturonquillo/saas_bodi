@@ -33,10 +33,12 @@ Tenant 1──1 Theme
        1──* Sku 1──1 InventoryBalance
                 1──* InventoryMovement
        1──* NotificationOutbox
+       1──* Campaign ──* CampaignRecipient ── Contact
+       1──* Portal ──* Category ──* Article
        1──* Session
 ```
 
-**Phase A CRM** replaces `WhatsappThread` / `WhatsappMessage` (migrate in place — see [crm-chatwoot-parity.md](./crm-chatwoot-parity.md)). **Phase B** entities (AutomationRule, Macro, CustomAttributeDefinition, AgentBot, Webhook, WorkingHour, AssignmentPolicy, CsatResponse, CustomFilter) are fully contracted below — implement when that phase starts. Phase C+ remain sketched.
+**Phase A CRM** replaces `WhatsappThread` / `WhatsappMessage` (migrate in place — see [crm-chatwoot-parity.md](./crm-chatwoot-parity.md)). **Phase B** entities (AutomationRule, Macro, CustomAttributeDefinition, AgentBot, Webhook, WorkingHour, AssignmentPolicy, CsatResponse, CustomFilter) are fully contracted below. **Phase C** entities (Campaign, CampaignRecipient, Portal, Category, Article; optional ReportSnapshot) are fully contracted below — implement when that phase starts. Phase D+ remain sketched.
 
 No `InventoryImportBatch` in MVP. No Account / subscription tables required for ops.
 
@@ -547,13 +549,93 @@ Tenant row gains `webhook_signing_secret` (or separate secrets table) — genera
 
 No new table required: parse message content for mention markers → insert `AgentNotification` (`type=mention`). Optional `message_mentions (message_id, user_id)` for query — nice-to-have in B.
 
-## Phase C–E entities (sketch)
+## Phase C entities (growth & insight)
+
+See [crm-chatwoot-parity.md](./crm-chatwoot-parity.md) Phase C locks. Implement with Phase C — not before.
+
+### Campaign
+
+| Column | Notes |
+|---|---|
+| `tenant_id`, `title`, `description?` | |
+| `kind` | `one_off` \| `ongoing` |
+| `status` | `draft` \| `scheduled` \| `active` \| `completed` \| `cancelled` |
+| `inbox_id?` | required for `one_off` WA/SMS; optional for ongoing |
+| `channel` | `whatsapp` \| `sms` (both stub send in C) |
+| `audience_label_ids_json` | string[] of Label ids — OR match on Contact labels |
+| `template_key?` | must exist in channel stub `message_templates_json` for one_off |
+| `message?` | ongoing website copy / fallback body |
+| `scheduled_at?` | when `scheduled` |
+| `display_status?` | ongoing: `awaiting_widget` \| `ready` (ready only after Phase D widget); null for one_off |
+| `started_at?`, `completed_at?` | |
+| `created_by_user_id` | admin |
+| `stats_json?` | `{ targeted, enviado, falha }` denormalized after batch |
+
+Indexes: `(tenant_id, status)`, `(tenant_id, kind)`.
+
+### CampaignRecipient
+
+| Column | Notes |
+|---|---|
+| `tenant_id`, `campaign_id`, `contact_id` | |
+| `status` | `pendente` \| `enviado` \| `falha` \| `omitido` |
+| `outbox_id?` | fk notification_outbox when written |
+| `error?` | truncated; no PII dumps |
+| unique | `(campaign_id, contact_id)` — send idempotency |
+
+### Portal (Help Center)
+
+| Column | Notes |
+|---|---|
+| `tenant_id` | unique among **enabled** portals — C lock: at most one `enabled=true` per tenant |
+| `name`, `slug` | `slug` unique per tenant |
+| `header_text?`, `homepage_md?` | |
+| `locale` | fixed `pt-BR` in C |
+| `enabled` | bool |
+| `custom_domain?` | **null / ignored until E** — do not route on it in C |
+
+### Category (Help Center)
+
+| Column | Notes |
+|---|---|
+| `tenant_id`, `portal_id`, `name`, `slug` | slug unique per portal |
+| `description?`, `position` | int |
+| `parent_category_id?` | optional nesting; MVP may stay flat |
+
+### Article
+
+| Column | Notes |
+|---|---|
+| `tenant_id`, `portal_id`, `category_id` | |
+| `title`, `slug` | slug unique per portal |
+| `content_md` | source |
+| `content_html?` | sanitized render cache |
+| `status` | `draft` \| `published` \| `archived` |
+| `author_user_id` | |
+| `published_at?` | |
+| `position?` | |
+
+Indexes: `(portal_id, status)`, `(portal_id, slug)`.
+
+### ReportSnapshot (optional)
+
+| Column | Notes |
+|---|---|
+| `tenant_id`, `series`, `bucket_date`, `dims_json`, `metrics_json` | |
+| unique | `(tenant_id, series, bucket_date, dims_hash)` |
+
+Not required for Phase C acceptance if live queries are fast enough on seed scale.
+
+### NotificationOutbox (Phase C usage)
+
+Already has `category` + `campaign_id` (see outbox section above). Campaign writers **must** set both; commerce readers filter `category = commerce`.
+
+## Phase D–E entities (sketch)
 
 | Phase | Entities |
 |---|---|
-| **C** | `Campaign` (kind ongoing\|one_off, audience, template_ref, status); `Portal`, `Category`, `Article` (pt-BR); report rollup tables or materialized queries from `domain_events` |
-| **D** | Additional `channel_*` tables; `WidgetConfig`; client messaging API identities |
-| **E** | `SlaPolicy`; `AuditEvent`; Captain/AI ports; SAML config; custom role tables; balanced capacity |
+| **D** | Additional `channel_*` tables; `WidgetConfig`; client messaging API identities; ongoing campaign display linkage |
+| **E** | `SlaPolicy`; `AuditEvent`; Captain/AI ports; SAML config; custom role tables; balanced capacity; HC custom domain routing; CSAT review notes |
 
 ## What must not exist (MVP + parity)
 

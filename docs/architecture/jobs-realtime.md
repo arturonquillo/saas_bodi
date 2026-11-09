@@ -163,6 +163,17 @@ Commerce `notification_outbox` stays synchronous mark-enviado via `StubOutboxTra
 
 Phase B CSAT: `csat.deliver` → outbox `category=csat`, template key `crm.csat_survey`; recipient = contact WhatsApp/email per channel stub; **no** Meta template sync.
 
+### Phase C job consumers
+
+| Kind | Handler contract |
+|---|---|
+| `campaign.send_batch` | Load Campaign (`one_off`, `active`); resolve contacts by `audience_label_ids` (tenant-scoped OR); page through recipients (e.g. 100/tick); for each missing `CampaignRecipient`: insert row + `notification_outbox` (`category=campaign`, `campaign_id`, `template_key` with `campaign.` prefix, channel whatsapp\|sms); call `StubOutboxTransport`; mark recipient `enviado`/`falha`; update `stats_json`; when no `pendente` left → `campaign.status=completed`, emit `campaign.completed`. **No** Meta/Twilio/SMTP. Respect `cancelled` mid-flight (stop enqueueing new pages) |
+| `report.rollup_daily` | Optional: write `ReportSnapshot` buckets for prior day; acceptance does not require this if live report GETs meet seed scale |
+
+**Scheduler:** worker tick also promotes `campaign.status=scheduled` with `scheduled_at <= now` → enqueue `campaign.send_batch` (same path as `POST .../enviar`).
+
+**Forbidden:** `campaign.send_batch` must not open Graph/Twilio sockets; tests assert adapter allow-list = stub transport only.
+
 ## Performance notes
 
 - SSE: one connection per open desk tab; expect tens of agents max per seed tenant — fan-out in memory per process is enough.

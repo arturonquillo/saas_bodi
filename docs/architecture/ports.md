@@ -135,6 +135,22 @@ interface AutomationActionPort {
 
 `OutboxTransportPort` unchanged. Writers set `category`: `commerce` (default) \| `campaign` \| `crm_agent` \| `csat` \| `agent_email`. Campaign WA one-offs may enqueue outbox with `category=campaign` and stub templates — **no** Meta template submission API.
 
+## Campaign send (Phase C)
+
+```ts
+interface CampaignSendPort {
+  /** Resolve audience + write StubOutboxTransport only. Never Meta/Twilio. */
+  enqueueBatch(input: {
+    tenantId: string
+    campaignId: string
+    cursor?: string
+    limit: number
+  }): Promise<{ processed: number; done: boolean; nextCursor?: string }>
+}
+```
+
+Implementation lives behind `campaign.send_batch` job. Ongoing website display is **not** a send port in C (`display_status=awaiting_widget` until Phase D widget).
+
 ## Explicitly forbidden / deferred ports
 
 | Port | Status |

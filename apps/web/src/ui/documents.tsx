@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 import { isValidCnpj, onlyDigits } from "@saas-frota/shared";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { apiSend, isApiError } from "./api";
 import { COPY } from "./copy";
 import { formatCnpjInput } from "./format";
@@ -56,8 +55,10 @@ export function CnpjField({
   }
 
   return (
-    <Field>
-      <FieldLabel htmlFor="cnpj">{COPY.cnpj}</FieldLabel>
+    <div>
+      <Label htmlFor="cnpj" className="mb-2">
+        {COPY.cnpj}
+      </Label>
       <Input
         id="cnpj"
         name="cnpj"
@@ -69,15 +70,13 @@ export function CnpjField({
         onBlur={() => void lookup()}
         aria-invalid={invalid || undefined}
       />
-      {invalid ? <FieldError>{COPY.cnpj_invalid}</FieldError> : null}
-      {lookupError ? <FieldError>{lookupError}</FieldError> : null}
+      {invalid ? <p className="mt-1 text-sm text-red-500">{COPY.cnpj_invalid}</p> : null}
+      {lookupError ? <p className="mt-1 text-sm text-red-500">{lookupError}</p> : null}
       {registryDown ? (
-        <Alert className="mt-2 border-[var(--color-warning)]/40 bg-[var(--color-warning)]/10">
-          <AlertDescription>{COPY.registry_down}</AlertDescription>
-        </Alert>
+        <p className="mt-2 text-sm text-[var(--color-warning)]">{COPY.registry_down}</p>
       ) : (
-        <FieldDescription>Consulta automática ao sair do campo.</FieldDescription>
+        <p className="mt-1 text-sm text-muted-foreground">Consulta automática ao sair do campo.</p>
       )}
-    </Field>
+    </div>
   );
 }

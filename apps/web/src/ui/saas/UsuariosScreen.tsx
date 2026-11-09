@@ -3,47 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import type { SaasRole } from "@saas-frota/shared";
 import type { UserDto } from "../api";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { apiGet, apiSend, asPage, isApiError } from "../api";
 import { COPY } from "../copy";
-import { DeskWrap, ListHeader, SaasMain } from "../layout";
+import { ListHeader, SaasMain } from "../layout";
 import { roleLabel } from "./nav";
 import { EmptyState, ErrorState, TableSkeleton } from "../states";
 
@@ -53,6 +20,8 @@ export function UsuariosScreen() {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [role, setRole] = useState<SaasRole>("vendedor");
+  const [confirmId, setConfirmId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setStatus("loading");
@@ -77,7 +46,7 @@ export function UsuariosScreen() {
       await apiSend<UserDto>("/api/saas/usuarios", "POST", {
         email: fd.get("email"),
         nome: fd.get("nome"),
-        saas_role: fd.get("saas_role"),
+        saas_role: role,
         senha: fd.get("password"),
       });
       setOpen(false);
@@ -91,6 +60,7 @@ export function UsuariosScreen() {
 
   async function deactivate(id: string) {
     await apiSend<UserDto>(`/api/saas/usuarios/${id}`, "PATCH", { ativo: false });
+    setConfirmId(null);
     await load();
   }
 
@@ -99,55 +69,65 @@ export function UsuariosScreen() {
       <ListHeader
         title={COPY.users_title}
         actions={
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button type="button">{COPY.user_create}</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <form onSubmit={createUser}>
-                <DialogHeader>
-                  <DialogTitle>{COPY.user_create}</DialogTitle>
-                </DialogHeader>
-                <div className="mt-4 space-y-3">
-                  <Field>
-                    <FieldLabel htmlFor="nome">{COPY.nome}</FieldLabel>
-                    <Input id="nome" name="nome" required />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="email">{COPY.email}</FieldLabel>
-                    <Input id="email" name="email" type="email" required />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="password">{COPY.password}</FieldLabel>
-                    <Input id="password" name="password" type="password" required />
-                  </Field>
-                  <Field>
-                    <FieldLabel>Papel</FieldLabel>
-                    <Select name="saas_role" defaultValue="vendedor">
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="admin">{COPY.role_admin}</SelectItem>
-                        <SelectItem value="vendedor">{COPY.role_vendedor}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                  {error ? <p className="text-sm text-destructive">{error}</p> : null}
-                </div>
-                <DialogFooter className="mt-4">
-                  <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                    {COPY.actions.cancelar}
-                  </Button>
-                  <Button type="submit" disabled={busy}>
-                    {COPY.actions.criar}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <Button type="button" onClick={() => setOpen((o) => !o)}>
+            {COPY.user_create}
+          </Button>
         }
       />
+
+      {open ? (
+        <Card className="mb-4 gap-0 py-0">
+          <CardContent className="p-4">
+            <form className="space-y-3" onSubmit={createUser}>
+              <p className="font-medium">{COPY.user_create}</p>
+              <div>
+                <Label htmlFor="nome" className="mb-2">
+                  {COPY.nome}
+                </Label>
+                <Input id="nome" name="nome" required />
+              </div>
+              <div>
+                <Label htmlFor="email" className="mb-2">
+                  {COPY.email}
+                </Label>
+                <Input id="email" name="email" type="email" required />
+              </div>
+              <div>
+                <Label htmlFor="password" className="mb-2">
+                  {COPY.password}
+                </Label>
+                <Input id="password" name="password" type="password" required />
+              </div>
+              <div>
+                <Label className="mb-2">Papel</Label>
+                <RadioGroup
+                  value={role}
+                  onValueChange={(v) => setRole(v as SaasRole)}
+                  className="flex flex-wrap gap-4"
+                >
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="admin" id="role-admin" />
+                    <Label htmlFor="role-admin">{COPY.role_admin}</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="vendedor" id="role-vendedor" />
+                    <Label htmlFor="role-vendedor">{COPY.role_vendedor}</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+              {error ? <p className="text-sm text-red-500">{error}</p> : null}
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                  {COPY.actions.cancelar}
+                </Button>
+                <Button type="submit" disabled={busy}>
+                  {COPY.actions.criar}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {status === "loading" ? (
         <TableSkeleton />
@@ -156,60 +136,55 @@ export function UsuariosScreen() {
       ) : items.length === 0 ? (
         <EmptyState title={COPY.users_empty} />
       ) : (
-        <DeskWrap>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{COPY.nome}</TableHead>
-                <TableHead>{COPY.email}</TableHead>
-                <TableHead>Papel</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+        <Card className="gap-0 py-0">
+          <CardContent className="p-0">
+            <ul className="divide-y divide-border">
               {items.map((u) => (
-                <TableRow key={u.id}>
-                  <TableCell className="font-medium">{u.nome}</TableCell>
-                  <TableCell>{u.email}</TableCell>
-                  <TableCell>{roleLabel(u.saas_role as SaasRole)}</TableCell>
-                  <TableCell>
-                    {u.ativo ? (
-                      <Badge variant="secondary" className="border-transparent bg-[var(--color-success)]/15 text-[var(--color-success)]">
-                        Ativo
-                      </Badge>
-                    ) : (
-                      <Badge variant="destructive">Inativo</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {u.ativo ? (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button type="button" variant="ghost" size="sm">
-                            {COPY.user_deactivate}
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>{COPY.user_deactivate}</AlertDialogTitle>
-                            <AlertDialogDescription>{COPY.user_deactivate_confirm}</AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>{COPY.actions.cancelar}</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => void deactivate(u.id)}>
-                              {COPY.user_deactivate}
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    ) : null}
-                  </TableCell>
-                </TableRow>
+                <li key={u.id} className="space-y-2 px-4 py-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="font-medium">{u.nome}</p>
+                      <p className="text-sm text-muted-foreground">{u.email}</p>
+                      <p className="text-sm">{roleLabel(u.saas_role as SaasRole)}</p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      {u.ativo ? (
+                        <span className="rounded-md bg-[var(--color-success)]/15 px-2 py-0.5 text-xs font-medium text-[var(--color-success)]">
+                          Ativo
+                        </span>
+                      ) : (
+                        <span className="rounded-md bg-destructive/15 px-2 py-0.5 text-xs font-medium text-destructive">
+                          Inativo
+                        </span>
+                      )}
+                      {u.ativo ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setConfirmId(confirmId === u.id ? null : u.id)}
+                        >
+                          {COPY.user_deactivate}
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                  {confirmId === u.id ? (
+                    <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-2">
+                      <p className="flex-1 text-sm text-muted-foreground">{COPY.user_deactivate_confirm}</p>
+                      <Button type="button" variant="outline" size="sm" onClick={() => setConfirmId(null)}>
+                        {COPY.actions.cancelar}
+                      </Button>
+                      <Button type="button" variant="destructive" size="sm" onClick={() => void deactivate(u.id)}>
+                        {COPY.user_deactivate}
+                      </Button>
+                    </div>
+                  ) : null}
+                </li>
               ))}
-            </TableBody>
-          </Table>
-        </DeskWrap>
+            </ul>
+          </CardContent>
+        </Card>
       )}
     </SaasMain>
   );

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Menu } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,8 +12,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Menu } from "lucide-react";
 import { BrandMark } from "../BrandMark";
 import { useCart } from "../cart";
 import { apiGet, whatsappLink, type LojaConfigDto } from "../api";
@@ -37,7 +37,7 @@ export function StoreChrome({ children }: { children: React.ReactNode }) {
   const aprovado = session?.cliente_status === "aprovado";
   const wa = whatsappLink(config?.whatsapp_comercial, "Olá, Casa dos Frios! Vim pela loja.");
 
-  const nav = (
+  const navLinks = (
     <>
       <Button variant="ghost" asChild>
         <Link href="/loja#catalogo" onClick={() => setMobileOpen(false)}>
@@ -88,7 +88,13 @@ export function StoreChrome({ children }: { children: React.ReactNode }) {
           ) : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost">{COPY.nav_meus_docs}</Button>
+              <button type="button" className="inline-flex items-center" aria-label="Conta">
+                <Avatar className="size-9 cursor-pointer">
+                  <AvatarFallback>
+                    {(session?.cnpj_last4 ?? "CF").slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem
@@ -123,18 +129,21 @@ export function StoreChrome({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-[1200px] items-center justify-between gap-3 px-4 md:px-6">
           <BrandMark href="/loja" />
-          <nav className="hidden items-center gap-1 md:flex">{nav}</nav>
-          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden" aria-label="Menu">
-                <Menu className="size-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="flex flex-col gap-2 pt-10">
-              {nav}
-            </SheetContent>
-          </Sheet>
+          <nav className="hidden items-center gap-1 md:flex">{navLinks}</nav>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            aria-label="Menu"
+            onClick={() => setMobileOpen((o) => !o)}
+          >
+            <Menu className="size-5" />
+          </Button>
         </div>
+        {mobileOpen ? (
+          <nav className="flex flex-col gap-1 border-t border-border px-4 py-3 md:hidden">{navLinks}</nav>
+        ) : null}
       </header>
       {children}
       <footer className="mt-auto border-t border-border bg-[var(--color-background)]">

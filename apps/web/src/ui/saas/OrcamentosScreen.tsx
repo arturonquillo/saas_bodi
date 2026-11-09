@@ -5,33 +5,10 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import type { OrcamentoStatus } from "@saas-frota/shared";
 import type { OrcamentoDto } from "../api";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Label } from "@/components/ui/label";
 import {
   apiGet,
   apiSend,
@@ -46,7 +23,7 @@ import {
 } from "../api";
 import { COPY } from "../copy";
 import { formatDate, formatDateOnly, formatMoney } from "../format";
-import { DeskWrap, ListHeader, SaasMain } from "../layout";
+import { ListHeader, SaasMain } from "../layout";
 import {
   MoneyCell,
   NotifyAlert,
@@ -55,6 +32,9 @@ import {
   orcamentoTransitionLabel,
 } from "../order-ui";
 import { EmptyState, ErrorState, FormSkeleton, GateBanner, TableSkeleton } from "../states";
+
+const selectClass =
+  "border-input flex h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm";
 
 export function OrcamentosListScreen() {
   const [items, setItems] = useState<OrcamentoDto[]>([]);
@@ -99,38 +79,31 @@ export function OrcamentosListScreen() {
           }
         />
       ) : (
-        <DeskWrap>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Atualizado</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+        <Card className="gap-0 py-0">
+          <CardContent className="p-0">
+            <ul className="divide-y divide-border">
               {items.map((o) => (
-                <TableRow
-                  key={o.id}
-                  className="cursor-pointer"
-                  onClick={() => router.push(`/saas/orcamentos/${o.id}`)}
-                >
-                  <TableCell className="font-medium">{o.id}</TableCell>
-                  <TableCell>{clienteDisplay(o)}</TableCell>
-                  <TableCell>
-                    <OrcamentoStatusBadge status={o.status} />
-                  </TableCell>
-                  <TableCell>
-                    <MoneyCell centavos={docTotal(o.linhas ?? [])} />
-                  </TableCell>
-                  <TableCell>{formatDate(o.updated_at)}</TableCell>
-                </TableRow>
+                <li key={o.id}>
+                  <button
+                    type="button"
+                    className="flex w-full flex-col gap-1 px-4 py-3 text-left hover:bg-muted/40 sm:flex-row sm:items-center sm:justify-between"
+                    onClick={() => router.push(`/saas/orcamentos/${o.id}`)}
+                  >
+                    <div>
+                      <p className="font-medium">{o.id}</p>
+                      <p className="text-sm text-muted-foreground">{clienteDisplay(o)}</p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 text-sm">
+                      <OrcamentoStatusBadge status={o.status} />
+                      <MoneyCell centavos={docTotal(o.linhas ?? [])} />
+                      <span className="text-muted-foreground">{formatDate(o.updated_at)}</span>
+                    </div>
+                  </button>
+                </li>
               ))}
-            </TableBody>
-          </Table>
-        </DeskWrap>
+            </ul>
+          </CardContent>
+        </Card>
       )}
     </SaasMain>
   );
@@ -199,19 +172,13 @@ export function OrcamentoDetailScreen() {
 
   return (
     <SaasMain>
-      <Breadcrumb className="mb-3">
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link href="/saas/orcamentos">{COPY.orcamentos_title}</Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{item.id}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
+      <p className="mb-3 text-sm text-muted-foreground">
+        <Link href="/saas/orcamentos" className="hover:text-primary">
+          {COPY.orcamentos_title}
+        </Link>
+        <span aria-hidden="true"> / </span>
+        <span className="text-foreground">{item.id}</span>
+      </p>
 
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <h1 className="font-display text-xl font-semibold">{item.id}</h1>
@@ -219,9 +186,9 @@ export function OrcamentoDetailScreen() {
       </div>
 
       {item.status === "expirado" ? (
-        <Alert className="mb-3 border-[var(--color-warning)]/40 bg-[var(--color-warning)]/10">
-          <AlertDescription>{COPY.orcamento_expired}</AlertDescription>
-        </Alert>
+        <p className="mb-3 rounded-md border border-[var(--color-warning)]/40 bg-[var(--color-warning)]/10 px-3 py-2 text-sm">
+          {COPY.orcamento_expired}
+        </p>
       ) : null}
 
       <div className="mb-4 flex flex-wrap gap-2">
@@ -243,48 +210,52 @@ export function OrcamentoDetailScreen() {
         ) : null}
       </div>
 
-      {gate ? <div className="mb-3"><GateBanner message={COPY.gate_not_approved} /></div> : null}
-      {error ? (
-        <Alert className="mb-3">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+      {gate ? (
+        <div className="mb-3">
+          <GateBanner message={COPY.gate_not_approved} />
+        </div>
       ) : null}
-      {notified ? <div className="mb-3"><NotifyAlert canais="whatsapp" /></div> : null}
+      {error ? <p className="mb-3 text-sm text-red-500">{error}</p> : null}
+      {notified ? (
+        <div className="mb-3">
+          <NotifyAlert canais="whatsapp" />
+        </div>
+      ) : null}
 
-      <DeskWrap className="mb-4 space-y-1 p-4 text-sm">
-        <p>
-          <span className="text-muted-foreground">{COPY.customer}: </span>
-          {clienteDisplay(item)}
-        </p>
-        <p>
-          <span className="text-muted-foreground">{COPY.valido_ate}: </span>
-          {formatDateOnly(item.valido_ate)}
-        </p>
-      </DeskWrap>
+      <Card className="mb-4 gap-0 py-0">
+        <CardContent className="space-y-1 p-4 text-sm">
+          <p>
+            <span className="text-muted-foreground">{COPY.customer}: </span>
+            {clienteDisplay(item)}
+          </p>
+          <p>
+            <span className="text-muted-foreground">{COPY.valido_ate}: </span>
+            {formatDateOnly(item.valido_ate)}
+          </p>
+        </CardContent>
+      </Card>
 
       <h2 className="mb-2 text-sm font-semibold">{COPY.section_items}</h2>
-      <DeskWrap className="mb-4">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>SKU</TableHead>
-              <TableHead>Nome</TableHead>
-              <TableHead>Qtd</TableHead>
-              <TableHead>Preço</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+      <Card className="mb-4 gap-0 py-0">
+        <CardContent className="p-0">
+          <ul className="divide-y divide-border">
+            <li className="grid grid-cols-4 gap-2 px-4 py-2 text-xs font-medium text-muted-foreground">
+              <span>SKU</span>
+              <span>Nome</span>
+              <span>Qtd</span>
+              <span>Preço</span>
+            </li>
             {linhas.map((l) => (
-              <TableRow key={l.id}>
-                <TableCell>{l.codigo}</TableCell>
-                <TableCell>{l.nome}</TableCell>
-                <TableCell>{l.qty}</TableCell>
-                <TableCell>{formatMoney(l.unit_price_centavos)}</TableCell>
-              </TableRow>
+              <li key={l.id} className="grid grid-cols-4 gap-2 px-4 py-3 text-sm">
+                <span>{l.codigo}</span>
+                <span>{l.nome}</span>
+                <span>{l.qty}</span>
+                <span>{formatMoney(l.unit_price_centavos)}</span>
+              </li>
             ))}
-          </TableBody>
-        </Table>
-      </DeskWrap>
+          </ul>
+        </CardContent>
+      </Card>
       <p className="mb-4 text-sm font-semibold">
         Total: <MoneyCell centavos={docTotal(linhas)} />
       </p>
@@ -367,45 +338,53 @@ export function NovoOrcamentoScreen() {
     <SaasMain>
       <ListHeader title={COPY.orcamento_novo} />
       <form className="max-w-xl space-y-4" onSubmit={submit}>
-        <Field>
-          <FieldLabel>{COPY.customer}</FieldLabel>
-          <Select value={clienteId || "none"} onValueChange={(v) => setClienteId(v === "none" ? "" : v)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Prospecto (sem cliente)</SelectItem>
-              {clientes.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="valido">{COPY.valido_ate}</FieldLabel>
+        <div>
+          <Label htmlFor="cliente" className="mb-2">
+            {COPY.customer}
+          </Label>
+          <select
+            id="cliente"
+            className={selectClass}
+            value={clienteId || "none"}
+            onChange={(e) => setClienteId(e.target.value === "none" ? "" : e.target.value)}
+          >
+            <option value="none">Prospecto (sem cliente)</option>
+            {clientes.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Label htmlFor="valido" className="mb-2">
+            {COPY.valido_ate}
+          </Label>
           <Input id="valido" type="date" value={validoAte} onChange={(e) => setValidoAte(e.target.value)} />
-        </Field>
+        </div>
         <div className="flex flex-wrap items-end gap-2">
-          <Field className="min-w-[220px] flex-1">
-            <FieldLabel>SKU</FieldLabel>
-            <Select value={skuId || "none"} onValueChange={(v) => setSkuId(v === "none" ? "" : v)}>
-              <SelectTrigger>
-                <SelectValue placeholder="SKU" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">—</SelectItem>
-                {skus.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.codigo} · {s.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="qty">{COPY.qty}</FieldLabel>
+          <div className="min-w-[220px] flex-1">
+            <Label htmlFor="sku" className="mb-2">
+              SKU
+            </Label>
+            <select
+              id="sku"
+              className={selectClass}
+              value={skuId || "none"}
+              onChange={(e) => setSkuId(e.target.value === "none" ? "" : e.target.value)}
+            >
+              <option value="none">—</option>
+              {skus.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.codigo} · {s.nome}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <Label htmlFor="qty" className="mb-2">
+              {COPY.qty}
+            </Label>
             <Input
               id="qty"
               type="number"
@@ -414,7 +393,7 @@ export function NovoOrcamentoScreen() {
               onChange={(e) => setQty(Number(e.target.value) || 1)}
               className="w-24"
             />
-          </Field>
+          </div>
           <Button type="button" variant="outline" onClick={addLine} disabled={!skuId}>
             {COPY.add_line}
           </Button>
@@ -426,14 +405,19 @@ export function NovoOrcamentoScreen() {
                 <span>
                   {l.label} × {l.qty}
                 </span>
-                <Button type="button" variant="ghost" size="sm" onClick={() => setLinhas((p) => p.filter((_, j) => j !== i))}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setLinhas((p) => p.filter((_, j) => j !== i))}
+                >
                   Remover
                 </Button>
               </li>
             ))}
           </ul>
         ) : null}
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {error ? <p className="text-sm text-red-500">{error}</p> : null}
         <Button type="submit" disabled={busy}>
           {COPY.criar_orcamento}
         </Button>

@@ -2,20 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { ThemeTokens } from "@saas-frota/shared";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
 import { apiGet, apiSend, isApiError } from "../api";
 import { COPY } from "../copy";
 import { ListHeader, SaasMain } from "../layout";
@@ -114,6 +104,23 @@ export function TemaScreen() {
         }
       />
 
+      {discardOpen ? (
+        <Card className="mb-4 gap-0 py-0">
+          <CardContent className="space-y-3 p-4">
+            <p className="font-medium">{COPY.actions.cancelar}</p>
+            <p className="text-sm text-muted-foreground">{COPY.discard_theme}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={() => setDiscardOpen(false)}>
+                {COPY.actions.fechar}
+              </Button>
+              <Button type="button" onClick={discard}>
+                {COPY.actions.confirmar}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <div className="grid gap-8 lg:grid-cols-2">
         <form
           className="space-y-4"
@@ -122,60 +129,62 @@ export function TemaScreen() {
             void save();
           }}
         >
-          <Field>
-            <FieldLabel htmlFor="marca">{COPY.theme_marca}</FieldLabel>
+          <div>
+            <Label htmlFor="marca" className="mb-2">
+              {COPY.theme_marca}
+            </Label>
             <Input
               id="marca"
               value={draft.marca}
               onChange={(e) => setDraft({ ...draft, marca: e.target.value })}
             />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="primary">{COPY.theme_primary}</FieldLabel>
+          </div>
+          <div>
+            <Label htmlFor="primary" className="mb-2">
+              {COPY.theme_primary}
+            </Label>
             <Input
               id="primary"
               type="color"
               value={draft.primary}
               onChange={(e) => setDraft({ ...draft, primary: e.target.value })}
             />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="accent">{COPY.theme_accent}</FieldLabel>
+          </div>
+          <div>
+            <Label htmlFor="accent" className="mb-2">
+              {COPY.theme_accent}
+            </Label>
             <Input
               id="accent"
               type="color"
               value={draft.accent}
               onChange={(e) => setDraft({ ...draft, accent: e.target.value })}
             />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="background">{COPY.theme_background}</FieldLabel>
+          </div>
+          <div>
+            <Label htmlFor="background" className="mb-2">
+              {COPY.theme_background}
+            </Label>
             <Input
               id="background"
               type="color"
               value={draft.background}
               onChange={(e) => setDraft({ ...draft, background: e.target.value })}
             />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="logo">{COPY.theme_logo}</FieldLabel>
+          </div>
+          <div>
+            <Label htmlFor="logo" className="mb-2">
+              {COPY.theme_logo}
+            </Label>
             <Input
               id="logo"
               value={draft.logo_url ?? ""}
               onChange={(e) => setDraft({ ...draft, logo_url: e.target.value || null })}
               placeholder="https://…"
             />
-          </Field>
-          {!contrastOk ? (
-            <Alert>
-              <AlertDescription>{COPY.theme_contrast_fail}</AlertDescription>
-            </Alert>
-          ) : null}
-          {error ? (
-            <Alert>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          ) : null}
+          </div>
+          {!contrastOk ? <p className="text-sm text-red-500">{COPY.theme_contrast_fail}</p> : null}
+          {error ? <p className="text-sm text-red-500">{error}</p> : null}
         </form>
 
         <div>
@@ -200,20 +209,30 @@ export function TemaScreen() {
                 Botão primário
               </button>
               <div className="rounded-md border bg-white p-3 text-xs" style={{ borderColor: "var(--color-border)" }}>
-                <table className="w-full">
-                  <tbody>
-                    <tr>
-                      <td>SKU</td>
-                      <td className="text-right">12</td>
-                    </tr>
-                  </tbody>
-                </table>
+                <ul className="space-y-1">
+                  <li className="flex justify-between gap-2">
+                    <span>SKU</span>
+                    <span>12</span>
+                  </li>
+                </ul>
               </div>
               <div className="flex gap-2 text-xs">
-                <span className="rounded px-2 py-1" style={{ background: "color-mix(in srgb, var(--color-success) 15%, transparent)", color: "var(--color-success)" }}>
+                <span
+                  className="rounded px-2 py-1"
+                  style={{
+                    background: "color-mix(in srgb, var(--color-success) 15%, transparent)",
+                    color: "var(--color-success)",
+                  }}
+                >
                   Aprovado
                 </span>
-                <span className="rounded px-2 py-1" style={{ background: "color-mix(in srgb, var(--color-warning) 15%, transparent)", color: "var(--color-warning)" }}>
+                <span
+                  className="rounded px-2 py-1"
+                  style={{
+                    background: "color-mix(in srgb, var(--color-warning) 15%, transparent)",
+                    color: "var(--color-warning)",
+                  }}
+                >
                   Pendente
                 </span>
               </div>
@@ -221,19 +240,6 @@ export function TemaScreen() {
           </div>
         </div>
       </div>
-
-      <AlertDialog open={discardOpen} onOpenChange={setDiscardOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{COPY.actions.cancelar}</AlertDialogTitle>
-            <AlertDialogDescription>{COPY.discard_theme}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{COPY.actions.fechar}</AlertDialogCancel>
-            <AlertDialogAction onClick={discard}>{COPY.actions.confirmar}</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </SaasMain>
   );
 }

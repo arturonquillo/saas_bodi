@@ -4,27 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { isAdmin, type WhatsappIntent } from "@saas-frota/shared";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
 import {
   apiGet,
@@ -42,6 +26,12 @@ import { IntentBadge } from "../order-ui";
 import { useSession } from "../session";
 import { EmptyState, ErrorState, InboxSkeleton } from "../states";
 
+const selectClass =
+  "border-input flex h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm";
+
+const textareaClass =
+  "border-input placeholder:text-muted-foreground flex min-h-[80px] w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm";
+
 export function InboxScreen() {
   const params = useParams<{ id?: string }>();
   const router = useRouter();
@@ -53,6 +43,7 @@ export function InboxScreen() {
   const [simOpen, setSimOpen] = useState(false);
   const [simBusy, setSimBusy] = useState(false);
   const [simError, setSimError] = useState<string | null>(null);
+  const [intentHint, setIntentHint] = useState<WhatsappIntent>("outro");
   const [note, setNote] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -92,7 +83,7 @@ export function InboxScreen() {
       const thread = await apiSend<InboxThreadDetailDto>("/api/saas/inbox/simular", "POST", {
         phone_e164: fd.get("phone_e164"),
         body: fd.get("body"),
-        intent_hint: fd.get("intent_hint") || null,
+        intent_hint: intentHint || null,
       });
       setSimOpen(false);
       await load();
@@ -123,51 +114,9 @@ export function InboxScreen() {
           title={COPY.inbox_title}
           actions={
             admin ? (
-              <Dialog open={simOpen} onOpenChange={setSimOpen}>
-                <DialogTrigger asChild>
-                  <Button type="button">{COPY.simulate_message}</Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <form onSubmit={onSimulate}>
-                    <DialogHeader>
-                      <DialogTitle>{COPY.simulate_message}</DialogTitle>
-                    </DialogHeader>
-                    <div className="mt-4 space-y-3">
-                      <Field>
-                        <FieldLabel htmlFor="phone_e164">{COPY.phone}</FieldLabel>
-                        <Input id="phone_e164" name="phone_e164" required placeholder="+5511999999999" />
-                      </Field>
-                      <Field>
-                        <FieldLabel htmlFor="body">{COPY.body}</FieldLabel>
-                        <Textarea id="body" name="body" required rows={3} />
-                      </Field>
-                      <Field>
-                        <FieldLabel>{COPY.intent}</FieldLabel>
-                        <Select name="intent_hint" defaultValue="outro">
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="cadastro">{COPY.intent_cadastro}</SelectItem>
-                            <SelectItem value="orcamento">{COPY.intent_orcamento}</SelectItem>
-                            <SelectItem value="info_empresa">{COPY.intent_info_empresa}</SelectItem>
-                            <SelectItem value="outro">{COPY.intent_outro}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </Field>
-                      {simError ? <p className="text-sm text-destructive">{simError}</p> : null}
-                    </div>
-                    <DialogFooter className="mt-4">
-                      <Button type="button" variant="outline" onClick={() => setSimOpen(false)}>
-                        {COPY.actions.cancelar}
-                      </Button>
-                      <Button type="submit" disabled={simBusy}>
-                        {COPY.actions.confirmar}
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
+              <Button type="button" onClick={() => setSimOpen((o) => !o)}>
+                {COPY.simulate_message}
+              </Button>
             ) : null
           }
         />
@@ -175,6 +124,61 @@ export function InboxScreen() {
           <p className="text-sm text-[var(--brand-accent)]" role="status">
             {note}
           </p>
+        ) : null}
+        {simOpen ? (
+          <Card className="mt-4 gap-0 py-0">
+            <CardContent className="p-4">
+              <form className="space-y-3" onSubmit={onSimulate}>
+                <p className="font-medium">{COPY.simulate_message}</p>
+                <div>
+                  <Label htmlFor="phone_e164" className="mb-2">
+                    {COPY.phone}
+                  </Label>
+                  <Input id="phone_e164" name="phone_e164" required placeholder="+5511999999999" />
+                </div>
+                <div>
+                  <Label htmlFor="body" className="mb-2">
+                    {COPY.body}
+                  </Label>
+                  <textarea id="body" name="body" required rows={3} className={textareaClass} />
+                </div>
+                <div>
+                  <Label className="mb-2">{COPY.intent}</Label>
+                  <RadioGroup
+                    value={intentHint}
+                    onValueChange={(v) => setIntentHint(v as WhatsappIntent)}
+                    className="flex flex-wrap gap-4"
+                  >
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="cadastro" id="hint-cad" />
+                      <Label htmlFor="hint-cad">{COPY.intent_cadastro}</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="orcamento" id="hint-orc" />
+                      <Label htmlFor="hint-orc">{COPY.intent_orcamento}</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="info_empresa" id="hint-info" />
+                      <Label htmlFor="hint-info">{COPY.intent_info_empresa}</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="outro" id="hint-outro" />
+                      <Label htmlFor="hint-outro">{COPY.intent_outro}</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+                {simError ? <p className="text-sm text-red-500">{simError}</p> : null}
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" onClick={() => setSimOpen(false)}>
+                    {COPY.actions.cancelar}
+                  </Button>
+                  <Button type="submit" disabled={simBusy}>
+                    {COPY.actions.confirmar}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
         ) : null}
       </div>
 
@@ -198,7 +202,12 @@ export function InboxScreen() {
         />
       ) : (
         <div className="grid min-h-[calc(100dvh-8rem)] md:grid-cols-[360px_1fr]">
-          <ScrollArea className={cn("border-b border-border md:border-r md:border-b-0", params.id && "hidden md:block")}>
+          <div
+            className={cn(
+              "overflow-y-auto border-b border-border md:border-r md:border-b-0",
+              params.id && "hidden md:block",
+            )}
+          >
             <ul>
               {threads.map((t) => {
                 const active = params.id === t.id;
@@ -208,7 +217,7 @@ export function InboxScreen() {
                       href={`/saas/inbox/${t.id}`}
                       className={cn(
                         "block border-b border-border px-4 py-3 transition-colors hover:bg-muted/60",
-                        active && "bg-sidebar-accent",
+                        active && "bg-muted",
                       )}
                     >
                       <div className="flex items-start justify-between gap-2">
@@ -228,7 +237,7 @@ export function InboxScreen() {
                 );
               })}
             </ul>
-          </ScrollArea>
+          </div>
 
           <div className={cn("flex flex-col", !params.id && "hidden md:flex")}>
             {!params.id ? (
@@ -249,34 +258,37 @@ export function InboxScreen() {
                     <p className="font-medium">{detail.phone_e164}</p>
                     <div className="mt-1 flex flex-wrap gap-2">
                       {detail.cadastro_request_id ? (
-                        <Link href={`/saas/cadastros/${detail.cadastro_request_id}`}>
-                          <Badge variant="outline">Cadastro</Badge>
+                        <Link
+                          href={`/saas/cadastros/${detail.cadastro_request_id}`}
+                          className="rounded-md border border-border px-2 py-0.5 text-xs"
+                        >
+                          Cadastro
                         </Link>
                       ) : null}
                       {detail.orcamento_id ? (
-                        <Link href={`/saas/orcamentos/${detail.orcamento_id}`}>
-                          <Badge variant="outline">Orçamento</Badge>
+                        <Link
+                          href={`/saas/orcamentos/${detail.orcamento_id}`}
+                          className="rounded-md border border-border px-2 py-0.5 text-xs"
+                        >
+                          Orçamento
                         </Link>
                       ) : null}
                     </div>
                   </div>
-                  <Select
+                  <select
+                    className={cn(selectClass, "w-[180px]")}
                     value={(detail.intent as string) ?? "none"}
-                    onValueChange={(v) => void patchIntent(v as WhatsappIntent | "none")}
+                    onChange={(e) => void patchIntent(e.target.value as WhatsappIntent | "none")}
+                    aria-label={COPY.intent}
                   >
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder={COPY.intent} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">—</SelectItem>
-                      <SelectItem value="cadastro">{COPY.intent_cadastro}</SelectItem>
-                      <SelectItem value="orcamento">{COPY.intent_orcamento}</SelectItem>
-                      <SelectItem value="info_empresa">{COPY.intent_info_empresa}</SelectItem>
-                      <SelectItem value="outro">{COPY.intent_outro}</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    <option value="none">—</option>
+                    <option value="cadastro">{COPY.intent_cadastro}</option>
+                    <option value="orcamento">{COPY.intent_orcamento}</option>
+                    <option value="info_empresa">{COPY.intent_info_empresa}</option>
+                    <option value="outro">{COPY.intent_outro}</option>
+                  </select>
                 </div>
-                <ScrollArea className="flex-1 px-4 py-4">
+                <div className="flex-1 overflow-y-auto px-4 py-4">
                   <div className="mx-auto flex max-w-2xl flex-col gap-3">
                     {detail.messages.map((m) => (
                       <div
@@ -294,7 +306,7 @@ export function InboxScreen() {
                       </div>
                     ))}
                   </div>
-                </ScrollArea>
+                </div>
               </>
             )}
           </div>

@@ -2,8 +2,6 @@ import type { Metadata } from "next";
 import { Archivo, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { Toaster } from "@/components/ui/sonner";
 
 const archivo = Archivo({
   subsets: ["latin", "latin-ext"],
@@ -32,12 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       style={{ ["--font-ui" as string]: "var(--font-body)" }}
       suppressHydrationWarning
     >
-      <body>
-        <TooltipProvider>
-          {children}
-          <Toaster />
-        </TooltipProvider>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

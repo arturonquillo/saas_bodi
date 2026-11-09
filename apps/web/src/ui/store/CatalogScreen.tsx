@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { apiGet, asPage, whatsappLink, type CatalogItemDto, type LojaConfigDto } from "../api";
@@ -123,9 +121,15 @@ export function CatalogScreen() {
                     <p className="text-base font-semibold text-primary">{formatMoney(item.preco_atacado_centavos)}</p>
                     <div className="flex flex-wrap gap-1">
                       {item.qtd_min_atacado > 1 ? (
-                        <Badge variant="secondary">{COPY.moq(item.qtd_min_atacado)}</Badge>
+                        <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+                          {COPY.moq(item.qtd_min_atacado)}
+                        </span>
                       ) : null}
-                      {item.sem_estoque ? <Badge variant="outline">{COPY.sem_estoque}</Badge> : null}
+                      {item.sem_estoque ? (
+                        <span className="rounded-md border border-border px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                          {COPY.sem_estoque}
+                        </span>
+                      ) : null}
                     </div>
                   </CardHeader>
                   <CardFooter className="p-3 pt-1">
@@ -134,7 +138,6 @@ export function CatalogScreen() {
                       disabled={item.sem_estoque}
                       onClick={() => {
                         add(item.id, item.qtd_min_atacado || 1);
-                        toast.success(COPY.added_to_cart);
                       }}
                     >
                       {COPY.add_to_cart}

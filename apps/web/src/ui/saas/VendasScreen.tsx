@@ -5,28 +5,12 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import type { VendaStatus } from "@saas-frota/shared";
 import type { VendaDto } from "../api";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Card, CardContent } from "@/components/ui/card";
 import { apiGet, apiSend, asPage, isApiError } from "../api";
 import { COPY } from "../copy";
 import { formatDate } from "../format";
-import { DeskWrap, ListHeader, SaasMain } from "../layout";
+import { ListHeader, SaasMain } from "../layout";
 import { NotifyAlert, VendaStatusBadge, legalVendaTargets, vendaTransitionLabel } from "../order-ui";
 import { EmptyState, ErrorState, FormSkeleton, TableSkeleton } from "../states";
 
@@ -59,30 +43,30 @@ export function VendasListScreen() {
       ) : items.length === 0 ? (
         <EmptyState title={COPY.vendas_empty} />
       ) : (
-        <DeskWrap>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Pedido</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Atualizado</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+        <Card className="gap-0 py-0">
+          <CardContent className="p-0">
+            <ul className="divide-y divide-border">
               {items.map((v) => (
-                <TableRow key={v.id} className="cursor-pointer" onClick={() => router.push(`/saas/vendas/${v.id}`)}>
-                  <TableCell className="font-medium">{v.id}</TableCell>
-                  <TableCell>{v.pedido_id}</TableCell>
-                  <TableCell>
-                    <VendaStatusBadge status={v.status} />
-                  </TableCell>
-                  <TableCell>{formatDate(v.updated_at)}</TableCell>
-                </TableRow>
+                <li key={v.id}>
+                  <button
+                    type="button"
+                    className="flex w-full flex-col gap-1 px-4 py-3 text-left hover:bg-muted/40 sm:flex-row sm:items-center sm:justify-between"
+                    onClick={() => router.push(`/saas/vendas/${v.id}`)}
+                  >
+                    <div>
+                      <p className="font-medium">{v.id}</p>
+                      <p className="text-sm text-muted-foreground">Pedido: {v.pedido_id}</p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 text-sm">
+                      <VendaStatusBadge status={v.status} />
+                      <span className="text-muted-foreground">{formatDate(v.updated_at)}</span>
+                    </div>
+                  </button>
+                </li>
               ))}
-            </TableBody>
-          </Table>
-        </DeskWrap>
+            </ul>
+          </CardContent>
+        </Card>
       )}
     </SaasMain>
   );
@@ -143,23 +127,17 @@ export function VendaDetailScreen() {
 
   return (
     <SaasMain>
-      <Breadcrumb className="mb-3">
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link href="/saas/vendas">{COPY.vendas_title}</Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{item.id}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
+      <p className="mb-3 text-sm text-muted-foreground">
+        <Link href="/saas/vendas" className="hover:text-primary">
+          {COPY.vendas_title}
+        </Link>
+        <span aria-hidden="true"> / </span>
+        <span className="text-foreground">{item.id}</span>
+      </p>
 
-      <Alert className="mb-4 border-[var(--brand-accent)]/30 bg-[var(--brand-accent)]/8">
-        <AlertDescription>{COPY.venda_stub_banner}</AlertDescription>
-      </Alert>
+      <p className="mb-4 rounded-md border border-[var(--brand-accent)]/30 bg-[var(--brand-accent)]/8 px-3 py-2 text-sm">
+        {COPY.venda_stub_banner}
+      </p>
 
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <h1 className="font-display text-xl font-semibold">{item.id}</h1>
@@ -183,19 +161,21 @@ export function VendaDetailScreen() {
         </Button>
       </div>
 
-      {error ? (
-        <Alert className="mb-3">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+      {error ? <p className="mb-3 text-sm text-red-500">{error}</p> : null}
+      {notified ? (
+        <div className="mb-3">
+          <NotifyAlert canais="whatsapp" />
+        </div>
       ) : null}
-      {notified ? <div className="mb-3"><NotifyAlert canais="whatsapp" /></div> : null}
 
-      <DeskWrap className="mb-4 space-y-1 p-4 text-sm">
-        <p>
-          <span className="text-muted-foreground">Pedido: </span>
-          {item.pedido_id}
-        </p>
-      </DeskWrap>
+      <Card className="mb-4 gap-0 py-0">
+        <CardContent className="space-y-1 p-4 text-sm">
+          <p>
+            <span className="text-muted-foreground">Pedido: </span>
+            {item.pedido_id}
+          </p>
+        </CardContent>
+      </Card>
 
       <h2 className="mb-2 text-sm font-semibold">{COPY.history}</h2>
       <ul className="space-y-1 text-sm text-muted-foreground">

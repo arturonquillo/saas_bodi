@@ -3,17 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import { apiGet, type CatalogItemDto } from "../api";
 import { useCart } from "../cart";
 import { COPY } from "../copy";
@@ -62,19 +52,13 @@ export function ProductScreen() {
 
   return (
     <StoreMain>
-      <Breadcrumb className="mb-4">
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link href="/loja">{COPY.nav_catalogo}</Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{item.nome}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
+      <p className="mb-4 text-sm text-muted-foreground">
+        <Link href="/loja" className="hover:text-primary">
+          {COPY.nav_catalogo}
+        </Link>
+        <span aria-hidden="true"> / </span>
+        <span className="text-foreground">{item.nome}</span>
+      </p>
 
       <div className="grid gap-8 md:grid-cols-2">
         <PlaceholderMedia nome={item.nome} variant="pdp" dimmed={item.sem_estoque} />
@@ -84,8 +68,16 @@ export function ProductScreen() {
           <p className="mt-4 text-2xl font-semibold text-primary">{formatMoney(item.preco_atacado_centavos)}</p>
           <p className="text-sm text-muted-foreground">{COPY.price_atacado}</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            {item.qtd_min_atacado > 1 ? <Badge variant="secondary">{COPY.moq(item.qtd_min_atacado)}</Badge> : null}
-            {item.sem_estoque ? <Badge variant="outline">{COPY.sem_estoque}</Badge> : null}
+            {item.qtd_min_atacado > 1 ? (
+              <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+                {COPY.moq(item.qtd_min_atacado)}
+              </span>
+            ) : null}
+            {item.sem_estoque ? (
+              <span className="rounded-md border border-border px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                {COPY.sem_estoque}
+              </span>
+            ) : null}
           </div>
           <div className="mt-6 space-y-3">
             <p className="text-sm font-medium">{COPY.qty}</p>
@@ -101,7 +93,6 @@ export function ProductScreen() {
               disabled={item.sem_estoque}
               onClick={() => {
                 add(item.id, qty);
-                toast.success(COPY.added_to_cart);
               }}
             >
               {COPY.add_to_cart}

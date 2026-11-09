@@ -5,28 +5,12 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import type { OrcamentoStatus } from "@saas-frota/shared";
 import type { OrcamentoDto } from "../api";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Card, CardContent } from "@/components/ui/card";
 import { apiGet, apiSend, docTotal, isApiError } from "../api";
 import { COPY } from "../copy";
 import { formatDate, formatMoney } from "../format";
-import { DeskWrap, StoreMain } from "../layout";
+import { StoreMain } from "../layout";
 import { MoneyCell, OrcamentoStatusBadge } from "../order-ui";
 import { useSession } from "../session";
 import { ErrorState, FormSkeleton, GateBanner } from "../states";
@@ -97,19 +81,13 @@ export function OrcamentoDetailScreen() {
 
   return (
     <StoreMain>
-      <Breadcrumb className="mb-4">
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link href="/loja/meus-docs">{COPY.nav_meus_docs}</Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{item.id}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
+      <p className="mb-4 text-sm text-muted-foreground">
+        <Link href="/loja/meus-docs" className="hover:text-primary">
+          {COPY.nav_meus_docs}
+        </Link>
+        <span aria-hidden="true"> / </span>
+        <span className="text-foreground">{item.id}</span>
+      </p>
 
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <h1 className="font-display text-2xl font-semibold">{item.id}</h1>
@@ -117,9 +95,9 @@ export function OrcamentoDetailScreen() {
       </div>
 
       {item.status === "expirado" ? (
-        <Alert className="mb-4 border-[var(--color-warning)]/40 bg-[var(--color-warning)]/10">
-          <AlertDescription>{COPY.orcamento_expired}</AlertDescription>
-        </Alert>
+        <p className="mb-4 rounded-md border border-[var(--color-warning)]/40 bg-[var(--color-warning)]/10 px-3 py-2 text-sm">
+          {COPY.orcamento_expired}
+        </p>
       ) : null}
 
       {gate || (canAct && !aprovado) ? (
@@ -139,32 +117,26 @@ export function OrcamentoDetailScreen() {
         </div>
       ) : null}
 
-      {error ? (
-        <Alert className="mb-4">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
+      {error ? <p className="mb-4 text-sm text-red-500">{error}</p> : null}
 
-      <DeskWrap className="mb-4">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Item</TableHead>
-              <TableHead>Qtd</TableHead>
-              <TableHead>Preço</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+      <Card className="mb-4 gap-0 py-0">
+        <CardContent className="p-0">
+          <ul className="divide-y divide-border">
+            <li className="grid grid-cols-3 gap-2 px-4 py-2 text-xs font-medium text-muted-foreground">
+              <span>Item</span>
+              <span>Qtd</span>
+              <span>Preço</span>
+            </li>
             {item.linhas.map((l) => (
-              <TableRow key={l.id}>
-                <TableCell>{l.nome}</TableCell>
-                <TableCell>{l.qty}</TableCell>
-                <TableCell>{formatMoney(l.unit_price_centavos)}</TableCell>
-              </TableRow>
+              <li key={l.id} className="grid grid-cols-3 gap-2 px-4 py-3 text-sm">
+                <span>{l.nome}</span>
+                <span>{l.qty}</span>
+                <span>{formatMoney(l.unit_price_centavos)}</span>
+              </li>
             ))}
-          </TableBody>
-        </Table>
-      </DeskWrap>
+          </ul>
+        </CardContent>
+      </Card>
       <p className="mb-4 font-semibold">
         Total: <MoneyCell centavos={docTotal(item.linhas ?? [])} />
       </p>

@@ -3,8 +3,8 @@
 import { useState } from "react";
 import type { SessionDto, Surface } from "@saas-frota/shared";
 import { Button } from "@/components/ui/button";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { apiSend, isApiError } from "./api";
 import { COPY } from "./copy";
 
@@ -45,9 +45,11 @@ export function LoginForm({
   }
 
   return (
-    <form className="flex flex-col gap-4" onSubmit={onSubmit}>
-      <Field>
-        <FieldLabel htmlFor={`${surface}-email`}>{COPY.email}</FieldLabel>
+    <form className="space-y-6" onSubmit={onSubmit}>
+      <div>
+        <Label htmlFor={`${surface}-email`} className="mb-2">
+          {COPY.email}
+        </Label>
         <Input
           id={`${surface}-email`}
           name="email"
@@ -56,9 +58,11 @@ export function LoginForm({
           autoComplete="username"
           className={tall ? "h-11" : undefined}
         />
-      </Field>
-      <Field>
-        <FieldLabel htmlFor={`${surface}-password`}>{COPY.password}</FieldLabel>
+      </div>
+      <div>
+        <Label htmlFor={`${surface}-password`} className="mb-2">
+          {COPY.password}
+        </Label>
         <Input
           id={`${surface}-password`}
           name="password"
@@ -67,11 +71,11 @@ export function LoginForm({
           autoComplete="current-password"
           className={tall ? "h-11" : undefined}
         />
-      </Field>
+      </div>
+      {error ? <p className="text-sm text-red-500">{error}</p> : null}
       <Button type="submit" disabled={busy} className={tall ? "h-11 w-full" : "w-full"}>
         {COPY.submit_login}
       </Button>
-      {error ? <FieldError>{error}</FieldError> : null}
     </form>
   );
 }

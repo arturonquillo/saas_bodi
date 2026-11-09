@@ -4,39 +4,14 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { isAdmin } from "@saas-frota/shared";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
+import { Label } from "@/components/ui/label";
 import { apiGet, apiSend, asPage, isApiError, type EstoqueItemDto } from "../api";
 import { COPY } from "../copy";
 import { formatMoney } from "../format";
-import { DeskWrap, ListHeader, SaasMain } from "../layout";
+import { ListHeader, SaasMain } from "../layout";
 import { useSession } from "../session";
 import { EmptyState, ErrorState, FormSkeleton, TableSkeleton } from "../states";
 
@@ -79,47 +54,43 @@ export function EstoqueListScreen() {
       ) : items.length === 0 ? (
         <EmptyState title={COPY.estoque_empty} art="warehouse" />
       ) : (
-        <DeskWrap>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>SKU</TableHead>
-                <TableHead>Nome</TableHead>
-                <TableHead>{COPY.on_hand}</TableHead>
-                <TableHead>{COPY.reserved}</TableHead>
-                <TableHead>{COPY.available}</TableHead>
-                <TableHead>{COPY.price_atacado}</TableHead>
-                <TableHead>{COPY.visivel_loja}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+        <Card className="gap-0 py-0">
+          <CardContent className="p-0">
+            <ul className="divide-y divide-border">
               {items.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>
-                    <Link href={`/saas/estoque/${item.id}`} className="font-medium text-primary hover:underline">
-                      {item.codigo}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="cursor-pointer" onClick={() => router.push(`/saas/estoque/${item.id}`)}>
-                    {item.nome}
-                  </TableCell>
-                  <TableCell>{item.on_hand}</TableCell>
-                  <TableCell>{item.reserved}</TableCell>
-                  <TableCell>{item.available}</TableCell>
-                  <TableCell>{formatMoney(item.preco_atacado_centavos)}</TableCell>
-                  <TableCell>
-                    <Switch
+                <li key={item.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 text-left"
+                    onClick={() => router.push(`/saas/estoque/${item.id}`)}
+                  >
+                    <p className="font-medium text-primary">
+                      <Link href={`/saas/estoque/${item.id}`} className="hover:underline">
+                        {item.codigo}
+                      </Link>
+                    </p>
+                    <p className="text-sm">{item.nome}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {COPY.on_hand}: {item.on_hand} · {COPY.reserved}: {item.reserved} · {COPY.available}:{" "}
+                      {item.available} · {formatMoney(item.preco_atacado_centavos)}
+                    </p>
+                  </button>
+                  <label className="inline-flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className="size-4 rounded border-input"
                       checked={item.visivel_loja}
                       disabled={!admin}
-                      onCheckedChange={(v) => void toggleVisibility(item, v)}
+                      onChange={(e) => void toggleVisibility(item, e.target.checked)}
                       aria-label={COPY.visivel_loja}
                     />
-                  </TableCell>
-                </TableRow>
+                    <span className="text-muted-foreground">{COPY.visivel_loja}</span>
+                  </label>
+                </li>
               ))}
-            </TableBody>
-          </Table>
-        </DeskWrap>
+            </ul>
+          </CardContent>
+        </Card>
       )}
     </SaasMain>
   );
@@ -187,19 +158,13 @@ export function SkuDetailScreen() {
 
   return (
     <SaasMain>
-      <Breadcrumb className="mb-3">
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link href="/saas/estoque">{COPY.estoque_title}</Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{item.codigo}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
+      <p className="mb-3 text-sm text-muted-foreground">
+        <Link href="/saas/estoque" className="hover:text-primary">
+          {COPY.estoque_title}
+        </Link>
+        <span aria-hidden="true"> / </span>
+        <span className="text-foreground">{item.codigo}</span>
+      </p>
 
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -207,72 +172,74 @@ export function SkuDetailScreen() {
           <p className="text-sm text-muted-foreground">{item.codigo}</p>
         </div>
         {admin ? (
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button type="button">{COPY.adjust_qty}</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{COPY.adjust_qty}</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-3">
-                <Field>
-                  <FieldLabel htmlFor="delta">Delta</FieldLabel>
-                  <Input id="delta" type="number" value={delta} onChange={(e) => setDelta(e.target.value)} />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="motivo">{COPY.motivo}</FieldLabel>
-                  <Input id="motivo" value={motivo} onChange={(e) => setMotivo(e.target.value)} />
-                </Field>
-                {error ? <p className="text-sm text-destructive">{error}</p> : null}
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                  {COPY.actions.cancelar}
-                </Button>
-                <Button type="button" disabled={busy} onClick={() => void adjust()}>
-                  {COPY.actions.confirmar}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <Button type="button" onClick={() => setOpen((o) => !o)}>
+            {COPY.adjust_qty}
+          </Button>
         ) : null}
       </div>
 
-      <DeskWrap className="grid gap-3 p-4 text-sm sm:grid-cols-3">
-        <div>
-          <p className="text-muted-foreground">{COPY.on_hand}</p>
-          <p className="text-lg font-semibold tabular-nums">{item.on_hand}</p>
-        </div>
-        <div>
-          <p className="text-muted-foreground">{COPY.reserved}</p>
-          <p className="text-lg font-semibold tabular-nums">{item.reserved}</p>
-        </div>
-        <div>
-          <p className="text-muted-foreground">{COPY.available}</p>
-          <p className="text-lg font-semibold tabular-nums text-primary">{item.available}</p>
-        </div>
-      </DeskWrap>
-
-      <DeskWrap className="mt-4 space-y-2 p-4 text-sm">
-        <p>
-          <span className="text-muted-foreground">{COPY.price_atacado}: </span>
-          {formatMoney(item.preco_atacado_centavos)}
-        </p>
-        <p>
-          <span className="text-muted-foreground">{COPY.moq(item.qtd_min_atacado)}</span>
-        </p>
-        <p>
-          <span className="text-muted-foreground">{COPY.visivel_loja}: </span>
-          {item.visivel_loja ? "Sim" : "Não"}
-        </p>
-      </DeskWrap>
-
-      {!admin ? (
-        <Alert className="mt-4">
-          <AlertDescription>Somente leitura para vendedor.</AlertDescription>
-        </Alert>
+      {open ? (
+        <Card className="mb-4 gap-0 py-0">
+          <CardContent className="space-y-3 p-4">
+            <div>
+              <Label htmlFor="delta" className="mb-2">
+                Delta
+              </Label>
+              <Input id="delta" type="number" value={delta} onChange={(e) => setDelta(e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="motivo" className="mb-2">
+                {COPY.motivo}
+              </Label>
+              <Input id="motivo" value={motivo} onChange={(e) => setMotivo(e.target.value)} />
+            </div>
+            {error ? <p className="text-sm text-red-500">{error}</p> : null}
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                {COPY.actions.cancelar}
+              </Button>
+              <Button type="button" disabled={busy} onClick={() => void adjust()}>
+                {COPY.actions.confirmar}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       ) : null}
+
+      <Card className="gap-0 py-0">
+        <CardContent className="grid gap-3 p-4 text-sm sm:grid-cols-3">
+          <div>
+            <p className="text-muted-foreground">{COPY.on_hand}</p>
+            <p className="text-lg font-semibold tabular-nums">{item.on_hand}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">{COPY.reserved}</p>
+            <p className="text-lg font-semibold tabular-nums">{item.reserved}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">{COPY.available}</p>
+            <p className="text-lg font-semibold tabular-nums text-primary">{item.available}</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="mt-4 gap-0 py-0">
+        <CardContent className="space-y-2 p-4 text-sm">
+          <p>
+            <span className="text-muted-foreground">{COPY.price_atacado}: </span>
+            {formatMoney(item.preco_atacado_centavos)}
+          </p>
+          <p>
+            <span className="text-muted-foreground">{COPY.moq(item.qtd_min_atacado)}</span>
+          </p>
+          <p>
+            <span className="text-muted-foreground">{COPY.visivel_loja}: </span>
+            {item.visivel_loja ? "Sim" : "Não"}
+          </p>
+        </CardContent>
+      </Card>
+
+      {!admin ? <p className="mt-4 text-sm text-muted-foreground">Somente leitura para vendedor.</p> : null}
     </SaasMain>
   );
 }

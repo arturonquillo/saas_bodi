@@ -112,8 +112,8 @@ async function handleWebhookDeliver(payload: JsonRecord) {
   const tenantId = String(payload.tenant_id ?? "");
   const webhookId = payload.webhook_id ? String(payload.webhook_id) : null;
   let url = payload.url ? String(payload.url) : null;
-  let event = String(payload.event ?? "webhook.event");
-  let bodyPayload = payload.payload ?? {};
+  const event = String(payload.event ?? "webhook.event");
+  const bodyPayload = payload.payload ?? {};
 
   if (webhookId) {
     const wh = await db.webhook.findFirst({

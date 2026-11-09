@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { requireSaasRole } from "@/server/authz/gates";
 import { postPresence } from "@/server/crm/meta";
-import { ApiError, handleError, ok } from "@/server/http/respond";
+import { ApiError, handleError } from "@/server/http/respond";
 
 const schema = z.object({
   conversation_id: z.string().nullable().optional(),

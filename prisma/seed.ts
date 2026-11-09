@@ -62,6 +62,17 @@ const ids = {
 
 async function main() {
   // Wipe in FK-safe order
+  await prisma.csatResponse.deleteMany();
+  await prisma.contactImportBatch.deleteMany();
+  await prisma.customFilter.deleteMany();
+  await prisma.assignmentPolicy.deleteMany();
+  await prisma.workingHour.deleteMany();
+  await prisma.webhook.deleteMany();
+  await prisma.agentBotInbox.deleteMany();
+  await prisma.agentBot.deleteMany();
+  await prisma.customAttributeDefinition.deleteMany();
+  await prisma.macro.deleteMany();
+  await prisma.automationRule.deleteMany();
   await prisma.message.deleteMany();
   await prisma.conversationDraft.deleteMany();
   await prisma.conversationLabel.deleteMany();
@@ -153,6 +164,7 @@ async function main() {
       canaisAviso: "whatsapp",
       lojaModo: "pedido_direto",
       defaultVendedorUserId: ids.vendedor,
+      webhookSigningSecret: randomBytes(32).toString("hex"),
     },
   });
 
@@ -457,8 +469,10 @@ async function main() {
       name: "WhatsApp principal",
       channelType: "whatsapp",
       greeting: "Olá! Bem-vindo à Casa dos Frios.",
+      oooMessage: "Estamos fora do horário. Retornamos em breve.",
       lockToSingleConversation: true,
       vendedorSeeAll: false,
+      timezone: "America/Sao_Paulo",
     },
   });
   await prisma.channelWhatsapp.create({
@@ -499,6 +513,28 @@ async function main() {
       showOnSidebar: true,
       system: true,
     })),
+  });
+
+  await prisma.customAttributeDefinition.createMany({
+    data: [
+      {
+        id: "cad_conv_segmento",
+        tenantId: TENANT,
+        attributeModel: "conversation",
+        attributeDisplayType: "list",
+        attributeKey: "segmento",
+        attributeDisplayName: "Segmento",
+        attributeValuesJson: JSON.stringify(["atacado", "varejo", "horeca"]),
+      },
+      {
+        id: "cad_ct_origem",
+        tenantId: TENANT,
+        attributeModel: "contact",
+        attributeDisplayType: "text",
+        attributeKey: "origem",
+        attributeDisplayName: "Origem",
+      },
+    ],
   });
 
   await prisma.team.create({

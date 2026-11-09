@@ -37,7 +37,9 @@ function legacyDirection(messageType: string, isPrivate: boolean): string {
 }
 
 /** Deprecated: maps Conversation → legacy inbox thread DTO for one-release dual-read. */
-function threadDtoFromConversation(conv: Awaited<ReturnType<typeof getConversa>>, messages?: Array<{
+function threadDtoFromConversation(
+  conv: Awaited<ReturnType<typeof listConversas>>["items"][number],
+  messages?: Array<{
   id: string;
   message_type: string;
   private: boolean;

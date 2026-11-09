@@ -64,7 +64,7 @@ export async function appendDomainEvent(tx: Tx, input: DomainEventInput) {
       createdAt,
     },
   });
-  // Fan-out after write; callers may also fan-out post-commit.
+  // Fan-out + Phase B job fan-in after write (never egress on request path).
   queueMicrotask(() => {
     fanoutCrmEvent({
       id,
@@ -73,6 +73,16 @@ export async function appendDomainEvent(tx: Tx, input: DomainEventInput) {
       createdAt,
       payload: input.payload,
     });
+    void import("../ports/jobs")
+      .then(({ fanInAfterDomainEvent }) =>
+        fanInAfterDomainEvent({
+          id,
+          tenantId: input.tenantId,
+          type: input.type,
+          payload: input.payload,
+        }),
+      )
+      .catch(() => undefined);
   });
   return { id, createdAt };
 }

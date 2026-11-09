@@ -64,11 +64,6 @@ export function AtribuicaoScreen() {
       await apiSend(`/api/saas/crm/inboxes/${inboxId}/politica-atribuicao`, "PUT", {
         kind,
         enabled,
-      }).catch(async () => {
-        await apiSend(`/api/saas/crm/inboxes/${inboxId}/politica-atribuicao`, "PATCH", {
-          kind,
-          enabled,
-        });
       });
       if (enabled) {
         await apiSend(`/api/saas/crm/inboxes/${inboxId}`, "PATCH", {

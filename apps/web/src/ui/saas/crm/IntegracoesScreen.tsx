@@ -80,7 +80,7 @@ export function IntegracoesScreen() {
       },
     };
     const secret = String(fd.get("secret") || "").trim();
-    if (secret) body.secret = secret;
+    if (secret) body.secrets = { token: secret };
     try {
       await putIntegracao(editing, body);
       setEditing(null);

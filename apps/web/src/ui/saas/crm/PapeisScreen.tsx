@@ -38,7 +38,7 @@ import { SaasPage } from "../../layout";
 import { ErrorState, TableSkeleton } from "../../states";
 
 function rolePermissions(role: CrmCustomRoleDto) {
-  return role.permissions ?? role.permissions_json ?? [];
+  return role.permissions ?? [];
 }
 
 export function PapeisScreen() {
@@ -96,7 +96,6 @@ export function PapeisScreen() {
       name: String(fd.get("name") || "").trim(),
       description: String(fd.get("description") || "").trim() || null,
       permissions: perms,
-      permissions_json: perms,
     };
     try {
       if (editing) {

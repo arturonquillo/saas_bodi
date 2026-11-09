@@ -376,7 +376,7 @@ export async function listConversationApps(conversationId: string) {
 
 /* —— CSAT notes / HC domain —— */
 
-export async function patchCsatReview(id: string, review_note: string | null) {
+export async function patchCsatReview(id: string, review_note: string) {
   return apiSend(`/api/saas/crm/csat/${id}`, "PATCH", { review_note });
 }
 

@@ -476,7 +476,8 @@ function ContextRail({
                 <li key={s.id} className="rounded-md border border-border p-2 text-sm">
                   <p className="text-xs text-muted-foreground">{s.mode}</p>
                   <p className="mt-1 text-gray-900">
-                    {s.proposal_json?.reply_text || JSON.stringify(s.proposal_json ?? {})}
+                    {(s.proposal ?? s.proposal_json)?.reply_text ||
+                      JSON.stringify(s.proposal ?? s.proposal_json ?? {})}
                   </p>
                   {s.status === "pending" ? (
                     <div className="mt-2 flex gap-2">

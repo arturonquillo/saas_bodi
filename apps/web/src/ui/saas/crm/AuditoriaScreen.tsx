@@ -179,7 +179,7 @@ export function AuditoriaScreen() {
                 {detail.aggregate_type ?? "—"} / {detail.aggregate_id ?? "—"}
               </p>
               <pre className="max-h-64 overflow-auto rounded-md border bg-muted/40 p-3 text-xs">
-                {JSON.stringify(detail.payload_json ?? {}, null, 2)}
+                {JSON.stringify(detail.payload ?? detail.payload_json ?? {}, null, 2)}
               </pre>
             </div>
           ) : null}

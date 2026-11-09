@@ -99,14 +99,9 @@ export function CapacidadeScreen() {
     if (!inboxId) return;
     setBusy(true);
     try {
-      await apiSend(`/api/saas/crm/inboxes/${inboxId}/politica-atribuicao`, "PATCH", {
+      await apiSend(`/api/saas/crm/inboxes/${inboxId}/politica-atribuicao`, "PUT", {
         kind,
         enabled,
-      }).catch(async () => {
-        await apiSend(`/api/saas/crm/inboxes/${inboxId}/politica-atribuicao`, "PUT", {
-          kind,
-          enabled,
-        });
       });
       toast.success(COPY.actions.salvar);
     } catch (err) {

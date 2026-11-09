@@ -86,7 +86,6 @@ export function AppsPainelScreen() {
       enabled,
       position: Number(fd.get("position") || 0),
       inbox_ids,
-      inbox_ids_json: inbox_ids,
     };
     try {
       if (editing) {
@@ -146,7 +145,7 @@ export function AppsPainelScreen() {
             ) : (
               <ul className="space-y-4">
                 {items.map((item) => {
-                  const ids = item.inbox_ids ?? item.inbox_ids_json;
+                  const ids = item.inbox_ids;
                   return (
                     <li key={item.id} className="flex flex-wrap items-start justify-between gap-3">
                       <div>
@@ -232,7 +231,7 @@ export function AppsPainelScreen() {
                 id="app_inboxes"
                 name="inbox_ids"
                 className="mt-1"
-                defaultValue={(editing?.inbox_ids ?? editing?.inbox_ids_json ?? []).join(", ")}
+                defaultValue={(editing?.inbox_ids ?? []).join(", ")}
                 placeholder="vazio = todas"
               />
             </div>

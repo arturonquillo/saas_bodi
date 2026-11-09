@@ -74,7 +74,7 @@ export function CsatAdminScreen() {
   async function saveReview(id: string) {
     setBusy(true);
     try {
-      await patchCsatReview(id, notes[id]?.trim() || null);
+      await patchCsatReview(id, notes[id]?.trim() || "");
       toast.success(COPY.actions.salvar);
       void load();
     } catch (err) {

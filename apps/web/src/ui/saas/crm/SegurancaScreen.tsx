@@ -270,7 +270,9 @@ export function SegurancaScreen() {
                 <div>
                   <Label htmlFor="idp_cert">
                     Certificado PEM
-                    {saml?.idp_certificate_present ? " (já salvo — deixe vazio para manter)" : ""}
+                    {saml?.certificate_present || saml?.idp_certificate_present
+                      ? " (já salvo — deixe vazio para manter)"
+                      : ""}
                   </Label>
                   <Textarea
                     id="idp_cert"
@@ -308,12 +310,14 @@ export function SegurancaScreen() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-2">
-                <Badge variant="outline">{mfa?.enabled ? "Ativo" : "Inativo"}</Badge>
-                {mfa?.confirmed_at ? (
-                  <span className="text-sm text-muted-foreground">confirmado</span>
+                <Badge variant="outline">
+                  {mfa?.enrolled || mfa?.enabled ? "Ativo" : "Inativo"}
+                </Badge>
+                {mfa?.mfa_required ? (
+                  <span className="text-sm text-muted-foreground">obrigatório no tenant</span>
                 ) : null}
               </div>
-              {!mfa?.enabled ? (
+              {!(mfa?.enrolled || mfa?.enabled) ? (
                 <>
                   {!enrollSecret ? (
                     <Button type="button" disabled={busy} onClick={() => void onStartMfa()}>

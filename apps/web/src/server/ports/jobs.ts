@@ -326,7 +326,8 @@ async function handleJob(kind: string, payload: unknown, tenantId: string): Prom
       return;
     case "audit.prune": {
       const { pruneAudit } = await import("../crm/audit");
-      await pruneAudit(String(p.tenant_id ?? tenantId), Number(p.days ?? 90));
+      const payload = p as { tenant_id?: string; days?: number };
+      await pruneAudit(String(payload.tenant_id ?? tenantId), Number(payload.days ?? 90));
       return;
     }
     case "dns.verify_portal_domain":

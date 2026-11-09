@@ -13,13 +13,13 @@ export function LoginForm({
   redirectTo,
   onSuccess,
 }: {
-  surface: Surface;
+  surface: Exclude<Surface, never>;
   redirectTo: string;
   onSuccess?: (session: SessionDto) => void;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const tall = surface !== "saas";
+  const tall = surface === "loja";
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -30,17 +30,15 @@ export function LoginForm({
       const session = await apiSend<SessionDto>(`/api/${surface}/login`, "POST", {
         email: fd.get("email"),
         password: fd.get("password"),
-        tenant: "demo",
+        tenant: "casa-dos-frios",
       });
       if (onSuccess) onSuccess(session);
       else window.location.href = redirectTo;
     } catch (err) {
-      if (surface === "conta" && isApiError(err) && err.code === "forbidden") {
-        setError(COPY.account.forbidden);
-      } else if (isApiError(err)) {
-        setError(err.message);
+      if (isApiError(err)) {
+        setError(err.message || COPY.login_error);
       } else {
-        setError(COPY.errors.save_error);
+        setError(COPY.save_fail);
       }
       setBusy(false);
     }
@@ -49,7 +47,7 @@ export function LoginForm({
   return (
     <form className="flex flex-col gap-4" onSubmit={onSubmit}>
       <Field>
-        <FieldLabel htmlFor={`${surface}-email`}>{COPY.store.email}</FieldLabel>
+        <FieldLabel htmlFor={`${surface}-email`}>{COPY.email}</FieldLabel>
         <Input
           id={`${surface}-email`}
           name="email"
@@ -60,7 +58,7 @@ export function LoginForm({
         />
       </Field>
       <Field>
-        <FieldLabel htmlFor={`${surface}-password`}>{COPY.store.password}</FieldLabel>
+        <FieldLabel htmlFor={`${surface}-password`}>{COPY.password}</FieldLabel>
         <Input
           id={`${surface}-password`}
           name="password"
@@ -71,7 +69,7 @@ export function LoginForm({
         />
       </Field>
       <Button type="submit" disabled={busy} className={tall ? "h-11 w-full" : "w-full"}>
-        {COPY.store.submit_login}
+        {COPY.submit_login}
       </Button>
       {error ? <FieldError>{error}</FieldError> : null}
     </form>

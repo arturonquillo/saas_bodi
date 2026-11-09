@@ -27,7 +27,7 @@ export function TenantTheme({
 
   const refresh = useCallback(async () => {
     try {
-      const next = await apiGet<ThemeTokens>("/api/loja/tema?tenant=demo");
+      const next = await apiGet<ThemeTokens>("/api/loja/tema?tenant=casa-dos-frios");
       setTokens(next);
     } catch {
       /* keep CSS seed fallbacks */

@@ -1,36 +1,69 @@
-export const ORDER_STATUSES = [
-  "novo",
+/** Orçamento → Pedido de venda → Venda/Faturamento machines. */
+
+export const ORCAMENTO_STATUSES = [
+  "rascunho",
+  "enviado",
+  "aceito",
+  "recusado",
+  "expirado",
+  "cancelado",
+] as const;
+export type OrcamentoStatus = (typeof ORCAMENTO_STATUSES)[number];
+
+export const PEDIDO_STATUSES = [
   "confirmado",
-  "separando",
+  "em_separacao",
   "despachado",
   "entregue",
   "cancelado",
 ] as const;
-export type OrderStatus = (typeof ORDER_STATUSES)[number];
+export type PedidoStatus = (typeof PEDIDO_STATUSES)[number];
 
-export const ORDER_CHANNELS = ["loja", "saas"] as const;
-export type OrderChannel = (typeof ORDER_CHANNELS)[number];
+/** @deprecated Use PedidoStatus — kept alias for gradual migration */
+export type OrderStatus = PedidoStatus;
 
-export const PRICE_LISTS = ["varejo", "atacado"] as const;
-export type PriceList = (typeof PRICE_LISTS)[number];
+export const VENDA_STATUSES = ["rascunho", "faturado", "cancelado"] as const;
+export type VendaStatus = (typeof VENDA_STATUSES)[number];
 
-/** Legal edges only. Role checks live in authz — this is the state graph. */
-export const LEGAL_TRANSITIONS: Readonly<Record<OrderStatus, readonly OrderStatus[]>> = {
-  novo: ["confirmado", "cancelado"],
-  confirmado: ["separando", "cancelado"],
-  separando: ["despachado", "cancelado"],
+export const CADASTRO_STATUSES = ["pendente", "aprovado", "recusado"] as const;
+export type CadastroStatus = (typeof CADASTRO_STATUSES)[number];
+
+export const WHATSAPP_INTENTS = ["cadastro", "orcamento", "info_empresa", "outro"] as const;
+export type WhatsappIntent = (typeof WHATSAPP_INTENTS)[number];
+
+export const LEGAL_ORCAMENTO: Readonly<Record<OrcamentoStatus, readonly OrcamentoStatus[]>> = {
+  rascunho: ["enviado", "cancelado"],
+  enviado: ["aceito", "recusado", "expirado", "cancelado"],
+  aceito: [],
+  recusado: [],
+  expirado: [],
+  cancelado: [],
+};
+
+export const LEGAL_PEDIDO: Readonly<Record<PedidoStatus, readonly PedidoStatus[]>> = {
+  confirmado: ["em_separacao", "cancelado"],
+  em_separacao: ["despachado", "cancelado"],
   despachado: ["entregue"],
   entregue: [],
   cancelado: [],
 };
 
+export const LEGAL_VENDA: Readonly<Record<VendaStatus, readonly VendaStatus[]>> = {
+  rascunho: ["faturado", "cancelado"],
+  faturado: [],
+  cancelado: [],
+};
+
 export type StockEffect = "none" | "reserve" | "release" | "consume";
 
-export function stockEffectForTransition(from: OrderStatus, to: OrderStatus): StockEffect | null {
-  if (!LEGAL_TRANSITIONS[from].includes(to)) return null;
-  if (from === "novo" && to === "confirmado") return "reserve";
-  if (from === "confirmado" && to === "cancelado") return "release";
-  if (from === "separando" && to === "cancelado") return "release";
-  if (from === "separando" && to === "despachado") return "consume";
+export function stockEffectForPedido(from: PedidoStatus, to: PedidoStatus): StockEffect | null {
+  if (!LEGAL_PEDIDO[from].includes(to)) return null;
+  if (to === "cancelado" && (from === "confirmado" || from === "em_separacao")) return "release";
+  if (from === "em_separacao" && to === "despachado") return "consume";
   return "none";
+}
+
+/** Pedido create always reserves. */
+export function stockEffectOnPedidoCreate(): StockEffect {
+  return "reserve";
 }

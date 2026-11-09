@@ -1,136 +1,182 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { CanalAviso } from "@saas-frota/shared";
+import type { CanalAviso, LojaModo, SaasConfigDto, UserDto } from "@saas-frota/shared";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Switch } from "@/components/ui/switch";
-import { apiGet, apiSend, isApiError, type SaasConfigDto } from "../api";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { apiGet, apiSend, asPage, isApiError } from "../api";
 import { COPY } from "../copy";
-import { FormWrap, ListHeader, SaasMain } from "../layout";
-import { useSession, writesOpen } from "../session";
+import { ListHeader, SaasMain } from "../layout";
 import { ErrorState, FormSkeleton } from "../states";
 
 export function ConfigScreen() {
-  const { session, status } = useSession();
-  const allowed = writesOpen(session);
-  const [cfg, setCfg] = useState<SaasConfigDto | null>(null);
+  const [config, setConfig] = useState<SaasConfigDto | null>(null);
+  const [users, setUsers] = useState<UserDto[]>([]);
+  const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [ok, setOk] = useState(false);
 
   const load = useCallback(async () => {
-    setError(null);
+    setStatus("loading");
     try {
-      setCfg(await apiGet<SaasConfigDto>("/api/saas/config"));
-    } catch (err) {
-      setError(isApiError(err) ? err.message : COPY.errors.load_error);
+      const [cfg, us] = await Promise.all([
+        apiGet<SaasConfigDto>("/api/saas/config"),
+        apiGet("/api/saas/usuarios").then((d) => asPage<UserDto>(d).items).catch(() => [] as UserDto[]),
+      ]);
+      setConfig(cfg);
+      setUsers(us);
+      setStatus("ok");
+    } catch {
+      setStatus("error");
     }
   }, []);
 
   useEffect(() => {
-    if (status === "auth") void load();
-  }, [status, load]);
+    void load();
+  }, [load]);
 
-  async function save() {
-    if (!cfg) return;
-    setSaveError(null);
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    if (!config) return;
+    setBusy(true);
+    setError(null);
+    setOk(false);
     try {
-      setCfg(
-        await apiSend<SaasConfigDto>("/api/saas/config", "PUT", {
-          aceita_cpf: cfg.aceita_cpf,
-          aceita_cnpj: cfg.aceita_cnpj,
-          canais_aviso: cfg.canais_aviso,
-        }),
-      );
+      const next = await apiSend<SaasConfigDto>("/api/saas/config", "PUT", config);
+      setConfig(next);
+      setOk(true);
     } catch (err) {
-      setSaveError(isApiError(err) ? err.message : COPY.errors.save_error);
+      setError(isApiError(err) ? err.message : COPY.save_fail);
+    } finally {
+      setBusy(false);
     }
   }
 
-  if (error) {
-    return (
-      <SaasMain>
-        <ErrorState message={error} onRetry={() => void load()} />
-      </SaasMain>
-    );
-  }
-
-  if (!cfg) {
+  if (status === "loading") {
     return (
       <SaasMain>
         <FormSkeleton />
       </SaasMain>
     );
   }
-
-  const lastCpf = cfg.aceita_cpf && !cfg.aceita_cnpj;
-  const lastCnpj = cfg.aceita_cnpj && !cfg.aceita_cpf;
+  if (status === "error" || !config) {
+    return (
+      <SaasMain>
+        <ErrorState onRetry={() => void load()} />
+      </SaasMain>
+    );
+  }
 
   return (
     <SaasMain>
-      <ListHeader
-        title={COPY.saas.config_title}
-        subtitle={COPY.saas.sub_config}
-        actions={
-          <Button type="button" disabled={!allowed} onClick={() => void save()}>
-            {COPY.actions.salvar}
-          </Button>
-        }
-      />
-      {!allowed ? <p className="mb-3 text-xs text-muted-foreground">{COPY.entitlement.saas_ro_inadimplente}</p> : null}
-      {saveError ? <FieldError className="mb-3">{saveError}</FieldError> : null}
-      <FormWrap className="flex max-w-md flex-col gap-5">
+      <ListHeader title={COPY.config_title} />
+      <form className="max-w-xl space-y-4" onSubmit={save}>
         <Field>
-          <div className="flex items-center justify-between gap-3">
-            <FieldLabel>{COPY.saas.aceita_cpf}</FieldLabel>
-            <Switch
-              checked={cfg.aceita_cpf}
-              disabled={!allowed || lastCpf}
-              onCheckedChange={(checked) => setCfg({ ...cfg, aceita_cpf: checked })}
-            />
-          </div>
-          {lastCpf ? <FieldDescription>{COPY.saas.last_flag}</FieldDescription> : null}
+          <FieldLabel htmlFor="razao">{COPY.razao_social_tenant}</FieldLabel>
+          <Input
+            id="razao"
+            value={config.razao_social}
+            onChange={(e) => setConfig({ ...config, razao_social: e.target.value })}
+          />
         </Field>
         <Field>
-          <div className="flex items-center justify-between gap-3">
-            <FieldLabel>{COPY.saas.aceita_cnpj}</FieldLabel>
-            <Switch
-              checked={cfg.aceita_cnpj}
-              disabled={!allowed || lastCnpj}
-              onCheckedChange={(checked) => setCfg({ ...cfg, aceita_cnpj: checked })}
-            />
-          </div>
-          {lastCnpj ? <FieldDescription>{COPY.saas.last_flag}</FieldDescription> : null}
+          <FieldLabel htmlFor="fantasia">{COPY.nome_fantasia}</FieldLabel>
+          <Input
+            id="fantasia"
+            value={config.nome_fantasia}
+            onChange={(e) => setConfig({ ...config, nome_fantasia: e.target.value })}
+          />
         </Field>
         <Field>
-          <FieldLabel>{COPY.saas.canais}</FieldLabel>
-          <RadioGroup
-            value={cfg.canais_aviso}
-            disabled={!allowed}
-            onValueChange={(value) => setCfg({ ...cfg, canais_aviso: value as CanalAviso })}
+          <FieldLabel>{COPY.cnpj}</FieldLabel>
+          <Input value={config.cnpj_masked} disabled readOnly />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="wa">{COPY.whatsapp_comercial}</FieldLabel>
+          <Input
+            id="wa"
+            value={config.whatsapp_comercial ?? ""}
+            onChange={(e) => setConfig({ ...config, whatsapp_comercial: e.target.value || null })}
+          />
+        </Field>
+        <Field>
+          <FieldLabel>{COPY.canais}</FieldLabel>
+          <Select
+            value={config.canais_aviso}
+            onValueChange={(v) => setConfig({ ...config, canais_aviso: v as CanalAviso })}
           >
-            {(
-              [
-                ["email", COPY.saas.canal_email],
-                ["whatsapp", COPY.saas.canal_whatsapp],
-                ["ambos", COPY.saas.canal_ambos],
-              ] as const
-            ).map(([value, label]) => (
-              <label key={value} className="flex items-center gap-2 text-sm">
-                <RadioGroupItem value={value} />
-                {label}
-              </label>
-            ))}
-          </RadioGroup>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="email">{COPY.canal_email}</SelectItem>
+              <SelectItem value="whatsapp">{COPY.canal_whatsapp}</SelectItem>
+              <SelectItem value="ambos">{COPY.canal_ambos}</SelectItem>
+            </SelectContent>
+          </Select>
         </Field>
         <Field>
-          <FieldLabel>{COPY.saas.default_seller}</FieldLabel>
-          <p className="m-0 text-sm">
-            {cfg.default_seller_nome ?? cfg.default_seller_email ?? cfg.default_seller_user_id ?? "—"}
-          </p>
+          <FieldLabel>{COPY.loja_modo}</FieldLabel>
+          <Select
+            value={config.loja_modo}
+            onValueChange={(v) => setConfig({ ...config, loja_modo: v as LojaModo })}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="pedido_direto">{COPY.loja_modo_pedido}</SelectItem>
+              <SelectItem value="orcamento">{COPY.loja_modo_orcamento}</SelectItem>
+            </SelectContent>
+          </Select>
         </Field>
-      </FormWrap>
+        <Field>
+          <FieldLabel>{COPY.default_vendedor}</FieldLabel>
+          <Select
+            value={config.default_vendedor_user_id ?? "none"}
+            onValueChange={(v) =>
+              setConfig({ ...config, default_vendedor_user_id: v === "none" ? null : v })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">—</SelectItem>
+              {users
+                .filter((u) => u.ativo)
+                .map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.nome}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        {error ? (
+          <Alert>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : null}
+        {ok ? (
+          <Alert className="border-[var(--color-success)]/30 bg-[var(--color-success)]/10">
+            <AlertDescription>Configuração salva.</AlertDescription>
+          </Alert>
+        ) : null}
+        <Button type="submit" disabled={busy}>
+          {COPY.actions.salvar}
+        </Button>
+      </form>
     </SaasMain>
   );
 }

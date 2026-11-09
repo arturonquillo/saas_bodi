@@ -1,10 +1,21 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Boxes, EyeOff, PackageX } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { isAdmin } from "@saas-frota/shared";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { FieldError } from "@/components/ui/field";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import {
   Table,
@@ -14,156 +25,253 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { apiGet, apiSend, asPage, isApiError, skuCode, type EstoqueItemDto } from "../api";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { apiGet, apiSend, asPage, isApiError, type EstoqueItemDto } from "../api";
 import { COPY } from "../copy";
+import { formatMoney } from "../format";
 import { DeskWrap, ListHeader, SaasMain } from "../layout";
-import { useSession, writesOpen } from "../session";
-import { EmptyState, ErrorState, TableSkeleton } from "../states";
-import { KpiStrip } from "./KpiStrip";
+import { useSession } from "../session";
+import { EmptyState, ErrorState, FormSkeleton, TableSkeleton } from "../states";
 
-export function EstoqueScreen() {
-  const { session, status } = useSession();
-  const supervisor = session?.saas_role === "supervisor";
-  const warehouse = session?.saas_role === "estoquista";
-  const allowed = writesOpen(session);
-  const [items, setItems] = useState<EstoqueItemDto[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [toggleError, setToggleError] = useState<string | null>(null);
+export function EstoqueListScreen() {
+  const { session } = useSession();
+  const admin = isAdmin(session?.saas_role);
+  const [items, setItems] = useState<EstoqueItemDto[]>([]);
+  const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
+  const router = useRouter();
 
   const load = useCallback(async () => {
-    setError(null);
+    setStatus("loading");
     try {
-      const data = await apiGet<unknown>("/api/saas/estoque");
-      setItems(asPage<EstoqueItemDto>(data).items);
-    } catch (err) {
-      setItems(null);
-      setError(isApiError(err) ? err.message : COPY.errors.load_error);
+      setItems(asPage<EstoqueItemDto>(await apiGet("/api/saas/estoque")).items);
+      setStatus("ok");
+    } catch {
+      setStatus("error");
     }
   }, []);
 
   useEffect(() => {
-    if (status === "auth") void load();
-  }, [status, load]);
+    void load();
+  }, [load]);
 
-  async function toggle(item: EstoqueItemDto) {
-    setToggleError(null);
-    try {
-      await apiSend(`/api/saas/estoque/${item.id}/visibilidade`, "PATCH", { visivel_loja: !item.visivel_loja });
-      await load();
-    } catch (err) {
-      setToggleError(isApiError(err) ? err.message : COPY.errors.save_error);
-    }
+  async function toggleVisibility(item: EstoqueItemDto, visivel_loja: boolean) {
+    if (!admin) return;
+    const next = await apiSend<EstoqueItemDto>(`/api/saas/estoque/${item.id}/visibilidade`, "PATCH", {
+      visivel_loja,
+    });
+    setItems((prev) => prev.map((x) => (x.id === next.id ? next : x)));
   }
-
-  const kpis = useMemo(() => {
-    const loaded = items ?? [];
-    return [
-      { id: "skus", label: COPY.saas.kpi_skus, value: loaded.length, icon: Boxes },
-      { id: "hidden", label: COPY.saas.kpi_hidden, value: loaded.filter((item) => !item.visivel_loja).length, icon: EyeOff },
-      { id: "zero", label: COPY.saas.kpi_zero, value: loaded.filter((item) => (item.available ?? Math.max(0, item.on_hand - item.reserved)) <= 0).length, icon: PackageX },
-    ];
-  }, [items]);
 
   return (
     <SaasMain>
-      <ListHeader title={COPY.saas.nav.estoque} subtitle={COPY.saas.sub_estoque} />
-      {supervisor ? <p className="mb-3 text-xs text-muted-foreground">{COPY.saas.toggle_hint}</p> : null}
-      <KpiStrip items={kpis} loading={(status === "loading" || items === null) && !error} />
-      {(status === "loading" || items === null) && !error ? <TableSkeleton rows={8} /> : null}
-      {error ? (
-        <DeskWrap className="p-4">
-          <ErrorState message={error} onRetry={() => void load()} />
-        </DeskWrap>
-      ) : null}
-      {items && items.length === 0 ? (
+      <ListHeader title={COPY.estoque_title} />
+      {status === "loading" ? (
+        <TableSkeleton />
+      ) : status === "error" ? (
+        <ErrorState onRetry={() => void load()} />
+      ) : items.length === 0 ? (
+        <EmptyState title={COPY.estoque_empty} art="warehouse" />
+      ) : (
         <DeskWrap>
-          <EmptyState
-            title={COPY.saas.empty_skus}
-            art="warehouse"
-            action={
-              supervisor ? (
-                <Button variant="link" asChild>
-                  <Link href="/saas/chat-estoque">{COPY.saas.chat_title}</Link>
-                </Button>
-              ) : undefined
-            }
-          />
-        </DeskWrap>
-      ) : null}
-      {toggleError ? <FieldError>{toggleError}</FieldError> : null}
-      {items && items.length > 0 ? (
-        <>
-          <DeskWrap className={warehouse ? "hidden md:block" : undefined}>
-            <Table>
-              <TableHeader className="bg-muted/60 [&_tr]:h-11">
-                <TableRow>
-                  <TableHead>{COPY.saas.col_sku}</TableHead>
-                  <TableHead>{COPY.saas.col_nome}</TableHead>
-                  <TableHead className="text-right">{COPY.stock.on_hand}</TableHead>
-                  <TableHead className="text-right">{COPY.stock.reserved}</TableHead>
-                  <TableHead className="text-right">{COPY.stock.available}</TableHead>
-                  {supervisor ? <TableHead>{COPY.stock.visivel_loja}</TableHead> : null}
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>SKU</TableHead>
+                <TableHead>Nome</TableHead>
+                <TableHead>{COPY.on_hand}</TableHead>
+                <TableHead>{COPY.reserved}</TableHead>
+                <TableHead>{COPY.available}</TableHead>
+                <TableHead>{COPY.price_atacado}</TableHead>
+                <TableHead>{COPY.visivel_loja}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell>
+                    <Link href={`/saas/estoque/${item.id}`} className="font-medium text-primary hover:underline">
+                      {item.sku}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="cursor-pointer" onClick={() => router.push(`/saas/estoque/${item.id}`)}>
+                    {item.nome}
+                  </TableCell>
+                  <TableCell>{item.on_hand}</TableCell>
+                  <TableCell>{item.reserved}</TableCell>
+                  <TableCell>{item.available}</TableCell>
+                  <TableCell>{formatMoney(item.preco_atacado_centavos)}</TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={item.visivel_loja}
+                      disabled={!admin}
+                      onCheckedChange={(v) => void toggleVisibility(item, v)}
+                      aria-label={COPY.visivel_loja}
+                    />
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody className="[&_tr]:h-12">
-                {items.map((item) => {
-                  const available = item.available ?? Math.max(0, item.on_hand - item.reserved);
-                  const code = skuCode(item);
-                  return (
-                    <TableRow key={item.id} className="hover:bg-muted/40">
-                      <TableCell className="font-semibold">
-                        <Link href={`/saas/estoque/${item.id}`} className="font-semibold text-foreground hover:text-primary">
-                          {code}
-                        </Link>
-                      </TableCell>
-                      <TableCell>{item.nome}</TableCell>
-                      <TableCell className="text-right tabular-nums">{item.on_hand}</TableCell>
-                      <TableCell className="text-right tabular-nums">{item.reserved}</TableCell>
-                      <TableCell className="text-right tabular-nums">{available}</TableCell>
-                      {supervisor ? (
-                        <TableCell>
-                          <Switch
-                            checked={item.visivel_loja}
-                            disabled={!allowed}
-                            aria-label={`${COPY.stock.visivel_loja}, SKU ${code}`}
-                            onCheckedChange={() => void toggle(item)}
-                          />
-                        </TableCell>
-                      ) : null}
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </DeskWrap>
-          {warehouse ? (
-            <div className="flex flex-col gap-3 md:hidden">
-              {items.map((item) => {
-                const available = item.available ?? Math.max(0, item.on_hand - item.reserved);
-                const code = skuCode(item);
-                return (
-                  <article key={item.id} className="rounded-xl border border-border bg-card p-5">
-                    <h2 className="m-0 text-lg font-semibold">
-                      <Link href={`/saas/estoque/${item.id}`} className="text-foreground hover:text-primary">
-                        {code}
-                      </Link>
-                    </h2>
-                    <p className="mt-1 text-sm">{item.nome}</p>
-                    <p className="m-0 text-sm">
-                      {COPY.stock.on_hand}: <span className="tabular-nums">{item.on_hand}</span>
-                    </p>
-                    <p className="m-0 text-sm">
-                      {COPY.stock.reserved}: <span className="tabular-nums">{item.reserved}</span>
-                    </p>
-                    <p className="m-0 text-sm">
-                      {COPY.stock.available}: <span className="tabular-nums">{available}</span>
-                    </p>
-                  </article>
-                );
-              })}
-            </div>
-          ) : null}
-        </>
+              ))}
+            </TableBody>
+          </Table>
+        </DeskWrap>
+      )}
+    </SaasMain>
+  );
+}
+
+export function SkuDetailScreen() {
+  const { id } = useParams<{ id: string }>();
+  const { session } = useSession();
+  const admin = isAdmin(session?.saas_role);
+  const [item, setItem] = useState<EstoqueItemDto | null>(null);
+  const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
+  const [delta, setDelta] = useState("0");
+  const [motivo, setMotivo] = useState("");
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setStatus("loading");
+    try {
+      setItem(await apiGet<EstoqueItemDto>(`/api/saas/estoque/${id}`));
+      setStatus("ok");
+    } catch {
+      setStatus("error");
+    }
+  }, [id]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function adjust() {
+    setBusy(true);
+    setError(null);
+    try {
+      const next = await apiSend<EstoqueItemDto>(`/api/saas/estoque/${id}/ajuste`, "POST", {
+        delta_on_hand: Number(delta),
+        motivo,
+      });
+      setItem(next);
+      setOpen(false);
+      setDelta("0");
+      setMotivo("");
+    } catch (err) {
+      setError(isApiError(err) ? err.message : COPY.save_fail);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (status === "loading") {
+    return (
+      <SaasMain>
+        <FormSkeleton />
+      </SaasMain>
+    );
+  }
+  if (status === "error" || !item) {
+    return (
+      <SaasMain>
+        <ErrorState message={COPY.not_found} onRetry={() => void load()} />
+      </SaasMain>
+    );
+  }
+
+  return (
+    <SaasMain>
+      <Breadcrumb className="mb-3">
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/saas/estoque">{COPY.estoque_title}</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>{item.sku}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-xl font-semibold">{item.nome}</h1>
+          <p className="text-sm text-muted-foreground">{item.sku}</p>
+        </div>
+        {admin ? (
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button type="button">{COPY.adjust_qty}</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{COPY.adjust_qty}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                <Field>
+                  <FieldLabel htmlFor="delta">Delta</FieldLabel>
+                  <Input id="delta" type="number" value={delta} onChange={(e) => setDelta(e.target.value)} />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="motivo">{COPY.motivo}</FieldLabel>
+                  <Input id="motivo" value={motivo} onChange={(e) => setMotivo(e.target.value)} />
+                </Field>
+                {error ? <p className="text-sm text-destructive">{error}</p> : null}
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                  {COPY.actions.cancelar}
+                </Button>
+                <Button type="button" disabled={busy} onClick={() => void adjust()}>
+                  {COPY.actions.confirmar}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        ) : null}
+      </div>
+
+      <DeskWrap className="grid gap-3 p-4 text-sm sm:grid-cols-3">
+        <div>
+          <p className="text-muted-foreground">{COPY.on_hand}</p>
+          <p className="text-lg font-semibold tabular-nums">{item.on_hand}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">{COPY.reserved}</p>
+          <p className="text-lg font-semibold tabular-nums">{item.reserved}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">{COPY.available}</p>
+          <p className="text-lg font-semibold tabular-nums text-primary">{item.available}</p>
+        </div>
+      </DeskWrap>
+
+      <DeskWrap className="mt-4 space-y-2 p-4 text-sm">
+        <p>
+          <span className="text-muted-foreground">{COPY.price_atacado}: </span>
+          {formatMoney(item.preco_atacado_centavos)}
+        </p>
+        <p>
+          <span className="text-muted-foreground">{COPY.moq(item.qtd_min_atacado)}</span>
+        </p>
+        <p>
+          <span className="text-muted-foreground">{COPY.visivel_loja}: </span>
+          {item.visivel_loja ? "Sim" : "Não"}
+        </p>
+      </DeskWrap>
+
+      {!admin ? (
+        <Alert className="mt-4">
+          <AlertDescription>Somente leitura para vendedor.</AlertDescription>
+        </Alert>
       ) : null}
     </SaasMain>
   );

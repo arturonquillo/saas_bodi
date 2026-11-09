@@ -15,10 +15,11 @@ export const THEME_CSS_VARS = {
   logo_url: "--logo-url",
 } as const;
 
+/** Design tokens win over architecture seed example palette. */
 export const SEED_THEME: ThemeTokens = {
-  marca: "Norte Atacado",
-  primary: "#0F4F3E",
-  accent: "#C2410C",
-  background: "#F6EFE3",
+  marca: "Casa dos Frios",
+  primary: "#7A1F1F",
+  accent: "#1F5C6B",
+  background: "#EEF2F4",
   logo_url: null,
 };

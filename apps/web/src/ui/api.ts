@@ -1,13 +1,21 @@
 import type {
   ApiErr,
+  CadastroDto,
   CanalAviso,
   CatalogItemDto,
-  DocumentType,
+  EstoqueItemDto,
+  InboxThreadDetailDto,
+  InboxThreadDto,
+  LojaConfigDto,
   MovementType,
-  OrderStatus,
+  OrcamentoDto,
+  OutboxDto,
+  PedidoDto,
+  SaasConfigDto,
   SessionDto,
-  SubscriptionStatus,
   ThemeTokens,
+  UserDto,
+  VendaDto,
 } from "@saas-frota/shared";
 
 export class ApiClientError extends Error {
@@ -82,150 +90,6 @@ export function asPage<T>(data: unknown): PageDto<T> {
   return { items: [], next_cursor: null };
 }
 
-export type StoreConfigDto = {
-  aceita_cpf: boolean;
-  aceita_cnpj: boolean;
-};
-
-export type OrderLineDto = {
-  id?: string;
-  sku_id: string;
-  sku?: string;
-  codigo?: string;
-  nome?: string;
-  nome_snapshot?: string;
-  codigo_snapshot?: string;
-  qty: number;
-  unit_price_centavos: number;
-  price_list?: "varejo" | "atacado";
-};
-
-export type OrderHistoryDto = {
-  from_status?: string | null;
-  to_status: string;
-  created_at?: string;
-};
-
-export type OrderDto = {
-  id: string;
-  status: OrderStatus;
-  created_at?: string;
-  updated_at?: string;
-  price_list?: "varejo" | "atacado";
-  channel?: "loja" | "saas";
-  total_centavos?: number;
-  customer_user_id?: string;
-  customer_nome?: string;
-  customer_name?: string;
-  customer_document_masked?: string;
-  customer_document_type?: DocumentType;
-  customer?: {
-    nome?: string;
-    name?: string;
-    document_type?: DocumentType;
-    document_masked?: string;
-    document_last4?: string;
-  };
-  linhas?: OrderLineDto[];
-  lines?: OrderLineDto[];
-  history?: OrderHistoryDto[];
-  historico?: OrderHistoryDto[];
-};
-
-export type NormalizedOrder = {
-  id: string;
-  status: OrderStatus;
-  created_at?: string;
-  updated_at?: string;
-  price_list?: "varejo" | "atacado";
-  channel?: "loja" | "saas";
-  total_centavos: number;
-  customer_nome: string;
-  customer_document_masked?: string;
-  customer_document_type?: DocumentType;
-  linhas: Array<{
-    id?: string;
-    sku_id: string;
-    sku: string;
-    nome: string;
-    qty: number;
-    unit_price_centavos: number;
-    price_list?: "varejo" | "atacado";
-  }>;
-  history: OrderHistoryDto[];
-};
-
-export function normalizeOrder(raw: OrderDto): NormalizedOrder {
-  const linhas = (raw.linhas ?? raw.lines ?? []).map((line) => ({
-    id: line.id,
-    sku_id: line.sku_id,
-    sku: line.sku ?? line.codigo ?? line.codigo_snapshot ?? "",
-    nome: line.nome ?? line.nome_snapshot ?? line.sku ?? "Item",
-    qty: line.qty,
-    unit_price_centavos: line.unit_price_centavos,
-    price_list: line.price_list,
-  }));
-  const last4 = raw.customer?.document_last4;
-  const docType = raw.customer_document_type ?? raw.customer?.document_type;
-  const maskedFromLast4 =
-    last4 && docType
-      ? docType === "cnpj"
-        ? `**.***.***/****-${last4.slice(-2)}`
-        : `***.***.***-${last4.slice(-2)}`
-      : undefined;
-  return {
-    id: raw.id,
-    status: raw.status,
-    created_at: raw.created_at,
-    updated_at: raw.updated_at,
-    price_list: raw.price_list,
-    channel: raw.channel,
-    total_centavos:
-      raw.total_centavos ?? linhas.reduce((sum, line) => sum + line.qty * line.unit_price_centavos, 0),
-    customer_nome: raw.customer_nome ?? raw.customer_name ?? raw.customer?.nome ?? raw.customer?.name ?? "Cliente",
-    customer_document_masked: raw.customer_document_masked ?? raw.customer?.document_masked ?? maskedFromLast4,
-    customer_document_type: docType,
-    linhas,
-    history: raw.history ?? raw.historico ?? [],
-  };
-}
-
-export type CustomerPickDto = {
-  user_id?: string;
-  id?: string;
-  nome?: string;
-  name?: string;
-  document_type?: DocumentType;
-  document_masked?: string;
-  document_last4?: string;
-};
-
-export function customerId(c: CustomerPickDto) {
-  return c.user_id ?? c.id ?? "";
-}
-
-export function customerLabel(c: CustomerPickDto) {
-  return c.nome ?? c.name ?? "Cliente";
-}
-
-export type EstoqueItemDto = {
-  id: string;
-  sku?: string;
-  codigo?: string;
-  nome: string;
-  on_hand: number;
-  reserved: number;
-  available?: number;
-  visivel_loja: boolean;
-  preco_varejo_centavos?: number;
-  preco_atacado_centavos?: number;
-  qtd_min_atacado?: number;
-};
-
-export function skuCode(item: Pick<EstoqueItemDto, "sku" | "codigo">) {
-  return item.sku ?? item.codigo ?? "";
-}
-
 export type MovementDto = {
   id: string;
   type: MovementType | string;
@@ -235,56 +99,28 @@ export type MovementDto = {
   created_at?: string;
 };
 
-export type SaasConfigDto = {
-  aceita_cpf: boolean;
-  aceita_cnpj: boolean;
-  canais_aviso: CanalAviso;
-  default_seller_user_id?: string | null;
-  default_seller_email?: string | null;
-  default_seller_nome?: string | null;
-};
-
-export type OutboxDto = {
+export type CustomerPickDto = {
   id: string;
-  created_at?: string;
-  channel: "email" | "whatsapp" | string;
-  recipient?: string;
-  recipient_role?: "customer" | "seller" | string;
-  template_key?: string;
-  order_id?: string;
-  status: "pendente" | "enviado" | "falha" | string;
+  razao_social: string;
+  cnpj_masked: string;
+  whatsapp?: string | null;
+  status?: string;
 };
 
-export type ImportRowDto = {
-  row_index?: number;
-  action: "create" | "update" | "error" | "criar" | "atualizar" | "erro" | string;
-  sku?: string;
-  nome?: string;
-  quantidade?: number;
-  error_message?: string | null;
-  error?: string | null;
-  message?: string | null;
+export type {
+  CadastroDto,
+  CanalAviso,
+  CatalogItemDto,
+  EstoqueItemDto,
+  InboxThreadDetailDto,
+  InboxThreadDto,
+  LojaConfigDto,
+  OrcamentoDto,
+  OutboxDto,
+  PedidoDto,
+  SaasConfigDto,
+  SessionDto,
+  ThemeTokens,
+  UserDto,
+  VendaDto,
 };
-
-export type ImportPreviewDto = {
-  preview_id?: string;
-  id?: string;
-  rows: ImportRowDto[];
-};
-
-export function previewId(data: ImportPreviewDto) {
-  return data.preview_id ?? data.id ?? "";
-}
-
-export function normalizeImportAction(action: string): "create" | "update" | "error" {
-  if (action === "criar" || action === "create") return "create";
-  if (action === "atualizar" || action === "update") return "update";
-  return "error";
-}
-
-export type AssinaturaDto = {
-  plan_display_name: string;
-  subscription_status: SubscriptionStatus;
-};
-
-export type { CatalogItemDto, SessionDto, ThemeTokens, CanalAviso, OrderStatus, SubscriptionStatus, DocumentType };

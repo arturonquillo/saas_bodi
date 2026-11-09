@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { isAdmin, type WhatsappIntent } from "@saas-frota/shared";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -21,10 +21,10 @@ import {
 } from "../api";
 import { COPY } from "../copy";
 import { formatDate } from "../format";
-import { SaasMain, ListHeader } from "../layout";
+import { SaasPage } from "../layout";
 import { IntentBadge } from "../order-ui";
 import { useSession } from "../session";
-import { EmptyState, ErrorState, InboxSkeleton } from "../states";
+import { ErrorState, InboxSkeleton } from "../states";
 
 const selectClass =
   "border-input flex h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm";
@@ -108,159 +108,179 @@ export function InboxScreen() {
   }
 
   return (
-    <SaasMain className="max-w-none px-0 md:px-0 md:py-0">
-      <div className="border-b border-border px-4 py-4 md:px-6">
-        <ListHeader
-          title={COPY.inbox_title}
-          actions={
-            admin ? (
-              <Button type="button" onClick={() => setSimOpen((o) => !o)}>
-                {COPY.simulate_message}
-              </Button>
-            ) : null
-          }
-        />
-        {note ? (
-          <p className="text-sm text-[var(--brand-accent)]" role="status">
-            {note}
-          </p>
-        ) : null}
-        {simOpen ? (
-          <Card className="mt-4 gap-0 py-0">
-            <CardContent className="p-4">
-              <form className="space-y-3" onSubmit={onSimulate}>
-                <p className="font-medium">{COPY.simulate_message}</p>
-                <div>
-                  <Label htmlFor="phone_e164" className="mb-2">
-                    {COPY.phone}
-                  </Label>
-                  <Input id="phone_e164" name="phone_e164" required placeholder="+5511999999999" />
-                </div>
-                <div>
-                  <Label htmlFor="body" className="mb-2">
-                    {COPY.body}
-                  </Label>
-                  <textarea id="body" name="body" required rows={3} className={textareaClass} />
-                </div>
-                <div>
-                  <Label className="mb-2">{COPY.intent}</Label>
-                  <RadioGroup
-                    value={intentHint}
-                    onValueChange={(v) => setIntentHint(v as WhatsappIntent)}
-                    className="flex flex-wrap gap-4"
-                  >
-                    <div className="flex items-center gap-2">
-                      <RadioGroupItem value="cadastro" id="hint-cad" />
-                      <Label htmlFor="hint-cad">{COPY.intent_cadastro}</Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <RadioGroupItem value="orcamento" id="hint-orc" />
-                      <Label htmlFor="hint-orc">{COPY.intent_orcamento}</Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <RadioGroupItem value="info_empresa" id="hint-info" />
-                      <Label htmlFor="hint-info">{COPY.intent_info_empresa}</Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <RadioGroupItem value="outro" id="hint-outro" />
-                      <Label htmlFor="hint-outro">{COPY.intent_outro}</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-                {simError ? <p className="text-sm text-red-500">{simError}</p> : null}
-                <div className="flex flex-wrap gap-2">
-                  <Button type="button" variant="outline" onClick={() => setSimOpen(false)}>
-                    {COPY.actions.cancelar}
-                  </Button>
-                  <Button type="submit" disabled={simBusy}>
-                    {COPY.actions.confirmar}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        ) : null}
-      </div>
+    <SaasPage
+      title={COPY.inbox_title}
+      actions={
+        admin ? (
+          <Button
+            type="button"
+            className="bg-primary text-white hover:bg-primary/90"
+            onClick={() => setSimOpen((o) => !o)}
+          >
+            {COPY.simulate_message}
+          </Button>
+        ) : null
+      }
+    >
+      {note ? (
+        <p className="mb-6 text-sm text-primary" role="status">
+          {note}
+        </p>
+      ) : null}
+
+      {simOpen ? (
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>{COPY.simulate_message}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form className="space-y-4" onSubmit={onSimulate}>
+              <div>
+                <Label htmlFor="phone_e164" className="mb-2">
+                  {COPY.phone}
+                </Label>
+                <Input id="phone_e164" name="phone_e164" required placeholder="+5511999999999" />
+              </div>
+              <div>
+                <Label htmlFor="body" className="mb-2">
+                  {COPY.body}
+                </Label>
+                <textarea id="body" name="body" required rows={3} className={textareaClass} />
+              </div>
+              <div>
+                <Label className="mb-2">{COPY.intent}</Label>
+                <RadioGroup
+                  value={intentHint}
+                  onValueChange={(v) => setIntentHint(v as WhatsappIntent)}
+                  className="flex flex-wrap gap-4"
+                >
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="cadastro" id="hint-cad" />
+                    <Label htmlFor="hint-cad">{COPY.intent_cadastro}</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="orcamento" id="hint-orc" />
+                    <Label htmlFor="hint-orc">{COPY.intent_orcamento}</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="info_empresa" id="hint-info" />
+                    <Label htmlFor="hint-info">{COPY.intent_info_empresa}</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="outro" id="hint-outro" />
+                    <Label htmlFor="hint-outro">{COPY.intent_outro}</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+              {simError ? <p className="text-sm text-red-500">{simError}</p> : null}
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" onClick={() => setSimOpen(false)}>
+                  {COPY.actions.cancelar}
+                </Button>
+                <Button
+                  type="submit"
+                  className="bg-primary text-white hover:bg-primary/90"
+                  disabled={simBusy}
+                >
+                  {COPY.actions.confirmar}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {status === "loading" ? (
         <InboxSkeleton />
       ) : status === "error" ? (
-        <div className="p-6">
-          <ErrorState onRetry={() => void load()} />
-        </div>
+        <ErrorState onRetry={() => void load()} />
       ) : threads.length === 0 ? (
-        <EmptyState
-          title={COPY.inbox_empty}
-          art="inbox"
-          action={
-            admin ? (
-              <Button type="button" onClick={() => setSimOpen(true)}>
-                {COPY.simulate_message}
-              </Button>
-            ) : undefined
-          }
-        />
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>{COPY.inbox_title}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <h3 className="mb-2 text-lg font-semibold text-gray-900">{COPY.inbox_empty}</h3>
+              <p className="mb-4 max-w-sm text-sm text-gray-500">
+                Conversas do WhatsApp aparecerão aqui quando chegarem mensagens.
+              </p>
+              {admin ? (
+                <Button
+                  type="button"
+                  className="bg-primary text-white hover:bg-primary/90"
+                  onClick={() => setSimOpen(true)}
+                >
+                  {COPY.simulate_message}
+                </Button>
+              ) : null}
+            </div>
+          </CardContent>
+        </Card>
       ) : (
-        <div className="grid min-h-[calc(100dvh-8rem)] md:grid-cols-[360px_1fr]">
-          <div
-            className={cn(
-              "overflow-y-auto border-b border-border md:border-r md:border-b-0",
-              params.id && "hidden md:block",
-            )}
-          >
-            <ul>
-              {threads.map((t) => {
-                const active = params.id === t.id;
-                return (
-                  <li key={t.id}>
-                    <Link
-                      href={`/saas/inbox/${t.id}`}
-                      className={cn(
-                        "block border-b border-border px-4 py-3 transition-colors hover:bg-muted/60",
-                        active && "bg-muted",
-                      )}
-                    >
-                      <div className="flex items-start justify-between gap-2">
+        <div className="grid gap-8 lg:grid-cols-2">
+          <Card className={cn("mb-8", params.id && "hidden lg:block")}>
+            <CardHeader>
+              <CardTitle>Conversas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-4">
+                {threads.map((t) => {
+                  const active = params.id === t.id;
+                  return (
+                    <li key={t.id}>
+                      <Link
+                        href={`/saas/inbox/${t.id}`}
+                        className={cn(
+                          "flex items-center justify-between gap-4 rounded-md p-2 -mx-2 transition-colors hover:bg-gray-50",
+                          active && "bg-gray-50",
+                        )}
+                      >
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">{t.phone_e164}</p>
-                          <p className="truncate text-xs text-muted-foreground">{threadPreview(t) || "—"}</p>
+                          <p className="truncate font-medium text-gray-900">{t.phone_e164}</p>
+                          <p className="truncate text-sm text-gray-500">{threadPreview(t) || "—"}</p>
                         </div>
                         <div className="shrink-0 text-right">
-                          <p className="text-[11px] text-muted-foreground">{formatDate(t.updated_at)}</p>
+                          <p className="text-xs text-gray-500">{formatDate(t.updated_at)}</p>
                           <div className="mt-1">
                             <IntentBadge intent={t.intent as WhatsappIntent | null} />
                           </div>
                         </div>
-                      </div>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </CardContent>
+          </Card>
 
-          <div className={cn("flex flex-col", !params.id && "hidden md:flex")}>
-            {!params.id ? (
-              <div className="flex flex-1 items-center justify-center p-8 text-sm text-muted-foreground">
-                Selecione uma conversa
-              </div>
-            ) : !detail ? (
-              <div className="p-6">
+          <Card className={cn("mb-8", !params.id && "hidden lg:block")}>
+            <CardHeader>
+              <CardTitle>
+                {detail?.phone_e164 ?? "Detalhe"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {!params.id ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <h3 className="mb-2 text-lg font-semibold text-gray-900">Selecione uma conversa</h3>
+                  <p className="max-w-sm text-sm text-gray-500">
+                    Escolha um thread à esquerda para ver as mensagens.
+                  </p>
+                </div>
+              ) : !detail ? (
                 <ErrorState message={COPY.not_found} />
-              </div>
-            ) : (
-              <>
-                <div className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3">
-                  <Button variant="ghost" size="sm" className="md:hidden" asChild>
-                    <Link href="/saas/inbox">←</Link>
-                  </Button>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium">{detail.phone_e164}</p>
-                    <div className="mt-1 flex flex-wrap gap-2">
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button variant="outline" size="sm" className="lg:hidden" asChild>
+                      <Link href="/saas/inbox">← Voltar</Link>
+                    </Button>
+                    <div className="flex flex-wrap gap-2">
                       {detail.cadastro_request_id ? (
                         <Link
                           href={`/saas/cadastros/${detail.cadastro_request_id}`}
-                          className="rounded-md border border-border px-2 py-0.5 text-xs"
+                          className="rounded-md border border-gray-200 px-2 py-0.5 text-xs text-gray-900"
                         >
                           Cadastro
                         </Link>
@@ -268,50 +288,48 @@ export function InboxScreen() {
                       {detail.orcamento_id ? (
                         <Link
                           href={`/saas/orcamentos/${detail.orcamento_id}`}
-                          className="rounded-md border border-border px-2 py-0.5 text-xs"
+                          className="rounded-md border border-gray-200 px-2 py-0.5 text-xs text-gray-900"
                         >
                           Orçamento
                         </Link>
                       ) : null}
                     </div>
+                    <select
+                      className={cn(selectClass, "ml-auto w-[180px]")}
+                      value={(detail.intent as string) ?? "none"}
+                      onChange={(e) => void patchIntent(e.target.value as WhatsappIntent | "none")}
+                      aria-label={COPY.intent}
+                    >
+                      <option value="none">—</option>
+                      <option value="cadastro">{COPY.intent_cadastro}</option>
+                      <option value="orcamento">{COPY.intent_orcamento}</option>
+                      <option value="info_empresa">{COPY.intent_info_empresa}</option>
+                      <option value="outro">{COPY.intent_outro}</option>
+                    </select>
                   </div>
-                  <select
-                    className={cn(selectClass, "w-[180px]")}
-                    value={(detail.intent as string) ?? "none"}
-                    onChange={(e) => void patchIntent(e.target.value as WhatsappIntent | "none")}
-                    aria-label={COPY.intent}
-                  >
-                    <option value="none">—</option>
-                    <option value="cadastro">{COPY.intent_cadastro}</option>
-                    <option value="orcamento">{COPY.intent_orcamento}</option>
-                    <option value="info_empresa">{COPY.intent_info_empresa}</option>
-                    <option value="outro">{COPY.intent_outro}</option>
-                  </select>
-                </div>
-                <div className="flex-1 overflow-y-auto px-4 py-4">
-                  <div className="mx-auto flex max-w-2xl flex-col gap-3">
+                  <ul className="space-y-4">
                     {detail.messages.map((m) => (
-                      <div
+                      <li
                         key={m.id}
                         className={cn(
-                          "max-w-[85%] rounded-md px-3 py-2 text-sm",
-                          m.direction === "inbound" ? "self-start bg-muted" : "self-end bg-primary/10",
+                          "rounded-md border border-gray-200 px-3 py-2 text-sm",
+                          m.direction === "inbound" ? "bg-gray-50" : "bg-primary/5",
                         )}
                       >
-                        <p>{m.body}</p>
-                        <p className="mt-1 text-[11px] text-muted-foreground">
+                        <p className="text-gray-900">{m.body}</p>
+                        <p className="mt-1 text-xs text-gray-500">
                           {formatDate(m.created_at)}
                           {m.simulated ? " · simulado" : ""}
                         </p>
-                      </div>
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 </div>
-              </>
-            )}
-          </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       )}
-    </SaasMain>
+    </SaasPage>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { SessionDto, Surface } from "@saas-frota/shared";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +20,7 @@ export function LoginForm({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const tall = surface === "loja";
+  const starter = surface === "saas";
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -44,37 +45,68 @@ export function LoginForm({
     }
   }
 
+  const inputClass = starter
+    ? "appearance-none relative block w-full rounded-full border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-primary focus:outline-none focus:ring-primary sm:text-sm"
+    : "h-11";
+
   return (
     <form className="space-y-6" onSubmit={onSubmit}>
       <div>
-        <Label htmlFor={`${surface}-email`} className="mb-2">
+        <Label
+          htmlFor={`${surface}-email`}
+          className={starter ? "block text-sm font-medium text-gray-700" : "mb-2"}
+        >
           {COPY.email}
         </Label>
-        <Input
-          id={`${surface}-email`}
-          name="email"
-          type="email"
-          required
-          autoComplete="username"
-          className={tall ? "h-11" : undefined}
-        />
+        <div className={starter ? "mt-1" : undefined}>
+          <Input
+            id={`${surface}-email`}
+            name="email"
+            type="email"
+            required
+            autoComplete="username"
+            className={inputClass}
+            placeholder={starter ? COPY.email : undefined}
+          />
+        </div>
       </div>
       <div>
-        <Label htmlFor={`${surface}-password`} className="mb-2">
+        <Label
+          htmlFor={`${surface}-password`}
+          className={starter ? "block text-sm font-medium text-gray-700" : "mb-2"}
+        >
           {COPY.password}
         </Label>
-        <Input
-          id={`${surface}-password`}
-          name="password"
-          type="password"
-          required
-          autoComplete="current-password"
-          className={tall ? "h-11" : undefined}
-        />
+        <div className={starter ? "mt-1" : undefined}>
+          <Input
+            id={`${surface}-password`}
+            name="password"
+            type="password"
+            required
+            autoComplete="current-password"
+            className={inputClass}
+            placeholder={starter ? COPY.password : undefined}
+          />
+        </div>
       </div>
       {error ? <p className="text-sm text-red-500">{error}</p> : null}
-      <Button type="submit" disabled={busy} className={tall ? "h-11 w-full" : "w-full"}>
-        {COPY.submit_login}
+      <Button
+        type="submit"
+        disabled={busy}
+        className={
+          starter
+            ? "flex w-full items-center justify-center rounded-full border border-transparent bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90"
+            : "h-11 w-full"
+        }
+      >
+        {busy ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            {COPY.submit_login}
+          </>
+        ) : (
+          COPY.submit_login
+        )}
       </Button>
     </form>
   );

@@ -3,16 +3,26 @@
 import { useCallback, useEffect, useState } from "react";
 import type { SaasRole } from "@saas-frota/shared";
 import type { UserDto } from "../api";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { apiGet, apiSend, asPage, isApiError } from "../api";
 import { COPY } from "../copy";
-import { ListHeader, SaasMain } from "../layout";
+import { SaasPage } from "../layout";
 import { roleLabel } from "./nav";
-import { EmptyState, ErrorState, TableSkeleton } from "../states";
+import { ErrorState, TableSkeleton } from "../states";
+
+function initials(name: string) {
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
 
 export function UsuariosScreen() {
   const [items, setItems] = useState<UserDto[]>([]);
@@ -65,21 +75,25 @@ export function UsuariosScreen() {
   }
 
   return (
-    <SaasMain>
-      <ListHeader
-        title={COPY.users_title}
-        actions={
-          <Button type="button" onClick={() => setOpen((o) => !o)}>
-            {COPY.user_create}
-          </Button>
-        }
-      />
-
+    <SaasPage
+      title={COPY.users_title}
+      actions={
+        <Button
+          type="button"
+          className="bg-primary text-white hover:bg-primary/90"
+          onClick={() => setOpen((o) => !o)}
+        >
+          {COPY.user_create}
+        </Button>
+      }
+    >
       {open ? (
-        <Card className="mb-4 gap-0 py-0">
-          <CardContent className="p-4">
-            <form className="space-y-3" onSubmit={createUser}>
-              <p className="font-medium">{COPY.user_create}</p>
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>{COPY.user_create}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form className="space-y-4" onSubmit={createUser}>
               <div>
                 <Label htmlFor="nome" className="mb-2">
                   {COPY.nome}
@@ -105,11 +119,11 @@ export function UsuariosScreen() {
                   onValueChange={(v) => setRole(v as SaasRole)}
                   className="flex flex-wrap gap-4"
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="mt-2 flex items-center gap-2">
                     <RadioGroupItem value="admin" id="role-admin" />
                     <Label htmlFor="role-admin">{COPY.role_admin}</Label>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="mt-2 flex items-center gap-2">
                     <RadioGroupItem value="vendedor" id="role-vendedor" />
                     <Label htmlFor="role-vendedor">{COPY.role_vendedor}</Label>
                   </div>
@@ -120,7 +134,7 @@ export function UsuariosScreen() {
                 <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                   {COPY.actions.cancelar}
                 </Button>
-                <Button type="submit" disabled={busy}>
+                <Button type="submit" className="bg-primary text-white hover:bg-primary/90" disabled={busy}>
                   {COPY.actions.criar}
                 </Button>
               </div>
@@ -133,59 +147,77 @@ export function UsuariosScreen() {
         <TableSkeleton />
       ) : status === "error" ? (
         <ErrorState onRetry={() => void load()} />
-      ) : items.length === 0 ? (
-        <EmptyState title={COPY.users_empty} />
       ) : (
-        <Card className="gap-0 py-0">
-          <CardContent className="p-0">
-            <ul className="divide-y divide-border">
-              {items.map((u) => (
-                <li key={u.id} className="space-y-2 px-4 py-3">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="font-medium">{u.nome}</p>
-                      <p className="text-sm text-muted-foreground">{u.email}</p>
-                      <p className="text-sm">{roleLabel(u.saas_role as SaasRole)}</p>
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>{COPY.users_title}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {items.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <h3 className="mb-2 text-lg font-semibold text-gray-900">{COPY.users_empty}</h3>
+                <p className="max-w-sm text-sm text-gray-500">
+                  Crie o primeiro usuário para começar a operar o workspace.
+                </p>
+              </div>
+            ) : (
+              <ul className="space-y-4">
+                {items.map((u) => (
+                  <li key={u.id} className="space-y-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center space-x-4">
+                        <Avatar>
+                          <AvatarFallback>{initials(u.nome || u.email)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium text-gray-900">{u.nome}</p>
+                          <p className="text-sm text-gray-500">{u.email}</p>
+                          <p className="text-sm capitalize text-gray-500">
+                            {roleLabel(u.saas_role as SaasRole)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 flex-wrap items-center gap-3">
+                        {u.ativo ? (
+                          <span className="text-sm font-medium text-green-600">Ativo</span>
+                        ) : (
+                          <span className="text-sm font-medium text-red-500">Inativo</span>
+                        )}
+                        {u.ativo ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setConfirmId(confirmId === u.id ? null : u.id)}
+                          >
+                            {COPY.user_deactivate}
+                          </Button>
+                        ) : null}
+                      </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-3">
-                      {u.ativo ? (
-                        <span className="rounded-md bg-[var(--color-success)]/15 px-2 py-0.5 text-xs font-medium text-[var(--color-success)]">
-                          Ativo
-                        </span>
-                      ) : (
-                        <span className="rounded-md bg-destructive/15 px-2 py-0.5 text-xs font-medium text-destructive">
-                          Inativo
-                        </span>
-                      )}
-                      {u.ativo ? (
+                    {confirmId === u.id ? (
+                      <div className="flex flex-wrap items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
+                        <p className="flex-1 text-sm text-gray-500">{COPY.user_deactivate_confirm}</p>
+                        <Button type="button" variant="outline" size="sm" onClick={() => setConfirmId(null)}>
+                          {COPY.actions.cancelar}
+                        </Button>
                         <Button
                           type="button"
-                          variant="ghost"
+                          variant="destructive"
                           size="sm"
-                          onClick={() => setConfirmId(confirmId === u.id ? null : u.id)}
+                          onClick={() => void deactivate(u.id)}
                         >
                           {COPY.user_deactivate}
                         </Button>
-                      ) : null}
-                    </div>
-                  </div>
-                  {confirmId === u.id ? (
-                    <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-2">
-                      <p className="flex-1 text-sm text-muted-foreground">{COPY.user_deactivate_confirm}</p>
-                      <Button type="button" variant="outline" size="sm" onClick={() => setConfirmId(null)}>
-                        {COPY.actions.cancelar}
-                      </Button>
-                      <Button type="button" variant="destructive" size="sm" onClick={() => void deactivate(u.id)}>
-                        {COPY.user_deactivate}
-                      </Button>
-                    </div>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
+                      </div>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
           </CardContent>
         </Card>
       )}
-    </SaasMain>
+    </SaasPage>
   );
 }

@@ -13,7 +13,11 @@ function userDto(row: {
   nome: string;
   whatsapp: string | null;
   ativo: boolean;
-  memberships: Array<{ saasRole: SaasRole | null; isCustomer: boolean }>;
+  memberships: Array<{
+    saasRole: SaasRole | null;
+    isCustomer: boolean;
+    customRoleId?: string | null;
+  }>;
 }) {
   const mem = row.memberships[0];
   return {
@@ -24,6 +28,7 @@ function userDto(row: {
     ativo: row.ativo,
     saas_role: mem?.saasRole ?? null,
     is_customer: mem?.isCustomer ?? false,
+    custom_role_id: mem?.customRoleId ?? null,
   };
 }
 
@@ -46,7 +51,13 @@ export async function listUsuarios(session: SessionContext, url: URL) {
     items: page.map((m) =>
       userDto({
         ...m.user,
-        memberships: [{ saasRole: m.saasRole, isCustomer: m.isCustomer }],
+        memberships: [
+          {
+            saasRole: m.saasRole,
+            isCustomer: m.isCustomer,
+            customRoleId: m.customRoleId,
+          },
+        ],
       }),
     ),
     next_cursor: memberships.length > limit ? encodeCursor([page[page.length - 1]!.userId]) : null,
@@ -99,7 +110,7 @@ export async function createUsuario(
 export async function patchUsuario(
   session: SessionContext,
   id: string,
-  input: { ativo?: boolean; saas_role?: SaasRole },
+  input: { ativo?: boolean; saas_role?: SaasRole; custom_role_id?: string | null },
 ) {
   assertSaasRole(session, "admin");
   const membership = await db.membership.findFirst({
@@ -110,14 +121,24 @@ export async function patchUsuario(
   if (input.saas_role && !["admin", "vendedor"].includes(input.saas_role)) {
     throw new ApiError("validacao", "Papel inválido.");
   }
+  if (input.custom_role_id) {
+    const role = await db.customRole.findFirst({
+      where: { id: input.custom_role_id, tenantId: session.tenantId },
+    });
+    if (!role) throw new ApiError("nao_encontrado", "Papel customizado não encontrado.");
+  }
   await db.$transaction(async (tx) => {
     if (input.ativo !== undefined) {
       await tx.user.update({ where: { id }, data: { ativo: input.ativo } });
     }
-    if (input.saas_role) {
+    if (input.saas_role || input.custom_role_id !== undefined) {
       await tx.membership.update({
         where: { id: membership.id },
-        data: { saasRole: input.saas_role },
+        data: {
+          saasRole: input.saas_role,
+          customRoleId:
+            input.custom_role_id === undefined ? undefined : input.custom_role_id,
+        },
       });
     }
   });

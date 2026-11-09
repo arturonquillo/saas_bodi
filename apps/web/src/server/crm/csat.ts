@@ -16,6 +16,9 @@ export function csatDto(row: {
   rating: number;
   feedbackMessage: string | null;
   assignedAgentId: string | null;
+  reviewNote?: string | null;
+  reviewedByUserId?: string | null;
+  reviewedAt?: Date | null;
   submittedAt: Date;
 }) {
   return {
@@ -26,6 +29,9 @@ export function csatDto(row: {
     rating: row.rating,
     feedback_message: row.feedbackMessage,
     assigned_agent_id: row.assignedAgentId,
+    review_note: row.reviewNote ?? null,
+    reviewed_by_user_id: row.reviewedByUserId ?? null,
+    reviewed_at: row.reviewedAt?.toISOString() ?? null,
     submitted_at: row.submittedAt.toISOString(),
   };
 }
@@ -61,6 +67,27 @@ export async function getCsat(session: SessionContext, id: string) {
   });
   if (!row) throw new ApiError("nao_encontrado", "Não encontrado.");
   return csatDto(row);
+}
+
+export async function patchCsat(
+  session: SessionContext,
+  id: string,
+  input: { review_note: string },
+) {
+  assertSaasRole(session, "admin");
+  const row = await db.csatResponse.findFirst({
+    where: { id, tenantId: session.tenantId },
+  });
+  if (!row) throw new ApiError("nao_encontrado", "Não encontrado.");
+  await db.csatResponse.update({
+    where: { id },
+    data: {
+      reviewNote: input.review_note,
+      reviewedByUserId: session.userId,
+      reviewedAt: new Date(),
+    },
+  });
+  return getCsat(session, id);
 }
 
 export async function getPublicCsat(token: string) {

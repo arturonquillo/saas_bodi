@@ -6,6 +6,9 @@ import { decodeCursor, encodeCursor, parsePaging } from "../http/pagination";
 import { ApiError } from "../http/respond";
 import { newId } from "../ids";
 import { appendDomainEvent } from "./events";
+import { jobEnqueuePort } from "../ports/jobs";
+import { dnsVerifyPort } from "../ports/dns-verify";
+import { randomBytes } from "node:crypto";
 
 /** Escape HTML then apply a tiny safe markdown subset (XSS-safe). */
 export function renderMarkdownSafe(md: string): string {
@@ -61,6 +64,8 @@ function portalDto(row: {
   locale: string;
   enabled: boolean;
   customDomain: string | null;
+  customDomainVerified?: boolean;
+  customDomainVerificationToken?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }) {
@@ -72,7 +77,9 @@ function portalDto(row: {
     homepage_md: row.homepageMd,
     locale: row.locale,
     enabled: row.enabled,
-    custom_domain: null, // Phase E — ignored in C
+    custom_domain: row.customDomain,
+    custom_domain_verified: row.customDomainVerified ?? false,
+    custom_domain_verification_token: row.customDomainVerificationToken ?? null,
     created_at: row.createdAt.toISOString(),
     updated_at: row.updatedAt.toISOString(),
   };
@@ -194,7 +201,6 @@ export async function putPortal(
         homepageMd: input.homepage_md ?? null,
         locale: "pt-BR",
         enabled,
-        customDomain: null,
       },
     });
   } else {
@@ -211,7 +217,6 @@ export async function putPortal(
         homepageMd: input.homepage_md === undefined ? undefined : input.homepage_md,
         enabled,
         locale: "pt-BR",
-        customDomain: null,
       },
     });
   }
@@ -646,5 +651,65 @@ export async function getPublicArtigo(portalSlug: string, articleSlug: string) {
     content_md: row.contentMd,
     content_html: row.contentHtml ?? renderMarkdownSafe(row.contentMd),
     published_at: row.publishedAt?.toISOString() ?? null,
+  };
+}
+
+
+export async function putPortalDominio(
+  session: SessionContext,
+  input: { custom_domain: string | null },
+) {
+  assertSaasRole(session, "admin");
+  const portal = await requirePortal(session.tenantId);
+  const domain = input.custom_domain?.trim() || null;
+  if (domain) {
+    const clash = await db.portal.findFirst({
+      where: { customDomain: domain, id: { not: portal.id } },
+    });
+    if (clash) throw new ApiError("conflito", "Domínio já em uso.");
+  }
+  const token = domain ? `cdf-verify-${randomBytes(12).toString("hex")}` : null;
+  await db.portal.update({
+    where: { id: portal.id },
+    data: {
+      customDomain: domain,
+      customDomainVerified: false,
+      customDomainVerificationToken: token,
+    },
+  });
+  return getPortal(session);
+}
+
+export async function verificarPortalDominio(session: SessionContext) {
+  assertSaasRole(session, "admin");
+  const portal = await requirePortal(session.tenantId);
+  if (!portal.customDomain || !portal.customDomainVerificationToken) {
+    throw new ApiError("validacao", "Domínio customizado não configurado.");
+  }
+  await jobEnqueuePort.enqueue({
+    tenantId: session.tenantId,
+    kind: "dns.verify_portal_domain",
+    payload: {
+      tenant_id: session.tenantId,
+      portal_id: portal.id,
+      domain: portal.customDomain,
+      token: portal.customDomainVerificationToken,
+    },
+  });
+  // Also run stub inline for API responsiveness in tests
+  const result = await dnsVerifyPort.verifyTxt({
+    domain: portal.customDomain,
+    expectedToken: portal.customDomainVerificationToken,
+  });
+  if (result.verified) {
+    await db.portal.update({
+      where: { id: portal.id },
+      data: { customDomainVerified: true },
+    });
+  }
+  return {
+    custom_domain: portal.customDomain,
+    verified: result.verified,
+    skipped: result.skipped ?? null,
   };
 }

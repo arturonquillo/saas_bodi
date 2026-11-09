@@ -15,12 +15,23 @@ export function postLogin(surface: Surface) {
   return async (req: Request) => {
     try {
       const body = loginSchema.parse(await req.json());
-      await loginSurface({
+      const result = await loginSurface({
         surface,
         email: body.email,
         password: body.password,
         tenantSlug: body.tenant ?? env.defaultTenantSlug,
       });
+      if (
+        surface === "saas" &&
+        result &&
+        "mfa_required" in result &&
+        result.mfa_required
+      ) {
+        return ok({
+          mfa_required: true,
+          mfa_token: result.mfa_token,
+        });
+      }
       const session = await requireSession(surface);
       return ok(toSessionDto(session));
     } catch (err) {

@@ -1,4 +1,4 @@
-/** Chatwoot-parity CRM Phase A+B+C+D contracts (packages/shared). */
+/** Chatwoot-parity CRM Phase A+B+C+D+E contracts (packages/shared). */
 
 export const CONVERSATION_STATUSES = ["open", "pending", "snoozed", "resolved"] as const;
 export type ConversationStatus = (typeof CONVERSATION_STATUSES)[number];
@@ -43,8 +43,12 @@ export const CHANNEL_TYPES = [
   "line",
   "sms",
   "api",
+  "voice",
 ] as const;
 export type ChannelType = (typeof CHANNEL_TYPES)[number];
+
+export const VOICE_CHANNEL_PROVIDERS = ["twilio_voice", "wa_calling"] as const;
+export type VoiceChannelProvider = (typeof VOICE_CHANNEL_PROVIDERS)[number];
 
 export const SOCIAL_CHANNEL_TYPES = [
   "facebook",
@@ -76,9 +80,57 @@ export const WA_CONNECTION_STATUSES = [
 ] as const;
 export type WaConnectionStatus = (typeof WA_CONNECTION_STATUSES)[number];
 
-/** Phase A–D max reachable status — API rejects `live`. */
+/** Phase A–E max reachable channel status — API rejects `live`. */
 export const WA_CONNECTION_MAX_PHASE_A: WaConnectionStatus = "ready_stub";
 export const CHANNEL_CONNECTION_MAX_PHASE_D: WaConnectionStatus = "ready_stub";
+export const CHANNEL_CONNECTION_MAX_PHASE_E: WaConnectionStatus = "ready_stub";
+
+export const INTEGRATION_PROVIDERS = [
+  "slack",
+  "linear",
+  "notion",
+  "shopify",
+  "stripe",
+  "dialogflow",
+  "google_translate",
+  "dyte",
+] as const;
+export type IntegrationProvider = (typeof INTEGRATION_PROVIDERS)[number];
+
+export const INTEGRATION_CONNECTION_STATUSES = [
+  "not_configured",
+  "credentials_saved",
+  "connected_stub",
+  "live",
+] as const;
+export type IntegrationConnectionStatus = (typeof INTEGRATION_CONNECTION_STATUSES)[number];
+
+/** Phase E max reachable integration status — API rejects `live`. */
+export const INTEGRATION_CONNECTION_MAX: IntegrationConnectionStatus = "connected_stub";
+
+export const CAPTAIN_MODES = ["copilot", "triage", "monitor", "assistant"] as const;
+export type CaptainMode = (typeof CAPTAIN_MODES)[number];
+
+export const CAPTAIN_SUGGESTION_STATUSES = [
+  "pending",
+  "accepted",
+  "dismissed",
+  "expired",
+] as const;
+export type CaptainSuggestionStatus = (typeof CAPTAIN_SUGGESTION_STATUSES)[number];
+
+export const CUSTOM_ROLE_PERMISSION_BITS = [
+  "conversation_manage",
+  "contact_manage",
+  "report_manage",
+  "knowledge_manage",
+  "automation_manage",
+  "integration_manage",
+  "audit_read",
+  "sla_manage",
+  "security_manage",
+] as const;
+export type CustomRolePermissionBit = (typeof CUSTOM_ROLE_PERMISSION_BITS)[number];
 
 export const AGENT_AVAILABILITIES = ["online", "busy", "offline"] as const;
 export type AgentAvailability = (typeof AGENT_AVAILABILITIES)[number];
@@ -140,6 +192,23 @@ export const CRM_DOMAIN_EVENT_TYPES = [
   "campaign.displayed",
   "push.subscribed",
   "push.failed",
+  // Phase E
+  "sla.applied",
+  "sla.removed",
+  "sla.threshold_warning",
+  "sla.breached",
+  "sla.hit",
+  "capacity.updated",
+  "captain.suggestion_created",
+  "captain.suggestion_accepted",
+  "captain.suggestion_dismissed",
+  "integration.updated",
+  "saml.updated",
+  "mfa.enrolled",
+  "mfa.disabled",
+  "custom_role.updated",
+  "dashboard_app.updated",
+  "voice.simulated",
 ] as const;
 export type CrmDomainEventType = (typeof CRM_DOMAIN_EVENT_TYPES)[number];
 
@@ -156,6 +225,14 @@ export const BACKGROUND_JOB_KINDS = [
   "push.notify",
   "email.channel_stub_deliver",
   "channel.simulate_social_ingest",
+  // Phase E
+  "sla.evaluate",
+  "assignment.balanced",
+  "captain.suggest",
+  "captain.monitor_scan",
+  "integration.deliver",
+  "audit.prune",
+  "dns.verify_portal_domain",
 ] as const;
 
 export const CAMPAIGN_KINDS = ["one_off", "ongoing"] as const;
@@ -196,6 +273,7 @@ export const REPORT_SERIES = [
   "equipes",
   "csat",
   "bots",
+  "sla",
 ] as const;
 export type ReportSeries = (typeof REPORT_SERIES)[number];
 
@@ -254,6 +332,9 @@ export const AUTOMATION_ACTION_NAMES = [
   "send_webhook",
   "add_private_note",
   "set_custom_attribute",
+  "apply_sla",
+  "remove_sla",
+  "captain.apply_suggestion",
 ] as const;
 export type AutomationActionName = (typeof AUTOMATION_ACTION_NAMES)[number];
 
@@ -276,7 +357,7 @@ export type CustomAttributeDisplayType = (typeof CUSTOM_ATTRIBUTE_DISPLAY_TYPES)
 export const CUSTOM_FILTER_TYPES = ["conversation", "contact"] as const;
 export type CustomFilterType = (typeof CUSTOM_FILTER_TYPES)[number];
 
-export const ASSIGNMENT_POLICY_KINDS = ["round_robin"] as const;
+export const ASSIGNMENT_POLICY_KINDS = ["round_robin", "balanced"] as const;
 export type AssignmentPolicyKind = (typeof ASSIGNMENT_POLICY_KINDS)[number];
 
 export type CrmSseEvent = {

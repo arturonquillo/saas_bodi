@@ -176,6 +176,39 @@ export async function patchConversa(
   const assignedChanged =
     input.assignee_user_id !== undefined && input.assignee_user_id !== row.assigneeUserId;
 
+  if (input.status === "resolved") {
+    const inbox = await db.inbox.findFirst({
+      where: { id: row.inboxId, tenantId: session.tenantId },
+    });
+    let requiredKeys: string[] = [];
+    try {
+      const parsed = JSON.parse(inbox?.requiredAttributeKeysOnResolveJson || "[]") as unknown;
+      if (Array.isArray(parsed)) {
+        requiredKeys = parsed.filter((x): x is string => typeof x === "string");
+      }
+    } catch {
+      requiredKeys = [];
+    }
+    if (requiredKeys.length) {
+      let attrs: Record<string, unknown> = {};
+      try {
+        attrs = JSON.parse(row.customAttributesJson || "{}") as Record<string, unknown>;
+      } catch {
+        attrs = {};
+      }
+      const missing = requiredKeys.filter((k) => {
+        const v = attrs[k];
+        return v === undefined || v === null || v === "";
+      });
+      if (missing.length) {
+        throw new ApiError(
+          "validacao",
+          `Atributos obrigatórios ausentes para resolver: ${missing.join(", ")}`,
+        );
+      }
+    }
+  }
+
   await db.conversation.update({
     where: { id },
     data: {
@@ -226,6 +259,16 @@ export async function patchConversa(
           },
         });
       }
+    }
+    const sla = await db.conversationSla.findFirst({
+      where: { tenantId: session.tenantId, conversationId: id },
+    });
+    if (sla) {
+      await jobEnqueuePort.enqueue({
+        tenantId: session.tenantId,
+        kind: "sla.evaluate",
+        payload: { tenant_id: session.tenantId, conversation_id: id },
+      });
     }
   }
   if (assignedChanged) {
@@ -462,6 +505,19 @@ export async function postMensagem(
       message_type: "outgoing",
     },
   });
+
+  if (!isPrivate) {
+    const sla = await db.conversationSla.findFirst({
+      where: { tenantId: session.tenantId, conversationId },
+    });
+    if (sla) {
+      await jobEnqueuePort.enqueue({
+        tenantId: session.tenantId,
+        kind: "sla.evaluate",
+        payload: { tenant_id: session.tenantId, conversation_id: conversationId },
+      });
+    }
+  }
 
   const msg = await db.message.findUniqueOrThrow({ where: { id: messageId } });
   return messageDto(msg);

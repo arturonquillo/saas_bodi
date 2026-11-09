@@ -111,6 +111,7 @@ export async function listInboxes(session: SessionContext) {
         channelSocial: true,
         channelSms: true,
         channelApi: true,
+        channelVoice: true,
       },
     });
     return {
@@ -151,6 +152,7 @@ function connectionStatusOf(row: {
   channelSocial?: { connectionStatus: string } | null;
   channelSms?: { connectionStatus: string } | null;
   channelApi?: { connectionStatus: string } | null;
+  channelVoice?: { connectionStatus: string } | null;
 }): string | null {
   switch (row.channelType) {
     case "whatsapp":
@@ -163,6 +165,8 @@ function connectionStatusOf(row: {
       return row.channelSms?.connectionStatus ?? null;
     case "api":
       return row.channelApi?.connectionStatus ?? null;
+    case "voice":
+      return row.channelVoice?.connectionStatus ?? null;
     default:
       if (isSocialChannel(row.channelType)) {
         return row.channelSocial?.connectionStatus ?? null;
@@ -241,6 +245,17 @@ async function createTypedChannel(
         },
       });
       return;
+    case "voice":
+      await tx.channelVoice.create({
+        data: {
+          id: newId("cvo"),
+          tenantId,
+          inboxId,
+          provider: "twilio_voice",
+          connectionStatus: "not_configured",
+        },
+      });
+      return;
     default:
       if (isSocialChannel(channelType)) {
         await tx.channelSocial.create({
@@ -313,6 +328,7 @@ export async function getInbox(session: SessionContext, id: string) {
       channelSocial: true,
       channelSms: true,
       channelApi: true,
+      channelVoice: true,
     },
   });
   if (!row) throw new ApiError("nao_encontrado", "Não encontrado.");
@@ -486,6 +502,19 @@ async function getChannelDto(tenantId: string, inboxId: string, channelType: str
         token_present: Boolean(channel.apiAccessTokenHash),
       };
     }
+    case "voice": {
+      const channel = await db.channelVoice.findFirst({ where: { tenantId, inboxId } });
+      if (!channel) throw new ApiError("nao_encontrado", "Não encontrado.");
+      return {
+        channel_type: "voice" as const,
+        id: channel.id,
+        inbox_id: channel.inboxId,
+        provider: channel.provider,
+        connection_status: channel.connectionStatus,
+        secrets_present: Boolean(channel.secretsCiphertext),
+        metadata: channel.metadataJson ? JSON.parse(channel.metadataJson) : null,
+      };
+    }
     default: {
       if (!isSocialChannel(channelType)) {
         throw new ApiError("nao_encontrado", "Não encontrado.");
@@ -532,6 +561,9 @@ export async function putChannel(
       break;
     case "api":
       await putApiChannel(session, inboxId, input);
+      break;
+    case "voice":
+      await putVoiceChannel(session, inboxId, input);
       break;
     default:
       if (isSocialChannel(inbox.channelType)) {
@@ -914,6 +946,45 @@ export async function rotateChannelToken(session: SessionContext, inboxId: strin
   throw new ApiError("validacao", "Rotação de token só para web_widget ou api.");
 }
 
+
+async function putVoiceChannel(
+  session: SessionContext,
+  inboxId: string,
+  input: Record<string, unknown>,
+) {
+  const channel = await db.channelVoice.findFirst({
+    where: { tenantId: session.tenantId, inboxId },
+  });
+  if (!channel) throw new ApiError("nao_encontrado", "Não encontrado.");
+  const status = input.connection_status as WaConnectionStatus | undefined;
+  rejectLive(status);
+  let secretsCiphertext: string | null | undefined = undefined;
+  if (input.secrets && typeof input.secrets === "object") {
+    secretsCiphertext = await sealSecretsMerge(
+      channel.secretsCiphertext,
+      input.secrets as Record<string, string | undefined>,
+    );
+  }
+  const provider = input.provider as string | undefined;
+  if (provider && provider !== "twilio_voice" && provider !== "wa_calling") {
+    throw new ApiError("validacao", "provider de voz inválido.");
+  }
+  await db.channelVoice.update({
+    where: { id: channel.id },
+    data: {
+      provider: provider,
+      connectionStatus: status,
+      secretsCiphertext: secretsCiphertext === undefined ? undefined : secretsCiphertext,
+      metadataJson:
+        input.metadata === undefined
+          ? undefined
+          : input.metadata
+            ? JSON.stringify(input.metadata)
+            : null,
+    },
+  });
+}
+
 export async function simulateChannelInbound(
   session: SessionContext,
   inboxId: string,
@@ -935,6 +1006,13 @@ export async function simulateChannelInbound(
       "validacao",
       "Use as rotas /api/loja/widget/* para o canal web_widget.",
     );
+  }
+
+  if (inbox.channelType === "voice") {
+    // Fall through to generic stub ingest with system note content if blank-ish
+    if (!input.body.trim() || input.body.trim() === "chamada") {
+      input = { ...input, body: "chamada simulada" };
+    }
   }
 
   if (inbox.channelType === "whatsapp") {
@@ -1062,5 +1140,34 @@ export async function simulateChannelInbound(
     },
   });
 
+  if (inbox.channelType === "voice") {
+    await appendDomainEvent(db, {
+      tenantId: session.tenantId,
+      type: "voice.simulated",
+      aggregateType: "conversation",
+      aggregateId: conversation.id,
+      actorUserId: session.userId,
+      payload: { conversation_id: conversation.id, inbox_id: inboxId },
+    });
+  }
+
   return { conversation_id: conversation.id, message_id: messageId, contact_id: contact.id };
+}
+
+
+export async function putRequiredAttributesOnResolve(
+  session: SessionContext,
+  inboxId: string,
+  input: { keys: string[] },
+) {
+  assertSaasRole(session, "admin");
+  const inbox = await db.inbox.findFirst({ where: { id: inboxId, tenantId: session.tenantId } });
+  if (!inbox) throw new ApiError("nao_encontrado", "Não encontrado.");
+  if (!Array.isArray(input.keys)) throw new ApiError("validacao", "keys deve ser array.");
+  const keys = input.keys.filter((k): k is string => typeof k === "string" && k.trim().length > 0);
+  await db.inbox.update({
+    where: { id: inboxId },
+    data: { requiredAttributeKeysOnResolveJson: JSON.stringify(keys) },
+  });
+  return { inbox_id: inboxId, keys };
 }

@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import type { SaasRole } from "@saas-frota/shared";
 import type { SessionContext } from "../authz/session";
@@ -143,6 +144,7 @@ export async function createWorld(label: string): Promise<TestWorld> {
       canaisAviso: "whatsapp",
       lojaModo: "pedido_direto",
       defaultVendedorUserId: users.vendedor,
+      webhookSigningSecret: randomBytes(32).toString("hex"),
     },
   });
   await db.theme.create({
@@ -250,6 +252,9 @@ export async function createWorld(label: string): Promise<TestWorld> {
       tenantId,
       name: "WhatsApp",
       channelType: "whatsapp",
+      timezone: "America/Sao_Paulo",
+      oooMessage: "Fora do horário.",
+      greeting: "Olá!",
     },
   });
   await db.channelWhatsapp.create({

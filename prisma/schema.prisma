@@ -193,6 +193,7 @@ model Tenant {
   canaisAviso           CanalAviso @default(whatsapp) @map("canais_aviso")
   lojaModo              LojaModo   @default(pedido_direto) @map("loja_modo")
   defaultVendedorUserId String?    @map("default_vendedor_user_id")
+  webhookSigningSecret  String?    @map("webhook_signing_secret")
   createdAt             DateTime   @default(now()) @map("created_at")
 
   theme                 Theme?
@@ -227,6 +228,17 @@ model Tenant {
   movements             InventoryMovement[]
   outbox                NotificationOutbox[]
   sessions              Session[]
+  automationRules       AutomationRule[]
+  macros                Macro[]
+  customAttributeDefinitions CustomAttributeDefinition[]
+  agentBots             AgentBot[]
+  agentBotInboxes       AgentBotInbox[]
+  webhooks              Webhook[]
+  workingHours          WorkingHour[]
+  assignmentPolicies    AssignmentPolicy[]
+  csatResponses         CsatResponse[]
+  customFilters         CustomFilter[]
+  contactImportBatches  ContactImportBatch[]
 
   @@map("tenants")
 }
@@ -275,6 +287,12 @@ model User {
   agentPresences         AgentPresence[]
   conversationDrafts     ConversationDraft[]
   domainEvents           DomainEvent[]             @relation("DomainEventActor")
+  automationRulesCreated AutomationRule[]          @relation("AutomationRuleCreator")
+  macrosOwned            Macro[]                   @relation("MacroOwner")
+  customFilters          CustomFilter[]
+  contactImportBatches   ContactImportBatch[]      @relation("ImportBatchCreator")
+  assignmentPolicyCursor AssignmentPolicy[]        @relation("AssignmentPolicyCursor")
+  csatAssigned           CsatResponse[]            @relation("CsatAssignedAgent")
 
   @@map("users")
 }
@@ -351,31 +369,37 @@ model Company {
 }
 
 model Contact {
-  id                String   @id
-  tenantId          String   @map("tenant_id")
-  nome              String
-  email             String?
-  phoneE164         String?  @map("phone_e164")
-  companyId         String?  @map("company_id")
-  clienteId         String?  @map("cliente_id")
-  cadastroRequestId String?  @map("cadastro_request_id")
-  notas             String?
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt         DateTime @updatedAt @map("updated_at")
+  id                   String   @id
+  tenantId             String   @map("tenant_id")
+  nome                 String
+  email                String?
+  phoneE164            String?  @map("phone_e164")
+  companyId            String?  @map("company_id")
+  clienteId            String?  @map("cliente_id")
+  cadastroRequestId    String?  @map("cadastro_request_id")
+  notas                String?
+  customAttributesJson String   @default("{}") @map("custom_attributes_json")
+  mergedIntoId         String?  @map("merged_into_id")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
 
   tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   company         Company?         @relation(fields: [companyId], references: [id], onDelete: SetNull)
   cliente         Cliente?         @relation("ContactCliente", fields: [clienteId], references: [id], onDelete: SetNull)
   cadastroRequest CadastroRequest? @relation("ContactCadastro", fields: [cadastroRequestId], references: [id], onDelete: SetNull)
+  mergedInto      Contact?         @relation("ContactMerge", fields: [mergedIntoId], references: [id], onDelete: SetNull)
+  mergedFrom      Contact[]        @relation("ContactMerge")
   contactInboxes  ContactInbox[]
   conversations   Conversation[]
   labels          ContactLabel[]
   primaryForClientes Cliente[]     @relation("ClientePrimaryContact")
   cadastrosLinked CadastroRequest[] @relation("CadastroContact")
+  csatResponses   CsatResponse[]
 
   @@index([tenantId, phoneE164])
   @@index([tenantId, email])
   @@index([tenantId, clienteId])
+  @@index([tenantId, mergedIntoId])
   @@map("contacts")
 }
 
@@ -440,14 +464,20 @@ model Inbox {
   lockToSingleConversation Boolean     @default(true) @map("lock_to_single_conversation")
   allowAutoAssign          Boolean     @default(false) @map("allow_auto_assign")
   vendedorSeeAll           Boolean     @default(false) @map("vendedor_see_all")
+  timezone                 String      @default("America/Sao_Paulo")
   createdAt                DateTime    @default(now()) @map("created_at")
   updatedAt                DateTime    @updatedAt @map("updated_at")
 
-  tenant         Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   channelWhatsapp ChannelWhatsapp?
-  members        InboxMember[]
-  conversations  Conversation[]
-  contactInboxes ContactInbox[]
+  members         InboxMember[]
+  conversations   Conversation[]
+  contactInboxes  ContactInbox[]
+  workingHours    WorkingHour[]
+  assignmentPolicy AssignmentPolicy?
+  agentBotInboxes AgentBotInbox[]
+  webhooks        Webhook[]
+  csatResponses   CsatResponse[]
 
   @@index([tenantId, channelType])
   @@map("inboxes")
@@ -490,22 +520,26 @@ model InboxMember {
 }
 
 model Conversation {
-  id                String                @id
-  tenantId          String                @map("tenant_id")
-  inboxId           String                @map("inbox_id")
-  contactId         String                @map("contact_id")
-  status            ConversationStatus    @default(open)
-  priority          ConversationPriority?
-  assigneeUserId    String?               @map("assignee_user_id")
-  teamId            String?               @map("team_id")
-  snoozedUntil      DateTime?             @map("snoozed_until")
-  muted             Boolean               @default(false)
-  clienteId         String?               @map("cliente_id")
-  cadastroRequestId String?               @map("cadastro_request_id")
-  orcamentoId       String?               @map("orcamento_id")
-  lastActivityAt    DateTime              @default(now()) @map("last_activity_at")
-  createdAt         DateTime              @default(now()) @map("created_at")
-  updatedAt         DateTime              @updatedAt @map("updated_at")
+  id                   String                @id
+  tenantId             String                @map("tenant_id")
+  inboxId              String                @map("inbox_id")
+  contactId            String                @map("contact_id")
+  status               ConversationStatus    @default(open)
+  priority             ConversationPriority?
+  assigneeUserId       String?               @map("assignee_user_id")
+  teamId               String?               @map("team_id")
+  snoozedUntil         DateTime?             @map("snoozed_until")
+  muted                Boolean               @default(false)
+  clienteId            String?               @map("cliente_id")
+  cadastroRequestId    String?               @map("cadastro_request_id")
+  orcamentoId          String?               @map("orcamento_id")
+  customAttributesJson String                @default("{}") @map("custom_attributes_json")
+  botAgentBotId        String?               @map("bot_agent_bot_id")
+  csatToken            String?               @unique @map("csat_token")
+  csatSentAt           DateTime?             @map("csat_sent_at")
+  lastActivityAt       DateTime              @default(now()) @map("last_activity_at")
+  createdAt            DateTime              @default(now()) @map("created_at")
+  updatedAt            DateTime              @updatedAt @map("updated_at")
 
   tenant          Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   inbox           Inbox                 @relation(fields: [inboxId], references: [id], onDelete: Cascade)
@@ -515,6 +549,7 @@ model Conversation {
   cliente         Cliente?              @relation(fields: [clienteId], references: [id], onDelete: SetNull)
   cadastroRequest CadastroRequest?      @relation("ConversationCadastro", fields: [cadastroRequestId], references: [id], onDelete: SetNull)
   orcamento       Orcamento?            @relation(fields: [orcamentoId], references: [id], onDelete: SetNull)
+  botAgentBot     AgentBot?             @relation(fields: [botAgentBotId], references: [id], onDelete: SetNull)
   messages        Message[]
   labels          ConversationLabel[]
   drafts          ConversationDraft[]
@@ -522,11 +557,13 @@ model Conversation {
   presences       AgentPresence[]
   outbox          NotificationOutbox[]
   cadastrosFromConversation CadastroRequest[] @relation("CadastroConversation")
+  csatResponses   CsatResponse[]
 
   @@index([tenantId, status, lastActivityAt])
   @@index([tenantId, assigneeUserId])
   @@index([tenantId, inboxId])
   @@index([tenantId, contactId])
+  @@index([tenantId, botAgentBotId])
   @@map("conversations")
 }
 
@@ -748,6 +785,212 @@ model BackgroundJob {
   @@index([status, runAfter])
   @@index([tenantId, kind, status])
   @@map("background_jobs")
+}
+
+model AutomationRule {
+  id               String   @id
+  tenantId         String   @map("tenant_id")
+  name             String
+  description      String?
+  eventName        String   @map("event_name")
+  conditionsJson   String   @default("{\"operator\":\"and\",\"values\":[]}") @map("conditions_json")
+  actionsJson      String   @default("[]") @map("actions_json")
+  active           Boolean  @default(true)
+  createdByUserId  String?  @map("created_by_user_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy User?  @relation("AutomationRuleCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, active, eventName])
+  @@map("automation_rules")
+}
+
+model Macro {
+  id          String   @id
+  tenantId    String   @map("tenant_id")
+  name        String
+  actionsJson String   @default("[]") @map("actions_json")
+  visibility  String   @default("private")
+  ownerUserId String?  @map("owner_user_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner  User?  @relation("MacroOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, visibility])
+  @@index([tenantId, ownerUserId])
+  @@map("macros")
+}
+
+model CustomAttributeDefinition {
+  id                    String   @id
+  tenantId              String   @map("tenant_id")
+  attributeModel        String   @map("attribute_model")
+  attributeDisplayType  String   @map("attribute_display_type")
+  attributeKey          String   @map("attribute_key")
+  attributeDisplayName  String   @map("attribute_display_name")
+  defaultValueJson      String?  @map("default_value_json")
+  attributeValuesJson   String?  @map("attribute_values_json")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, attributeModel, attributeKey])
+  @@index([tenantId, attributeModel])
+  @@map("custom_attribute_definitions")
+}
+
+model AgentBot {
+  id          String   @id
+  tenantId    String   @map("tenant_id")
+  name        String
+  description String?
+  outgoingUrl String   @map("outgoing_url")
+  token       String
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inboxes       AgentBotInbox[]
+  conversations Conversation[]
+
+  @@index([tenantId, active])
+  @@map("agent_bots")
+}
+
+model AgentBotInbox {
+  id         String   @id
+  tenantId   String   @map("tenant_id")
+  agentBotId String   @map("agent_bot_id")
+  inboxId    String   @unique @map("inbox_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agentBot AgentBot @relation(fields: [agentBotId], references: [id], onDelete: Cascade)
+  inbox    Inbox    @relation(fields: [inboxId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, agentBotId])
+  @@map("agent_bot_inboxes")
+}
+
+model Webhook {
+  id                 String   @id
+  tenantId           String   @map("tenant_id")
+  url                String
+  name               String?
+  subscriptionsJson  String   @default("[]") @map("subscriptions_json")
+  inboxId            String?  @map("inbox_id")
+  active             Boolean  @default(true)
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inbox  Inbox? @relation(fields: [inboxId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, active])
+  @@index([tenantId, inboxId])
+  @@map("webhooks")
+}
+
+model WorkingHour {
+  id            String  @id
+  tenantId      String  @map("tenant_id")
+  inboxId       String  @map("inbox_id")
+  dayOfWeek     Int     @map("day_of_week")
+  closedAllDay  Boolean @default(false) @map("closed_all_day")
+  openAllDay    Boolean @default(false) @map("open_all_day")
+  openHour      Int?    @map("open_hour")
+  openMinutes   Int?    @map("open_minutes")
+  closeHour     Int?    @map("close_hour")
+  closeMinutes  Int?    @map("close_minutes")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inbox  Inbox  @relation(fields: [inboxId], references: [id], onDelete: Cascade)
+
+  @@unique([inboxId, dayOfWeek])
+  @@index([tenantId, inboxId])
+  @@map("working_hours")
+}
+
+model AssignmentPolicy {
+  id                 String   @id
+  tenantId           String   @map("tenant_id")
+  inboxId            String   @unique @map("inbox_id")
+  kind               String   @default("round_robin")
+  enabled            Boolean  @default(false)
+  lastAssignedUserId String?  @map("last_assigned_user_id")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  tenant             Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inbox              Inbox  @relation(fields: [inboxId], references: [id], onDelete: Cascade)
+  lastAssignedUser   User?  @relation("AssignmentPolicyCursor", fields: [lastAssignedUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@map("assignment_policies")
+}
+
+model CsatResponse {
+  id               String   @id
+  tenantId         String   @map("tenant_id")
+  conversationId   String   @map("conversation_id")
+  inboxId          String   @map("inbox_id")
+  contactId        String?  @map("contact_id")
+  rating           Int
+  feedbackMessage  String?  @map("feedback_message")
+  assignedAgentId  String?  @map("assigned_agent_id")
+  submittedAt      DateTime @default(now()) @map("submitted_at")
+
+  tenant         Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  inbox          Inbox        @relation(fields: [inboxId], references: [id], onDelete: Cascade)
+  contact        Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  assignedAgent  User?        @relation("CsatAssignedAgent", fields: [assignedAgentId], references: [id], onDelete: SetNull)
+
+  @@unique([conversationId])
+  @@index([tenantId, inboxId])
+  @@index([tenantId, rating])
+  @@map("csat_responses")
+}
+
+model CustomFilter {
+  id         String   @id
+  tenantId   String   @map("tenant_id")
+  userId     String   @map("user_id")
+  name       String
+  filterType String   @map("filter_type")
+  queryJson  String   @default("{}") @map("query_json")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId, filterType])
+  @@map("custom_filters")
+}
+
+model ContactImportBatch {
+  id              String   @id
+  tenantId        String   @map("tenant_id")
+  createdByUserId String   @map("created_by_user_id")
+  status          String   @default("pendente")
+  statsJson       String   @default("{}") @map("stats_json")
+  csvText         String?  @map("csv_text")
+  lastError       String?  @map("last_error")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy User   @relation("ImportBatchCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@map("contact_import_batches")
 }
 
 model Orcamento {

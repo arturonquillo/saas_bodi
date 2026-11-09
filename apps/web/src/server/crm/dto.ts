@@ -23,9 +23,17 @@ export function contactDto(row: {
   clienteId: string | null;
   cadastroRequestId: string | null;
   notas: string | null;
+  customAttributesJson?: string;
+  mergedIntoId?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }) {
+  let custom_attributes: Record<string, unknown> = {};
+  try {
+    custom_attributes = JSON.parse(row.customAttributesJson || "{}") as Record<string, unknown>;
+  } catch {
+    custom_attributes = {};
+  }
   return {
     id: row.id,
     nome: row.nome,
@@ -35,6 +43,8 @@ export function contactDto(row: {
     cliente_id: row.clienteId,
     cadastro_request_id: row.cadastroRequestId,
     notas: row.notas,
+    custom_attributes,
+    merged_into_id: row.mergedIntoId ?? null,
     created_at: row.createdAt.toISOString(),
     updated_at: row.updatedAt.toISOString(),
   };
@@ -99,12 +109,22 @@ export function conversationDto(row: {
   clienteId: string | null;
   cadastroRequestId: string | null;
   orcamentoId: string | null;
+  customAttributesJson?: string;
+  botAgentBotId?: string | null;
+  csatToken?: string | null;
+  csatSentAt?: Date | null;
   lastActivityAt: Date;
   createdAt: Date;
   updatedAt: Date;
   contact?: Parameters<typeof contactDto>[0];
   labels?: Array<{ label: Parameters<typeof labelDto>[0] }>;
 }) {
+  let custom_attributes: Record<string, unknown> = {};
+  try {
+    custom_attributes = JSON.parse(row.customAttributesJson || "{}") as Record<string, unknown>;
+  } catch {
+    custom_attributes = {};
+  }
   return {
     id: row.id,
     inbox_id: row.inboxId,
@@ -118,6 +138,9 @@ export function conversationDto(row: {
     cliente_id: row.clienteId,
     cadastro_request_id: row.cadastroRequestId,
     orcamento_id: row.orcamentoId,
+    custom_attributes,
+    bot_agent_bot_id: row.botAgentBotId ?? null,
+    csat_sent_at: row.csatSentAt?.toISOString() ?? null,
     last_activity_at: row.lastActivityAt.toISOString(),
     created_at: row.createdAt.toISOString(),
     updated_at: row.updatedAt.toISOString(),
@@ -136,6 +159,7 @@ export function inboxDto(row: {
   lockToSingleConversation: boolean;
   allowAutoAssign: boolean;
   vendedorSeeAll: boolean;
+  timezone?: string;
   createdAt: Date;
   updatedAt: Date;
 }) {
@@ -149,6 +173,7 @@ export function inboxDto(row: {
     lock_to_single_conversation: row.lockToSingleConversation,
     allow_auto_assign: row.allowAutoAssign,
     vendedor_see_all: row.vendedorSeeAll,
+    timezone: row.timezone ?? "America/Sao_Paulo",
     created_at: row.createdAt.toISOString(),
     updated_at: row.updatedAt.toISOString(),
   };

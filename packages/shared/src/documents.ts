@@ -1,3 +1,4 @@
+/** CPF helpers kept for later varejo; MVP cadastro path is CNPJ-only. */
 export const DOCUMENT_TYPES = ["cpf", "cnpj"] as const;
 export type DocumentType = (typeof DOCUMENT_TYPES)[number];
 
@@ -47,6 +48,6 @@ export function isValidTaxId(type: DocumentType, value: string): boolean {
   return type === "cpf" ? isValidCpf(value) : isValidCnpj(value);
 }
 
-export function priceListForDocument(type: DocumentType): "varejo" | "atacado" {
-  return type === "cnpj" ? "atacado" : "varejo";
+export function cnpjLast4(digits: string): string {
+  return onlyDigits(digits).slice(-4);
 }

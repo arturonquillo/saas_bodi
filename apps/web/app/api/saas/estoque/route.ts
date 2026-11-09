@@ -1,12 +1,33 @@
+import { z } from "zod";
 import { requireSaasRole } from "@/server/authz/gates";
-import { parsePaging } from "@/server/http/pagination";
-import { handleError, ok } from "@/server/http/respond";
-import { listEstoque } from "@/server/inventory/service";
+import { createSku, listEstoque } from "@/server/inventory/service";
+import { readJson } from "@/server/http/request";
+import { fail, handleError, ok } from "@/server/http/respond";
+
+const createSchema = z.object({
+  codigo: z.string().min(1),
+  nome: z.string().min(1),
+  preco_atacado_centavos: z.number().int().nonnegative(),
+  qtd_min_atacado: z.number().int().positive().optional(),
+  on_hand: z.number().int().nonnegative().optional(),
+  visivel_loja: z.boolean().optional(),
+});
 
 export async function GET(req: Request) {
   try {
-    const session = await requireSaasRole("supervisor", "vendedor", "estoquista");
-    return ok(await listEstoque(session, parsePaging(new URL(req.url))));
+    const session = await requireSaasRole("admin", "vendedor");
+    return ok(await listEstoque(session, new URL(req.url)));
+  } catch (err) {
+    return handleError(err);
+  }
+}
+
+export async function POST(req: Request) {
+  try {
+    const session = await requireSaasRole("admin");
+    const parsed = createSchema.safeParse(await readJson(req));
+    if (!parsed.success) return fail("validacao", "SKU inválido.");
+    return ok(await createSku(session, parsed.data), 201);
   } catch (err) {
     return handleError(err);
   }

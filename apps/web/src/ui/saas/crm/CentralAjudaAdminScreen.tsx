@@ -30,6 +30,7 @@ import { apiGet, apiSend, asPage, isApiError } from "../../api";
 import { COPY } from "../../copy";
 import { formatDate } from "../../format";
 import { articleStatusLabel, slugify } from "../../crm/phase-c";
+import { putPortalDominio, verifyPortalDominio } from "../../crm/phase-e";
 import type {
   ArticleStatus,
   CrmHelpArticleDto,
@@ -47,6 +48,8 @@ const emptyPortal = (): CrmPortalDto => ({
   homepage_md: "",
   locale: "pt-BR",
   enabled: false,
+  custom_domain: null,
+  custom_domain_verified: false,
 });
 
 export function CentralAjudaAdminScreen() {
@@ -59,6 +62,7 @@ export function CentralAjudaAdminScreen() {
   const [artOpen, setArtOpen] = useState(false);
   const [editingArticle, setEditingArticle] = useState<CrmHelpArticleDto | null>(null);
   const [artStatusFilter, setArtStatusFilter] = useState<string>("all");
+  const [domainInput, setDomainInput] = useState("");
 
   const load = useCallback(async () => {
     setStatus("loading");
@@ -74,12 +78,14 @@ export function CentralAjudaAdminScreen() {
           }`,
         ).then((d) => asPage<CrmHelpArticleDto>(d).items),
       ]);
-      setPortal({
+      const nextPortal = {
         ...emptyPortal(),
         ...(p ?? {}),
         locale: p?.locale || "pt-BR",
         enabled: p?.enabled ?? false,
-      });
+      };
+      setPortal(nextPortal);
+      setDomainInput(nextPortal.custom_domain ?? "");
       setCategories(cats);
       setArticles(arts);
       setStatus("ok");
@@ -87,6 +93,47 @@ export function CentralAjudaAdminScreen() {
       setStatus("error");
     }
   }, [artStatusFilter]);
+
+  async function saveDomain(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const saved = await putPortalDominio(domainInput.trim() || null);
+      if (saved && typeof saved === "object") {
+        setPortal((p) => ({ ...p, ...(saved as CrmPortalDto) }));
+      } else {
+        setPortal((p) => ({
+          ...p,
+          custom_domain: domainInput.trim() || null,
+          custom_domain_verified: false,
+        }));
+      }
+      toast.success(COPY.actions.salvar);
+      void load();
+    } catch (err) {
+      toast.error(isApiError(err) ? err.message : COPY.save_fail);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function verifyDomain() {
+    setBusy(true);
+    try {
+      const res = await verifyPortalDominio();
+      toast.success(
+        res.message ||
+          (res.verified || res.status === "verified"
+            ? "Domínio verificado (stub)"
+            : "Verificação enfileirada (stub)"),
+      );
+      void load();
+    } catch (err) {
+      toast.error(isApiError(err) ? err.message : COPY.save_fail);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   useEffect(() => {
     void load();
@@ -298,6 +345,48 @@ export function CentralAjudaAdminScreen() {
                   <Button type="submit" disabled={busy}>
                     {COPY.actions.salvar}
                   </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            <Card className="mt-6 max-w-xl">
+              <CardHeader>
+                <CardTitle>{COPY.crm.hc_domain_title}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="mb-4 text-sm text-muted-foreground">{COPY.crm.hc_domain_hint}</p>
+                <form className="space-y-3" onSubmit={saveDomain}>
+                  <div>
+                    <Label htmlFor="portal-domain">Domínio</Label>
+                    <Input
+                      id="portal-domain"
+                      className="mt-1"
+                      placeholder="ajuda.exemplo.com.br"
+                      value={domainInput}
+                      onChange={(e) => setDomainInput(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline">
+                      {portal.custom_domain_verified ? "Verificado" : "Não verificado"}
+                    </Badge>
+                    {portal.custom_domain ? (
+                      <span className="text-sm text-muted-foreground">{portal.custom_domain}</span>
+                    ) : null}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="submit" disabled={busy}>
+                      {COPY.actions.salvar}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={busy || !portal.custom_domain}
+                      onClick={() => void verifyDomain()}
+                    >
+                      {COPY.crm.hc_domain_verify}
+                    </Button>
+                  </div>
                 </form>
               </CardContent>
             </Card>

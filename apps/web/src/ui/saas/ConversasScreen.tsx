@@ -60,9 +60,16 @@ import {
   statusLabel,
   substituteCanned,
 } from "../crm/labels";
+import {
+  acceptCaptainSuggestion,
+  dismissCaptainSuggestion,
+  listCaptainSuggestions,
+  suggestCaptain,
+} from "../crm/phase-e";
 import type {
   CrmAttributeDto,
   CrmCannedDto,
+  CrmCaptainSuggestionDto,
   CrmConversationDetailDto,
   CrmConversationDto,
   CrmFilterDto,
@@ -334,6 +341,11 @@ function ContextRail({
   onSaveAttrs,
   attrBusy,
   onHandoff,
+  captainSuggestions,
+  captainBusy,
+  onCaptainSuggest,
+  onCaptainAccept,
+  onCaptainDismiss,
 }: {
   detail: CrmConversationDetailDto | null;
   attrDefs: CrmAttributeDto[];
@@ -342,6 +354,11 @@ function ContextRail({
   onSaveAttrs: () => void;
   attrBusy: boolean;
   onHandoff: () => void;
+  captainSuggestions: CrmCaptainSuggestionDto[];
+  captainBusy: boolean;
+  onCaptainSuggest: () => void;
+  onCaptainAccept: (id: string) => void;
+  onCaptainDismiss: (id: string) => void;
 }) {
   if (!detail) {
     return (
@@ -440,6 +457,60 @@ function ContextRail({
         <Separator />
         <div className="space-y-2">
           <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+            {COPY.crm.nav_captain}
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={captainBusy}
+            onClick={onCaptainSuggest}
+          >
+            {COPY.crm.captain_suggest}
+          </Button>
+          {captainSuggestions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{COPY.crm.captain_no_suggestions}</p>
+          ) : (
+            <ul className="space-y-2">
+              {captainSuggestions.map((s) => (
+                <li key={s.id} className="rounded-md border border-border p-2 text-sm">
+                  <p className="text-xs text-muted-foreground">{s.mode}</p>
+                  <p className="mt-1 text-gray-900">
+                    {s.proposal_json?.reply_text || JSON.stringify(s.proposal_json ?? {})}
+                  </p>
+                  {s.status === "pending" ? (
+                    <div className="mt-2 flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={captainBusy}
+                        onClick={() => onCaptainAccept(s.id)}
+                      >
+                        {COPY.crm.captain_accept}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={captainBusy}
+                        onClick={() => onCaptainDismiss(s.id)}
+                      >
+                        {COPY.crm.captain_dismiss}
+                      </Button>
+                    </div>
+                  ) : (
+                    <Badge variant="outline" className="mt-2">
+                      {s.status}
+                    </Badge>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <Separator />
+        <div className="space-y-2">
+          <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
             Comércio
           </p>
           {!hasCliente ? (
@@ -488,6 +559,8 @@ export function ConversasScreen() {
   const [attrDefs, setAttrDefs] = useState<CrmAttributeDto[]>([]);
   const [attrValues, setAttrValues] = useState<Record<string, string>>({});
   const [attrBusy, setAttrBusy] = useState(false);
+  const [captainSuggestions, setCaptainSuggestions] = useState<CrmCaptainSuggestionDto[]>([]);
+  const [captainBusy, setCaptainBusy] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [composer, setComposer] = useState("");
   const [privateNote, setPrivateNote] = useState(false);
@@ -574,9 +647,13 @@ export function ConversasScreen() {
         Object.fromEntries(Object.entries(attrs).map(([k, v]) => [k, v == null ? "" : String(v)])),
       );
       setDetailStatus("ok");
+      void listCaptainSuggestions({ conversation_id: id })
+        .then((page) => setCaptainSuggestions(page.items))
+        .catch(() => setCaptainSuggestions([]));
     } catch (err) {
       setDetail(null);
       setDetailStatus("error");
+      setCaptainSuggestions([]);
       if (isApiError(err) && (err.status === 404 || err.status === 403)) {
         /* show not found */
       }
@@ -597,6 +674,7 @@ export function ConversasScreen() {
       setDetail(null);
       setDetailStatus("idle");
       setComposer("");
+      setCaptainSuggestions([]);
     }
   }, [selectedId, loadDetail]);
 
@@ -794,6 +872,53 @@ export function ConversasScreen() {
     }
   }
 
+  async function onCaptainSuggest() {
+    if (!selectedId) return;
+    setCaptainBusy(true);
+    try {
+      const suggestion = await suggestCaptain({
+        conversation_id: selectedId,
+        mode: "copilot",
+      });
+      setCaptainSuggestions((prev) => [suggestion, ...prev.filter((s) => s.id !== suggestion.id)]);
+      toast.success(COPY.crm.captain_suggest);
+    } catch (err) {
+      toast.error(isApiError(err) ? err.message : COPY.save_fail);
+    } finally {
+      setCaptainBusy(false);
+    }
+  }
+
+  async function onCaptainAccept(id: string) {
+    setCaptainBusy(true);
+    try {
+      await acceptCaptainSuggestion(id);
+      toast.success(COPY.crm.captain_accept);
+      if (selectedId) void loadDetail(selectedId, true);
+      void listCaptainSuggestions({ conversation_id: selectedId! })
+        .then((page) => setCaptainSuggestions(page.items))
+        .catch(() => undefined);
+    } catch (err) {
+      toast.error(isApiError(err) ? err.message : COPY.save_fail);
+    } finally {
+      setCaptainBusy(false);
+    }
+  }
+
+  async function onCaptainDismiss(id: string) {
+    setCaptainBusy(true);
+    try {
+      await dismissCaptainSuggestion(id);
+      setCaptainSuggestions((prev) =>
+        prev.map((s) => (s.id === id ? { ...s, status: "dismissed" } : s)),
+      );
+    } catch (err) {
+      toast.error(isApiError(err) ? err.message : COPY.save_fail);
+    } finally {
+      setCaptainBusy(false);
+    }
+  }
+
   async function saveCurrentFilter() {
     const name = window.prompt("Nome do filtro");
     if (!name?.trim()) return;
@@ -857,6 +982,11 @@ export function ConversasScreen() {
       onSaveAttrs={() => void saveConversationAttrs()}
       attrBusy={attrBusy}
       onHandoff={() => void handoffBot()}
+      captainSuggestions={captainSuggestions}
+      captainBusy={captainBusy}
+      onCaptainSuggest={() => void onCaptainSuggest()}
+      onCaptainAccept={(id) => void onCaptainAccept(id)}
+      onCaptainDismiss={(id) => void onCaptainDismiss(id)}
     />
   );
 

@@ -39,6 +39,7 @@ import {
 import { apiGet, apiSend, asPage, isApiError, type UserDto } from "../../api";
 import { COPY } from "../../copy";
 import { connectionBadgeClass, connectionLabel } from "../../crm/labels";
+import { putInboxAtributosObrigatorios } from "../../crm/phase-e";
 import {
   CHANNEL_TYPES_D,
   channelStubAlert,
@@ -280,6 +281,8 @@ export function CaixaDetailScreen() {
   const [continuity, setContinuity] = useState<"session" | "contact">("session");
   const [emailProvider, setEmailProvider] = useState("smtp_imap");
   const [smsProvider, setSmsProvider] = useState("twilio");
+  const [voiceProvider, setVoiceProvider] = useState("twilio_voice");
+  const [requiredAttrsText, setRequiredAttrsText] = useState("");
 
   useEffect(() => {
     if (onCanalRoute) setActiveTab("canal");
@@ -297,6 +300,7 @@ export function CaixaDetailScreen() {
     if (channel?.provider) {
       if (channelType === "email") setEmailProvider(String(channel.provider));
       if (channelType === "sms") setSmsProvider(String(channel.provider));
+      if (channelType === "voice") setVoiceProvider(String(channel.provider));
     }
   }, [channel?.provider, channelType]);
 
@@ -310,6 +314,11 @@ export function CaixaDetailScreen() {
         allow_auto_assign: Boolean(box.allow_auto_assign),
         lock_to_single_conversation: Boolean(box.lock_to_single_conversation),
       });
+      const reqKeys =
+        box.required_attribute_keys_on_resolve ??
+        box.required_attribute_keys_on_resolve_json ??
+        [];
+      setRequiredAttrsText(reqKeys.join(", "));
       const canal = await getCanal(id);
       setChannel(canal);
       if (box.channel_type === "whatsapp" || canal?.channel_type === "whatsapp") {
@@ -439,6 +448,11 @@ export function CaixaDetailScreen() {
       body = {
         callback_url: fd.get("callback_url") || null,
       };
+    } else if (type === "voice") {
+      body = {
+        provider: voiceProvider || "twilio_voice",
+        ...secretPayload(fd, ["account_sid", "auth_token", "api_key"]),
+      };
     } else if (type === "web_widget") {
       body = {
         connection_status: channel?.connection_status ?? "not_configured",
@@ -507,13 +521,45 @@ export function CaixaDetailScreen() {
   async function onSimulate() {
     setBusy(true);
     try {
-      await simulateCanal(id, {
-        phone_e164: simPhone || undefined,
-        body: simBody || "Mensagem simulada",
-        content: simBody || "Mensagem simulada",
-      });
-      toast.success("Inbound simulado.");
+      if (channelType === "voice") {
+        await apiSend("/api/saas/crm/simular", "POST", {
+          inbox_id: id,
+          body: simBody || "chamada simulada",
+          content: simBody || "chamada simulada",
+        }).catch(async () => {
+          await simulateCanal(id, {
+            body: simBody || "chamada simulada",
+            content: simBody || "chamada simulada",
+          });
+        });
+        toast.success(COPY.crm.voice_simulate);
+      } else {
+        await simulateCanal(id, {
+          phone_e164: simPhone || undefined,
+          body: simBody || "Mensagem simulada",
+          content: simBody || "Mensagem simulada",
+        });
+        toast.success("Inbound simulado.");
+      }
       setSimBody("");
+    } catch (err) {
+      toast.error(isApiError(err) ? err.message : COPY.save_fail);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveRequiredAttrs(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    const keys = requiredAttrsText
+      .split(/[\s,]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    try {
+      await putInboxAtributosObrigatorios(id, keys);
+      toast.success(COPY.actions.salvar);
+      void load();
     } catch (err) {
       toast.error(isApiError(err) ? err.message : COPY.save_fail);
     } finally {
@@ -668,6 +714,31 @@ export function CaixaDetailScreen() {
                   />
                   Uma conversa por contato
                 </label>
+                <Button type="submit" disabled={busy}>
+                  {COPY.actions.salvar}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>{COPY.crm.required_attrs_title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="mb-3 text-sm text-muted-foreground">{COPY.crm.required_attrs_hint}</p>
+              <form className="space-y-3" onSubmit={saveRequiredAttrs}>
+                <div>
+                  <Label htmlFor="req_attrs">Chaves (vírgula)</Label>
+                  <Textarea
+                    id="req_attrs"
+                    className="mt-1 font-mono text-sm"
+                    rows={2}
+                    value={requiredAttrsText}
+                    onChange={(e) => setRequiredAttrsText(e.target.value)}
+                    placeholder="pedido_id, motivo"
+                  />
+                </div>
                 <Button type="submit" disabled={busy}>
                   {COPY.actions.salvar}
                 </Button>
@@ -922,12 +993,43 @@ export function CaixaDetailScreen() {
                     </div>
                   ) : null}
 
+                  {channelType === "voice" ? (
+                    <>
+                      <Alert>
+                        <AlertDescription>{COPY.crm.voice_stub_note}</AlertDescription>
+                      </Alert>
+                      <div>
+                        <Label>Provedor</Label>
+                        <Select value={voiceProvider} onValueChange={setVoiceProvider}>
+                          <SelectTrigger className="mt-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="twilio_voice">Twilio Voice</SelectItem>
+                            <SelectItem value="wa_calling">WhatsApp Calling</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <SecretsBlock
+                        present={channel?.secrets_present}
+                        changeSecrets={changeSecrets}
+                        onChangeSecrets={setChangeSecrets}
+                        fields={[
+                          { id: "account_sid", name: "account_sid", label: "Account SID" },
+                          { id: "auth_token", name: "auth_token", label: "Auth token" },
+                          { id: "api_key", name: "api_key", label: "API key" },
+                        ]}
+                      />
+                    </>
+                  ) : null}
+
                   {![
                     "whatsapp",
                     "email",
                     "sms",
                     "api",
                     "web_widget",
+                    "voice",
                   ].includes(String(channelType)) ? (
                     <>
                       <div>
@@ -1039,7 +1141,7 @@ export function CaixaDetailScreen() {
                   />
                 </div>
                 <Button type="button" disabled={busy} onClick={() => void onSimulate()}>
-                  {COPY.crm.canal_simulate}
+                  {channelType === "voice" ? COPY.crm.voice_simulate : COPY.crm.canal_simulate}
                 </Button>
               </CardContent>
             </Card>

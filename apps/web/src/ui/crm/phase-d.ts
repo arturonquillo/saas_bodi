@@ -23,6 +23,7 @@ export const CHANNEL_TYPES_D = [
   "line",
   "sms",
   "api",
+  "voice",
 ] as const satisfies readonly ChannelTypeD[];
 
 export const SOCIAL_CHANNEL_TYPES = [
@@ -61,6 +62,8 @@ export function channelTypeLabel(type: string | null | undefined) {
       return "SMS";
     case "api":
       return "API";
+    case "voice":
+      return "Voz / chamada";
     default:
       return type ?? "—";
   }
@@ -89,6 +92,9 @@ export function channelStubAlert(type: string | null | undefined) {
   }
   if (isSocialChannel(type)) {
     return "Credenciais sociais ficam em stub (ready_stub). Sem Meta Graph, Telegram Bot API ou outros HTTP de provedor.";
+  }
+  if (type === "voice") {
+    return "Canal de voz / WhatsApp calling em stub (ready_stub). Sem WebRTC ou telefonia live — só simulação.";
   }
   return "Envio e recebimento reais aguardam integração aprovada. Você pode salvar credenciais e simular mensagens.";
 }

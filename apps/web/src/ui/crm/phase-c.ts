@@ -20,6 +20,7 @@ export const REPORT_SERIES = [
   { key: "equipes", path: "equipes", labelKey: "relatorio_equipes" as const },
   { key: "csat", path: "csat", labelKey: "relatorio_csat" as const },
   { key: "bots", path: "bots", labelKey: "relatorio_bots" as const },
+  { key: "sla", path: "sla", labelKey: "relatorio_sla" as const },
 ] as const;
 
 export type ReportSeriesKey = (typeof REPORT_SERIES)[number]["key"];

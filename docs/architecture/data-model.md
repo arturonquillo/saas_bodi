@@ -45,7 +45,7 @@ Tenant 1──1 Theme
        1──* Session
 ```
 
-**Phase A CRM** replaces `WhatsappThread` / `WhatsappMessage` (migrate in place — see [crm-chatwoot-parity.md](./crm-chatwoot-parity.md)). **Phase B** entities (AutomationRule, Macro, CustomAttributeDefinition, AgentBot, Webhook, WorkingHour, AssignmentPolicy, CsatResponse, CustomFilter) are fully contracted below. **Phase C** entities (Campaign, CampaignRecipient, Portal, Category, Article; optional ReportSnapshot) are fully contracted below. **Phase D** entities (ChannelWebsiteWidget, WidgetSession, ChannelEmail, ChannelSocial, ChannelSms, ChannelApi, EmailTemplate, PushSubscription; Message interactive content_types) are fully contracted below — implement when that phase starts. Phase E remains sketched.
+**Phase A CRM** replaces `WhatsappThread` / `WhatsappMessage` (migrate in place — see [crm-chatwoot-parity.md](./crm-chatwoot-parity.md)). **Phase B** entities (AutomationRule, Macro, CustomAttributeDefinition, AgentBot, Webhook, WorkingHour, AssignmentPolicy, CsatResponse, CustomFilter) are fully contracted below. **Phase C** entities (Campaign, CampaignRecipient, Portal, Category, Article; optional ReportSnapshot) are fully contracted below. **Phase D** entities (ChannelWebsiteWidget, WidgetSession, ChannelEmail, ChannelSocial, ChannelSms, ChannelApi, EmailTemplate, PushSubscription; Message interactive content_types) are fully contracted below. **Phase E** entities (SlaPolicy, ConversationSla, AgentCapacity, CaptainAssistant, CaptainSuggestion, AuditEvent, SamlConfig, MfaDevice, CustomRole, IntegrationInstall, DashboardApp, ChannelVoice; CSAT review notes; Portal custom domain) are fully contracted below — implement when that phase starts.
 
 No `InventoryImportBatch` in MVP. No Account / subscription tables required for ops.
 
@@ -192,7 +192,7 @@ CadastroRequest gains `contact_id?` and `conversation_id?` (replaces `thread_id`
 
 | Inbox | Notes |
 |---|---|
-| `tenant_id`, `name`, `channel_type` | A: `whatsapp`; D: `web_widget` \| `email` \| `facebook` \| `instagram` \| `tiktok` \| `twitter` \| `telegram` \| `line` \| `sms` \| `api` |
+| `tenant_id`, `name`, `channel_type` | A: `whatsapp`; D: `web_widget` \| `email` \| `facebook` \| `instagram` \| `tiktok` \| `twitter` \| `telegram` \| `line` \| `sms` \| `api`; E: `+ voice` |
 | `greeting` / `ooo_message` | string? |
 | `csat_enabled` | bool default false |
 | `lock_to_single_conversation` | bool |
@@ -523,7 +523,7 @@ Tenant row gains `webhook_signing_secret` (or separate secrets table) — genera
 | Column | Notes |
 |---|---|
 | `inbox_id` | 1:1 optional |
-| `kind` | `round_robin` only in B (`balanced` / capacity = E) |
+| `kind` | `round_robin` (B) \| `balanced` (E) |
 | `enabled` | bool |
 | `last_assigned_user_id?` | cursor for RR |
 
@@ -536,6 +536,9 @@ Tenant row gains `webhook_signing_secret` (or separate secrets table) — genera
 | `feedback_message?` | text |
 | `assigned_agent_id?` | snapshot at resolve |
 | `submitted_at` | |
+| `review_note?` | Phase E — admin review text |
+| `reviewed_by_user_id?` | Phase E |
+| `reviewed_at?` | Phase E |
 | unique | `(conversation_id)` — one CSAT per conversation in B |
 
 ### CustomFilter
@@ -597,9 +600,11 @@ Indexes: `(tenant_id, status)`, `(tenant_id, kind)`.
 | `tenant_id` | unique among **enabled** portals — C lock: at most one `enabled=true` per tenant |
 | `name`, `slug` | `slug` unique per tenant |
 | `header_text?`, `homepage_md?` | |
-| `locale` | fixed `pt-BR` in C |
+| `locale` | default `pt-BR` (C fixed; E may add locales) |
 | `enabled` | bool |
-| `custom_domain?` | **null / ignored until E** — do not route on it in C |
+| `custom_domain?` | Phase E — unique global when set; ignore for routing until verified |
+| `custom_domain_verified` | bool, default false (E) |
+| `custom_domain_verification_token?` | opaque TXT token (E) |
 
 ### Category (Help Center)
 
@@ -734,21 +739,167 @@ Extend enum: `text` \| `attachment` \| `input_select` \| `cards` \| `form`. Payl
 | `channel_api` | `(tenant_id)` — token lookup by hash globally unique |
 | `push_subscriptions` | `(tenant_id, user_id)` |
 
-## Phase E entities (sketch)
+## Phase E entities (enterprise & AI)
 
-| Phase | Entities |
+Implement when Phase E starts. Detail + locks: [crm-chatwoot-parity.md](./crm-chatwoot-parity.md).
+
+### SlaPolicy
+
+| Column | Notes |
 |---|---|
-| **E** | `SlaPolicy`; `AuditEvent`; Captain/AI ports; SAML config; custom role tables; balanced capacity; HC custom domain routing; CSAT review notes; voice channel |
+| `tenant_id`, `name` | |
+| `frt_seconds` | first response threshold |
+| `nrt_seconds` | next response threshold |
+| `rt_seconds` | resolution threshold |
+| `active` | bool |
+| `description?` | |
+
+Inbox gains optional `default_sla_policy_id?` (fk SlaPolicy). Conversation gains optional `sla_policy_id?`.
+
+### ConversationSla
+
+| Column | Notes |
+|---|---|
+| `tenant_id`, `conversation_id` | unique per conversation |
+| `sla_policy_id` | |
+| `frt_due_at` / `nrt_due_at` / `rt_due_at` | datetime |
+| `frt_hit_at?` / `nrt_hit_at?` / `rt_hit_at?` | |
+| `frt_breached` / `nrt_breached` / `rt_breached` | bool |
+| `applied_at`, `updated_at` | |
+
+### AgentCapacity
+
+| Column | Notes |
+|---|---|
+| `tenant_id`, `user_id` | unique pair |
+| `max_open_conversations` | int ≥ 1 |
+| `updated_at` | |
+
+### Inbox required attributes (E)
+
+Inbox column: `required_attribute_keys_on_resolve_json` string[] (custom attribute keys). Empty = no gate (B/C/D behavior).
+
+### CaptainAssistant
+
+| Column | Notes |
+|---|---|
+| `tenant_id`, `name` | |
+| `mode` | `copilot` \| `triage` \| `monitor` \| `assistant` |
+| `system_prompt_stub?` | text; used by stub + live adapter |
+| `active` | bool |
+| `config_json?` | optional retrieval flags (HC articles) |
+
+### CaptainSuggestion
+
+| Column | Notes |
+|---|---|
+| `tenant_id`, `conversation_id`, `assistant_id?` | |
+| `mode` | same enum |
+| `status` | `pending` \| `accepted` \| `dismissed` \| `expired` |
+| `proposal_json` | redacted suggestion payload (reply text, label_ids, …) |
+| `created_by` | `agent` \| `monitor_job` \| `system` |
+| `actor_user_id?` | who requested |
+| `resolved_by_user_id?`, `resolved_at?` | |
+
+### AuditEvent
+
+| Column | Notes |
+|---|---|
+| `id`, `tenant_id` | |
+| `actor_user_id?` | null = system |
+| `action` | e.g. `sla.policy_created`, `integration.updated`, `user.role_changed`, `saml.updated`, `mfa.enrolled` |
+| `aggregate_type` / `aggregate_id` | |
+| `payload_json` | redacted — no secrets, no full CNPJ, no MFA secrets |
+| `ip?`, `user_agent?` | optional |
+| `created_at` | |
+
+Indexes: `(tenant_id, created_at)`, `(tenant_id, action, created_at)`. Retention ≥ 90 days.
+
+### SamlConfig
+
+| Column | Notes |
+|---|---|
+| `tenant_id` | 1:1 |
+| `enabled` | bool |
+| `idp_entity_id`, `idp_sso_url` | |
+| `idp_certificate_ciphertext` | sealed PEM |
+| `sp_entity_id?` | derived/default |
+| `jit_provision` | bool, default false |
+| `updated_at` | |
+
+### MfaDevice
+
+| Column | Notes |
+|---|---|
+| `tenant_id`, `user_id` | unique active device per user MVP |
+| `secret_ciphertext` | sealed TOTP seed |
+| `enabled` | bool |
+| `recovery_codes_hash_json` | hashed codes |
+| `confirmed_at?` | |
+| Tenant | `mfa_required` bool on tenant or security settings row |
+
+### CustomRole
+
+| Column | Notes |
+|---|---|
+| `tenant_id`, `name` | unique name per tenant |
+| `description?` | |
+| `permissions_json` | string[] bits — see [authz.md](./authz.md) |
+| Membership | `custom_role_id?` nullable; `saas_role` remains `admin` \| `vendedor` |
+
+### IntegrationInstall
+
+| Column | Notes |
+|---|---|
+| `tenant_id`, `provider` | unique pair; provider enum in [crm-chatwoot-parity.md](./crm-chatwoot-parity.md) |
+| `connection_status` | `not_configured` \| `credentials_saved` \| `connected_stub` \| `live` — reject `live` |
+| `metadata_json?` | non-secret |
+| `secrets_ciphertext?` | sealed |
+| `updated_at` | |
+
+### DashboardApp
+
+| Column | Notes |
+|---|---|
+| `tenant_id`, `title`, `url` | https; egress guard on write |
+| `enabled` | bool |
+| `inbox_ids_json?` | null = all inboxes |
+| `position` | int |
+
+### ChannelVoice (E)
+
+| Column | Notes |
+|---|---|
+| `inbox_id` | 1:1 when `channel_type=voice` |
+| `provider` | `twilio_voice` \| `wa_calling` shaped |
+| `connection_status` | ≤ `ready_stub`; reject `live` |
+| `secrets_ciphertext?` | |
+| `metadata_json?` | caller id display etc. |
+
+Inbox `channel_type` enum adds `voice`.
+
+### Indexes (E adds)
+
+| Table | Index |
+|---|---|
+| `conversation_slas` | unique `conversation_id`; `(tenant_id, frt_due_at)` |
+| `audit_events` | `(tenant_id, created_at)`, `(tenant_id, action)` |
+| `integration_installs` | unique `(tenant_id, provider)` |
+| `portals` | unique `custom_domain` where not null |
+| `captain_suggestions` | `(tenant_id, conversation_id, status)` |
+| `mfa_devices` | unique `(tenant_id, user_id)` |
 
 ## What must not exist (MVP + parity)
 
 - Second stock / `store_stocks` table.
 - Meta webhook tables as **source of truth** for messages (stub simulate + outbox only until unlock).
 - Parallel write path to legacy `whatsapp_threads` after Conversation migration.
-- Live provider webhook receiver tables that call Graph/Twilio/IMAP in Phase D.
+- Live provider webhook receiver tables that call Graph/Twilio/IMAP in Phase D/E.
+- Live integration / Captain / SAML / voice provider tables as source of truth without stub ceiling.
 - NF-e, PIX, payment capture tables.
-- Account billing tables driving ops entitlement.
+- Account billing tables driving ops entitlement; `/api/platform` super-admin schema for seed MVP.
 - AI inventory import batches.
 - CPF / varejo price path as a sales channel.
-- Plaintext storage of WA / channel access tokens / app secrets / widget hmac / API tokens at rest.
+- Plaintext storage of WA / channel / integration / SAML / MFA / widget hmac / API tokens at rest.
 - Storing bot/webhook response bodies with full PII in `last_error` / logs.
+- Dual-writing every `audit_events` row into SSE `domain_events` (audit API is the read path).

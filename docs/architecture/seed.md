@@ -151,6 +151,28 @@ Additive on top of Phase A–C seed:
 
 Seed must **not** call Meta/social/SMS/SMTP. Seed must **not** set any channel to `live`.
 
+## CRM desk (Phase E — when that phase seeds)
+
+Additive on top of Phase A–D seed:
+
+| Object | Contract |
+|---|---|
+| **SlaPolicy** | ≥1 active policy (e.g. FRT 900 / NRT 1800 / RT 86400 seconds); optional inbox default on WA or widget |
+| **ConversationSla** | optional on one open seed conversation for report demos — or none (reports empty-ok) |
+| **AgentCapacity** | optional rows for admin + vendedor (e.g. max 20); balanced policy optional disabled |
+| **CaptainAssistant** | ≥1 inactive or active stub assistant `copilot`; **no** live provider calls on boot |
+| **AuditEvent** | none required on boot (writes begin when admins mutate) |
+| **SamlConfig** | disabled; no IdP required |
+| **MfaDevice** | none — seed password login works |
+| **CustomRole** | optional one role with `report_manage` unassigned; seed users keep plain admin/vendedor |
+| **IntegrationInstall** | optional `not_configured` catalog only — no secrets |
+| **DashboardApp** | optional one `https://example.com/app` disabled or egress-safe fixture |
+| **Portal.custom_domain** | null / unverified |
+| **ChannelVoice** | optional inbox `not_configured` — never `live` |
+| **CSAT review_note** | optional on existing CsatResponse |
+
+Seed must **not** enable `CAPTAIN_PROVIDER_ENABLED`, call Meta/Slack/IdP/telephony, set integration/channel `live`, or enqueue `integration.deliver` / live Captain on boot.
+
 ## Sales documents
 
 | Doc | Status | Notes |

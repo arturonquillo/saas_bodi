@@ -86,7 +86,7 @@ MVP threat notes. Blockers if a PR ships the failure mode.
 
 **Risk:** XSS via article HTML; draft leakage; scraping; open redirect via custom domain before E.
 
-**Rule:** Sanitize HTML on write; public GET returns **published** only (draft → 404); rate-limit public HC; ignore `custom_domain` until Phase E. No contact/conversation PII in HC payloads.
+**Rule:** Sanitize HTML on write; public GET returns **published** only (draft → 404); rate-limit public HC; Phase E: route `Host` → portal **only** when `custom_domain_verified`; ignore unverified domains. No contact/conversation PII in HC payloads.
 
 ## Reports data leak (Phase C)
 
@@ -123,6 +123,48 @@ MVP threat notes. Blockers if a PR ships the failure mode.
 **Risk:** Stored XSS open redirect via notification URL; subscription bombing.
 
 **Rule:** Allow only same-origin relative URLs in push payload; limit subscriptions per user; delete on 410 from push service; missing VAPID = skip (no throw on message path).
+
+## SLA / capacity privilege (Phase E)
+
+**Risk:** Vendedor applies SLA or reads tenant-wide SLA reports; capacity bypass assigns across inboxes.
+
+**Rule:** SlaPolicy CRUD / apply = **admin** (or `sla_manage`). Reports need `admin` or `report_manage`. Balanced assignment still runs `assertConversationVisible` / inbox membership; never assign outside inbox members.
+
+## Captain data exfiltration (Phase E)
+
+**Risk:** Suggestion payload leaks CNPJ / secrets to model provider; auto-send without agent.
+
+**Rule:** Redact tax IDs and channel secrets before `CaptainAiPort.suggest`. Default stub only. Live provider behind unlock. Accept path uses desk APIs + visibility; no silent outgoing WA/Meta.
+
+## Audit log exposure (Phase E)
+
+**Risk:** Vendedor reads security audit; payload contains secrets.
+
+**Rule:** `/auditoria` = admin or `audit_read`. Payload redaction mandatory (no secrets, MFA, SAML XML, full CNPJ).
+
+## SAML / MFA bypass (Phase E)
+
+**Risk:** ACS accepts unsigned assertions; MFA secret in GET; JIT creates admin.
+
+**Rule:** Stub verify in tests; live ACS validates signature when unlocked. MFA secret once on enroll. JIT default **off**; when on, provision `vendedor` only — never auto-admin.
+
+## Integration / dashboard SSRF (Phase E)
+
+**Risk:** Dashboard app URL or integration webhook hits metadata IP; “test” calls live Slack unpaid.
+
+**Rule:** `UrlEgressGuardPort` on dashboard URL save and integration deliver. `IntegrationConnectPort.test` stub-only in default tests; reject `connection_status=live`.
+
+## Custom role escalation (Phase E)
+
+**Risk:** User assigns self `admin` bits or `security_manage` without being admin.
+
+**Rule:** CustomRole CRUD + `custom_role_id` assign = **admin** only. `requirePermission` fail-closed. Cannot grant bits the actor lacks (admin excepted).
+
+## Voice stub → live confusion (Phase E)
+
+**Risk:** Wire Twilio Voice because `ChannelVoice` exists.
+
+**Rule:** Same as D channels — ≤ `ready_stub`; no telephony HTTP; simulate only.
 
 ## CNPJ lookup abuse
 

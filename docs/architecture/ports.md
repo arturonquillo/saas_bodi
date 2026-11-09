@@ -226,5 +226,59 @@ Behavior:
 | Payment / PIX | forbidden |
 | Inventory file parse / AI apply | deferred (no port required for MVP) |
 | Account billing provider | deferred |
-| Captain / model provider | Phase E |
-| Voice / calling provider | Phase E |
+| Live Slack / Linear / Notion / Shopify / Stripe / Dialogflow / Translate / Dyte | Phase E **connect stubs only** (`connected_stub`); forbidden live I/O unpaid |
+| Live SAML IdP HTTP | Phase E config + stub verify; live ACS behind unlock |
+| Live Captain model HTTP | Phase E stub default; live only if `CAPTAIN_PROVIDER_ENABLED` + key |
+| Live Twilio Voice / WA calling | Phase E **ChannelVoice** ≤ `ready_stub` only |
+
+## Phase E ports
+
+```ts
+type CaptainMode = "copilot" | "triage" | "monitor" | "assistant"
+
+interface CaptainAiPort {
+  suggest(input: {
+    tenantId: string
+    conversationId: string
+    mode: CaptainMode
+    assistantId?: string
+    promptStub?: string
+  }): Promise<{ proposal: unknown; provider: "stub" | "live" }>
+}
+
+interface SamlAuthPort {
+  getSpMetadata(tenantId: string): Promise<string> // XML
+  validateAssertion(input: {
+    tenantId: string
+    rawSamlResponse: string
+  }): Promise<{ ok: true; nameId: string; email?: string } | { ok: false; reason: string }>
+}
+
+interface MfaPort {
+  enroll(userId: string): Promise<{ secret: string; otpauthUri: string }>
+  verify(userId: string, code: string): Promise<boolean>
+  disable(userId: string): Promise<void>
+}
+
+interface DnsVerifyPort {
+  verifyTxt(input: {
+    domain: string
+    expectedToken: string
+  }): Promise<{ verified: boolean; skipped?: "no_provider" }>
+}
+
+interface IntegrationConnectPort {
+  test(input: {
+    tenantId: string
+    provider: string
+  }): Promise<{ ok: boolean; stub: true }> // default always stub; no unpaid provider HTTP
+}
+```
+
+Behavior:
+
+- `CaptainAiPort` default adapter = deterministic fixtures (pt-BR canned reply / label suggestions). Live adapter must no-op or refuse when unlock env unset. **Never** call Meta Graph from Captain.
+- `SamlAuthPort` test harness accepts fixture assertions; production XML parse behind unlock. Do not log raw assertions.
+- `MfaPort` secrets sealed at rest via same vault style as channel credentials (or dedicated MFA seal key).
+- `DnsVerifyPort` may return `skipped: "no_provider"` in local/demo — admin UI shows “verificação simulada” / pending; do not mark verified without explicit stub success in seed tests.
+- `IntegrationConnectPort.test` never opens Slack/etc sockets in default tests.

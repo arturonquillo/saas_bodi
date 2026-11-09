@@ -198,9 +198,25 @@ After agent outgoing on a `web_widget` conversation: mark delivery via `ChannelS
 
 **Ongoing campaigns:** no job required to “send” — widget bootstrap reads `Campaign` where `kind=ongoing`, `status=active`, `display_status=ready` (or promotes `awaiting_widget`→`ready` when serving if inbox widget is `ready_stub`). Emit `campaign.displayed` once per session optional.
 
+### Phase E job consumers
+
+| Kind | Handler contract |
+|---|---|
+| `sla.evaluate` | Load active `ConversationSla` rows due or on event; compare clock vs due_ats and message/status milestones; set hit/breach flags; emit `sla.hit` / `sla.threshold_warning` / `sla.breached`; **no** fake metrics without rows |
+| `assignment.balanced` | When inbox policy `kind=balanced`: among online inbox members under `AgentCapacity.max_open_conversations`, pick fewest open assigned; assign; skip all-at-capacity (leave unassigned). RR keeps `assignment.round_robin` |
+| `captain.suggest` | Optional async: call `CaptainAiPort.suggest`; persist `CaptainSuggestion` pending; emit `captain.suggestion_created`. MVP may run suggest inline on POST |
+| `captain.monitor_scan` | Optional tick: open conversations → stub suggestions only; never auto-send |
+| `integration.deliver` | On matching domain event: for each `connected_stub` install, stub no-op **or** egress-guarded customer callback URL; **no** unpaid Slack/Linear/… HTTP. Reject `live` |
+| `audit.prune` | Optional: delete `audit_events` older than retention (≥ 90 days contract) |
+| `dns.verify_portal_domain` | Call `DnsVerifyPort`; set `custom_domain_verified` only on success |
+
+**Fan-in:** after message/status commit with `ConversationSla`, enqueue `sla.evaluate` (or run in same tick). Balanced assignment replaces RR enqueue when policy kind is `balanced`.
+
+**Forbidden:** Captain/integration jobs must not open Meta Graph or unpaid SaaS provider sockets in default test config; voice has no provider webhook worker.
+
 ## Performance notes
 
 - SSE: one connection per open desk tab; expect tens of agents max per seed tenant — fan-out in memory per process is enough.
 - Widget: prefer poll under embed noise; optional SSE per active chat session — still single-node memory fan-out for Casa demo.
-- Multi-instance deploy later needs a pub/sub (Postgres LISTEN/Redis); document as Phase E/ops — **not** required for Casa seed demo.
+- Multi-instance deploy later needs a pub/sub (Postgres LISTEN/Redis); document as ops follow-up — **not** required for Casa seed demo (Phase E enterprise features still single-node OK).
 - `domain_events` inserts must not fail the parent transaction on SSE fan-out errors; fan-out is best-effort after commit (read events by id).

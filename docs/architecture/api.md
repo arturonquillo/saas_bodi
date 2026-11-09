@@ -300,7 +300,7 @@ All SaaS CRM paths below are under `/api/saas/crm` unless noted. **No Meta / SMS
 | GET | `/api/public/central-ajuda/:portalSlug/artigos` | public | **published** only; optional `category_slug`, search `q` |
 | GET | `/api/public/central-ajuda/:portalSlug/artigos/:articleSlug` | public | published article body; draft → **404** |
 
-Rate-limit public HC reads lightly per IP. No contact PII in payloads. Custom domain routing = Phase E (not these paths).
+Rate-limit public HC reads lightly per IP. No contact PII in payloads. Custom domain Host routing = Phase E (slug paths here remain; see Phase E HC dominio).
 
 #### Relatórios
 
@@ -390,11 +390,134 @@ Interactive `content_type` (`input_select` \| `cards` \| `form`) allowed on widg
 
 `POST /campanhas/:id/enviar` on `ongoing`: if target widget inbox `connection_status=ready_stub`, set `display_status=ready` + `active`; else keep `awaiting_widget`. Widget bootstrap/campanhas read only `active` + `ready`.
 
-### Phase E API (names reserved)
+### Phase E — enterprise & AI
 
-| Phase | Prefix / resources |
-|---|---|
-| **E** | `/sla`, `/auditoria`, `/integracoes`, Captain; HC custom domain; CSAT review notes; voice channels |
+All under `/api/saas/crm/*` unless noted. Authz: [authz.md](./authz.md). Contracts: [crm-chatwoot-parity.md](./crm-chatwoot-parity.md). **No unpaid live Meta / Slack / IdP / telephony / Captain model** — stubs and `ready_stub` / `connected_stub` only.
+
+#### SLA
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| GET/POST | `/api/saas/crm/sla/politicas` | **admin** | CRUD list/create `SlaPolicy` (FRT/NRT/RT seconds, name, active) |
+| GET/PATCH/DELETE | `/api/saas/crm/sla/politicas/:id` | **admin** | |
+| PUT | `/api/saas/crm/inboxes/:id/sla` | **admin** | `{ sla_policy_id \| null }` default policy for inbox |
+| POST | `/api/saas/crm/conversas/:id/sla` | **admin** | `{ sla_policy_id }` apply / replace; upserts `ConversationSla` |
+| DELETE | `/api/saas/crm/conversas/:id/sla` | **admin** | remove policy from conversation |
+| GET | `/api/saas/crm/conversas/:id/sla` | admin, visible vendedor | timer status (due_ats, breaches, hits) |
+| GET | `/api/saas/crm/relatorios/sla` | **admin** or `report_manage` | unlocks C’s 501; same `from`/`to`/`tz` as other reports |
+
+Automation action vocabulary adds: `apply_sla` · `remove_sla` (Phase B runner extended).
+
+#### Capacidade & assignment
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| GET/PUT | `/api/saas/crm/capacidade` | **admin** | list/upsert `AgentCapacity` rows `{ user_id, max_open_conversations }` |
+| PATCH | `/api/saas/crm/inboxes/:id/politica-atribuicao` | **admin** | extend B: `kind` `round_robin` \| `balanced`; `enabled` |
+
+Job: `assignment.balanced` when kind is balanced (see [jobs-realtime.md](./jobs-realtime.md)).
+
+#### Atributos obrigatórios no resolve
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| PUT | `/api/saas/crm/inboxes/:id/atributos-obrigatorios` | **admin** | `{ keys: string[] }` custom attribute keys required before resolve |
+
+`PATCH /conversas/:id` with `status=resolved` → **422** `validacao` if required keys missing on conversation `custom_attributes_json`.
+
+#### Captain AI
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| GET/POST | `/api/saas/crm/captain/assistentes` | **admin** | named assistants (mode, prompt stub, active) |
+| GET/PATCH/DELETE | `/api/saas/crm/captain/assistentes/:id` | **admin** | |
+| POST | `/api/saas/crm/captain/sugerir` | admin, visible vendedor | `{ conversation_id, mode, assistant_id? }` → `CaptainSuggestion` via stub port |
+| GET | `/api/saas/crm/captain/sugestoes` | admin, vendedor | filter `conversation_id`, status |
+| POST | `/api/saas/crm/captain/sugestoes/:id/aceitar` | admin, visible vendedor | applies via desk domain services (message/labels/assign) — **not** silent Meta send |
+| POST | `/api/saas/crm/captain/sugestoes/:id/descartar` | same | |
+| GET | `/api/saas/crm/captain/status` | admin | `{ provider: "stub"\|"live_unlocked", enabled }` |
+
+Default provider **stub**. Live model only if unlock env — tests assert stub + no Meta hosts.
+
+#### Auditoria
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| GET | `/api/saas/crm/auditoria` | **admin** or `audit_read` | cursor; filters `actor_user_id`, `action`, `from`, `to`, `aggregate_type` |
+| GET | `/api/saas/crm/auditoria/:id` | **admin** or `audit_read` | |
+
+#### Segurança — SAML / MFA
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| GET/PUT | `/api/saas/crm/seguranca/saml` | **admin** | IdP metadata shape; cert sealed; status stub |
+| POST | `/api/saas/crm/seguranca/saml/testar` | **admin** | fixture/stub verify — no live IdP required |
+| GET | `/api/saas/auth/saml/metadata` | public | SP metadata XML for tenant (?tenant= slug) when SAML configured |
+| POST | `/api/saas/auth/saml/acs` | public | ACS stub; live parse behind unlock |
+| GET | `/api/saas/crm/seguranca/mfa` | self | enrollment status |
+| POST | `/api/saas/crm/seguranca/mfa/iniciar` | self | returns secret **once** + otpauth URI |
+| POST | `/api/saas/crm/seguranca/mfa/confirmar` | self | `{ code }` enables MFA |
+| POST | `/api/saas/crm/seguranca/mfa/desativar` | self | `{ code }` or admin reset |
+| POST | `/api/saas/crm/seguranca/mfa/admin-reset/:userId` | **admin** | disable user’s MFA |
+| PUT | `/api/saas/crm/seguranca/politica` | **admin** | `{ mfa_required?, saml_enabled?, jit_provision? }` |
+| POST | `/api/saas/login` | worker | extended: if MFA enabled → `{ mfa_required: true, mfa_token }` then `POST /api/saas/login/mfa` |
+
+#### Papéis customizados
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| GET/POST | `/api/saas/crm/papeis` | **admin** | `CustomRole` + `permissions_json` |
+| GET/PATCH/DELETE | `/api/saas/crm/papeis/:id` | **admin** | |
+| PATCH | `/api/saas/usuarios/:id` | **admin** | extend: optional `custom_role_id` (still `saas_role` admin\|vendedor) |
+
+Permission bits: see [authz.md](./authz.md). `report_manage` unlocks reports without full admin.
+
+#### Integrações
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| GET | `/api/saas/crm/integracoes` | **admin** | catalog + install status per provider |
+| GET/PUT | `/api/saas/crm/integracoes/:provider` | **admin** | credentials masked; status ≤ `connected_stub`; reject `live` |
+| POST | `/api/saas/crm/integracoes/:provider/desconectar` | **admin** | clear secrets → `not_configured` |
+| POST | `/api/saas/crm/integracoes/:provider/testar` | **admin** | stub ping — no unpaid provider HTTP |
+
+Providers: `slack` \| `linear` \| `notion` \| `shopify` \| `stripe` \| `dialogflow` \| `google_translate` \| `dyte`.
+
+#### Apps do painel (dashboard apps)
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| GET/POST | `/api/saas/crm/apps-painel` | **admin** | `DashboardApp`; URL egress-guarded |
+| GET/PATCH/DELETE | `/api/saas/crm/apps-painel/:id` | **admin** | |
+| GET | `/api/saas/crm/conversas/:id/apps-painel` | admin, visible vendedor | apps enabled for that inbox |
+
+#### CSAT review notes
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| PATCH | `/api/saas/crm/csat/:id` | **admin** | `{ review_note }` — extends B CSAT read API |
+
+#### Central de Ajuda — custom domain
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| PUT | `/api/saas/crm/central-ajuda/portal/dominio` | **admin** | `{ custom_domain \| null }` |
+| POST | `/api/saas/crm/central-ajuda/portal/dominio/verificar` | **admin** | enqueue/stub `DnsVerifyPort` |
+| GET | `/api/public/central-ajuda/...` | public | also resolve tenant/portal by verified `Host` (E); slug routes remain |
+
+#### Voice channel
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| POST | `/api/saas/crm/inboxes` | **admin** | `channel_type=voice` allowed |
+| GET/PUT | `/api/saas/crm/inboxes/:id/channel` | **admin** | `ChannelVoice` shape; ≤ `ready_stub`; reject `live` |
+| POST | `/api/saas/crm/simular` | **admin** | voice inbox → conversation + system note “chamada simulada” |
+
+#### Platform APIs (reserved)
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| * | `/api/platform/*` | — | **501** `nao_implementado` — Account-era super-admin; not Casa seed acceptance |
 
 Do not invent ad-hoc BFF routes outside this map — extend architecture first.
 

@@ -1,16 +1,18 @@
 openapi: 3.1.0
 info:
   title: Casa dos Frios CRM + atacado API
-  version: 0.5.0
+  version: 0.6.0
   description: |
     Canonical HTTP shapes for Casa dos Frios. TypeScript unions in packages/shared win if
     this file lags. Money is integer centavos. Authenticated tenant comes from the session
-    cookie, not the body. No Account/billing routes. Chatwoot-parity CRM Phase A–D under
+    cookie, not the body. No Account/billing routes. Chatwoot-parity CRM Phase A–E under
     /api/saas/crm/* + Loja widget (see docs/architecture/api.md + crm-chatwoot-parity.md).
     Legacy /api/saas/inbox* is deprecated after Conversation migration. WhatsApp and
-    non-WA channel I/O is stubbed (connection_status ≤ ready_stub); Loja widget is
-    first-party onto Conversation. Outbox is a transport stub. Phase B webhooks/bots use
-    SSRF egress guard. Phase C campaigns use stub outbox category=campaign only — no Meta.
+    non-WA/voice channel I/O is stubbed (connection_status ≤ ready_stub); integrations
+    ≤ connected_stub; Loja widget is first-party onto Conversation. Outbox is a transport
+    stub. Phase B webhooks/bots use SSRF egress guard. Phase C campaigns use stub outbox
+    category=campaign only — no Meta. Phase E Captain/SAML/integrations/voice are stubs —
+    no unpaid live Meta/Slack/IdP/telephony/model providers.
 servers:
   - url: http://localhost:3000
 paths:
@@ -891,6 +893,190 @@ paths:
           schema: { type: string }
       responses:
         "201": { description: Created }
+
+  /api/saas/crm/sla/politicas:
+    get:
+      summary: List SlaPolicy (Phase E)
+      responses:
+        "200": { description: Policies }
+    post:
+      summary: Create SlaPolicy
+      responses:
+        "201": { description: Created }
+
+  /api/saas/crm/sla/politicas/{id}:
+    get:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: Policy }
+    patch:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: Updated }
+    delete:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204": { description: Deleted }
+
+  /api/saas/crm/conversas/{id}/sla:
+    get:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: ConversationSla timers }
+    post:
+      summary: Apply SlaPolicy to conversation
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: Applied }
+    delete:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204": { description: Removed }
+
+  /api/saas/crm/relatorios/sla:
+    get:
+      summary: SLA report series (Phase E — unlocks C 501)
+      responses:
+        "200": { description: Aggregates }
+        "403": { description: Forbidden without admin or report_manage }
+
+  /api/saas/crm/capacidade:
+    get:
+      summary: AgentCapacity list
+      responses:
+        "200": { description: Capacities }
+    put:
+      summary: Upsert AgentCapacity rows
+      responses:
+        "200": { description: Saved }
+
+  /api/saas/crm/captain/sugerir:
+    post:
+      summary: Captain AI suggest (stub default)
+      responses:
+        "200": { description: CaptainSuggestion pending }
+        "404": { description: Conversation not visible }
+
+  /api/saas/crm/captain/sugestoes/{id}/aceitar:
+    post:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: Applied via desk APIs }
+
+  /api/saas/crm/captain/status:
+    get:
+      summary: Captain provider status (stub vs live_unlocked)
+      responses:
+        "200": { description: Status }
+
+  /api/saas/crm/auditoria:
+    get:
+      summary: Enterprise audit log
+      responses:
+        "200": { description: AuditEvent page }
+        "403": { description: Forbidden }
+
+  /api/saas/crm/seguranca/saml:
+    get:
+      summary: SAML config (secrets masked)
+      responses:
+        "200": { description: Config }
+    put:
+      summary: Upsert SAML IdP shape
+      responses:
+        "200": { description: Saved }
+
+  /api/saas/crm/seguranca/mfa/iniciar:
+    post:
+      summary: Start MFA enroll (secret once)
+      responses:
+        "200": { description: Secret + otpauth URI }
+
+  /api/saas/crm/seguranca/mfa/confirmar:
+    post:
+      summary: Confirm MFA with TOTP code
+      responses:
+        "200": { description: Enabled }
+
+  /api/saas/login/mfa:
+    post:
+      summary: Second-step MFA login
+      responses:
+        "200": { description: Session issued }
+        "401": { description: Invalid code }
+
+  /api/saas/crm/papeis:
+    get:
+      summary: CustomRole list
+      responses:
+        "200": { description: Roles }
+    post:
+      summary: Create CustomRole
+      responses:
+        "201": { description: Created }
+
+  /api/saas/crm/integracoes:
+    get:
+      summary: Integration catalog + install status
+      responses:
+        "200": { description: Providers }
+
+  /api/saas/crm/integracoes/{provider}:
+    get:
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Install (secrets masked) }
+    put:
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Saved ≤ connected_stub }
+        "501": { description: live rejected }
+
+  /api/saas/crm/apps-painel:
+    get:
+      summary: DashboardApp list
+      responses:
+        "200": { description: Apps }
+    post:
+      summary: Create DashboardApp (URL egress-guarded)
+      responses:
+        "201": { description: Created }
+        "422": { description: Egress blocked }
+
+  /api/saas/crm/csat/{id}:
+    patch:
+      summary: CSAT review_note (Phase E)
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: Updated }
+
+  /api/saas/crm/central-ajuda/portal/dominio:
+    put:
+      summary: Set Help Center custom_domain
+      responses:
+        "200": { description: Saved unverified }
+
+  /api/saas/crm/central-ajuda/portal/dominio/verificar:
+    post:
+      summary: Verify custom domain DNS TXT (stub port ok)
+      responses:
+        "200": { description: verified or pending }
 
   /api/saas/cadastros:
     get:

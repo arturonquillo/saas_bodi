@@ -44,7 +44,7 @@ Fulfillment statuses (`em_separacao`, `despachado`, `entregue`) are operated by 
 
 ## CRM desk matrix (Phase A)
 
-Chatwoot Administrator → `admin`; Agent → `vendedor`. Custom roles = Phase E.
+Chatwoot Administrator → `admin`; Agent → `vendedor`. Phase E: optional `CustomRole` permission bits on membership (`custom_role_id`); `admin` implies all bits; `vendedor` + bits can gain scoped powers (e.g. `report_manage`).
 
 | Action | admin | vendedor |
 |---|---|---|
@@ -116,6 +116,46 @@ Vendedor on Phase C admin routes → **403** `forbidden`. Public article draft/a
 
 Vendedor channel credential mutate → **403**. Widget/client APIs: missing/invalid token → **401**; wrong origin vs `allowed_origins` → **403**. Cross-tenant website_token guess → **404** (same body). Interactive content on non-widget/API inbox → **422**.
 
+### CRM desk matrix (Phase E additions)
+
+| Action | admin | vendedor | notes |
+|---|---|---|---|
+| SlaPolicy CRUD / inbox default / apply on conversation | yes | no | read timer on visible conversation: yes |
+| SLA reports `/relatorios/sla` | yes | if `report_manage` | else 403 |
+| All other `/relatorios/*` | yes | if `report_manage` | E extends C: bit unlocks reports |
+| AgentCapacity write | yes | no | |
+| AssignmentPolicy `balanced` write | yes | no | |
+| Required attributes on resolve config | yes | no | resolve still visible agents; missing attrs → 422 |
+| Captain assistants CRUD | yes | no | |
+| Captain suggest / accept / dismiss | yes | yes (visible) | accept runs desk authz |
+| Audit log read | yes | if `audit_read` | |
+| SAML / MFA policy / admin MFA reset | yes | — | |
+| MFA self enroll/disable | self | self | |
+| CustomRole CRUD / assign `custom_role_id` | yes | no | cannot escalate self above admin grant |
+| Integration install / disconnect / test | yes | no | |
+| Dashboard apps CRUD | yes | no | list apps on visible conversation: yes |
+| CSAT review_note PATCH | yes | no | |
+| HC custom domain set / verify | yes | no | |
+| Voice inbox create / channel / simulate | yes | no (simulate) | reply on visible voice thread: yes |
+
+### Custom role permission bits (Phase E)
+
+Stored on `CustomRole.permissions_json`. Checked via `requirePermission(bit)` after surface/role gate. `saas_role=admin` → allow all bits. Unknown bits fail-closed.
+
+| Bit | Grants |
+|---|---|
+| `conversation_manage` | same desk mutations as vendedor visibility (default implied for vendedor) |
+| `contact_manage` | contacts/companies write |
+| `report_manage` | all `/relatorios/*` including SLA |
+| `knowledge_manage` | Help Center authoring |
+| `automation_manage` | automations/macros public/bots/webhooks |
+| `integration_manage` | integrations + dashboard apps |
+| `audit_read` | `/auditoria` |
+| `sla_manage` | SlaPolicy CRUD / apply |
+| `security_manage` | SAML/MFA tenant policy (not self MFA) |
+
+Seed memberships stay plain `admin` / `vendedor` without custom roles. Do not invent a third `saas_role` enum value.
+
 ### Conversation visibility helper
 
 ```ts
@@ -164,6 +204,7 @@ assert the target Cliente exists and cadastro/cliente status is `aprovado`. Orç
 requireSession(surface: "loja" | "saas")
 requireCustomer()
 requireSaasRole(...roles: Array<"admin" | "vendedor">)
+requirePermission(...bits: string[]) // Phase E — admin short-circuit; else CustomRole bits
 requireClienteAprovado(clienteId: string)
 assertTenantScope(row.tenant_id, session.tenantId)
 assertConversationVisible(session, conversation)

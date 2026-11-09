@@ -1,36 +1,101 @@
+import { createCipheriv, randomBytes } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
-const TENANT = "tenant_demo";
+function sealSecrets(secrets: Record<string, string>) {
+  const key = Buffer.from(
+    process.env.CREDENTIALS_ENCRYPTION_KEY ??
+      "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+    "base64",
+  );
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  const plaintext = Buffer.from(JSON.stringify(secrets), "utf8");
+  const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return JSON.stringify({
+    alg: "aes-256-gcm",
+    iv: iv.toString("base64"),
+    tag: tag.toString("base64"),
+    ciphertext: ciphertext.toString("base64"),
+  });
+}
+
 const PASSWORD = "Demo@1234";
+const TENANT = "tenant_casa_dos_frios";
+
+// Valid CNPJ checksum fixtures (documented for QA):
+// Tenant: 27865757000102
+// Cliente: 11222333000181
+// Prospecto cadastro: 34028316000103
+const TENANT_CNPJ = "27865757000102";
+const CLIENTE_CNPJ = "11222333000181";
+const PROSPECTO_CNPJ = "34028316000103";
 
 const ids = {
-  dono: "usr_dono",
-  supervisora: "usr_supervisora",
+  admin: "usr_admin",
   vendedor: "usr_vendedor",
-  estoque: "usr_estoque",
-  entregador: "usr_entregador",
-  clienteCpf: "usr_cliente_cpf",
-  clienteCnpj: "usr_cliente_cnpj",
-  skuCamiseta: "sku_camiseta",
-  skuKit: "sku_kit",
+  cliente: "usr_cliente",
+  prospecto: "usr_prospecto",
+  skuPicanha: "sku_picanha",
+  skuLinguica: "sku_linguica",
   skuOculto: "sku_oculto",
   skuEsgotado: "sku_esgotado",
+  clienteRow: "cli_mercado",
+  cadastroPendente: "cad_prospecto",
+  orcEnviado: "orc_enviado",
+  orcRascunho: "orc_rascunho",
+  pedido: "ped_separacao",
+  inboxWa: "inx_wa_default",
+  channelWa: "chw_wa_default",
+  teamVendas: "team_vendas",
+  companyMercado: "co_mercado",
+  contactProspecto: "ct_prospecto",
+  contactCliente: "ct_cliente",
+  contactInfo: "ct_info",
+  convCadastro: "cnv_cadastro",
+  convOrcamento: "cnv_orcamento",
+  convInfo: "cnv_info",
 } as const;
 
 async function main() {
-  await prisma.inventoryImportRow.deleteMany();
-  await prisma.inventoryImportBatch.deleteMany();
+  // Wipe in FK-safe order
+  await prisma.message.deleteMany();
+  await prisma.conversationDraft.deleteMany();
+  await prisma.conversationLabel.deleteMany();
+  await prisma.contactLabel.deleteMany();
+  await prisma.agentPresence.deleteMany();
+  await prisma.agentNotification.deleteMany();
+  await prisma.agentNotificationSetting.deleteMany();
+  await prisma.domainEvent.deleteMany();
+  await prisma.backgroundJob.deleteMany();
+  await prisma.conversation.deleteMany();
+  await prisma.contactInbox.deleteMany();
+  await prisma.channelWhatsapp.deleteMany();
+  await prisma.inboxMember.deleteMany();
+  await prisma.inbox.deleteMany();
+  await prisma.cannedResponse.deleteMany();
+  await prisma.teamMember.deleteMany();
+  await prisma.team.deleteMany();
+  await prisma.label.deleteMany();
+  await prisma.contact.deleteMany();
+  await prisma.company.deleteMany();
   await prisma.notificationOutbox.deleteMany();
-  await prisma.orderStatusHistory.deleteMany();
-  await prisma.orderLine.deleteMany();
+  await prisma.vendaStatusHistory.deleteMany();
+  await prisma.vendaFaturamento.deleteMany();
+  await prisma.pedidoStatusHistory.deleteMany();
+  await prisma.pedidoLine.deleteMany();
   await prisma.inventoryMovement.deleteMany();
-  await prisma.order.deleteMany();
+  await prisma.pedidoVenda.deleteMany();
+  await prisma.orcamentoStatusHistory.deleteMany();
+  await prisma.orcamentoLine.deleteMany();
+  await prisma.orcamento.deleteMany();
+  await prisma.cadastroRequest.deleteMany();
+  await prisma.cliente.deleteMany();
   await prisma.inventoryBalance.deleteMany();
   await prisma.sku.deleteMany();
-  await prisma.customerProfile.deleteMany();
   await prisma.session.deleteMany();
   await prisma.membership.deleteMany();
   await prisma.theme.deleteMany();
@@ -41,106 +106,172 @@ async function main() {
 
   await prisma.user.createMany({
     data: [
-      { id: ids.dono, email: "dono@demo.local", passwordHash, nome: "Dono Demo", whatsapp: "+5511999990000" },
-      { id: ids.supervisora, email: "supervisora@demo.local", passwordHash, nome: "Supervisora Demo" },
-      { id: ids.vendedor, email: "vendedor@demo.local", passwordHash, nome: "Vendedor Demo", whatsapp: "+5511999990002" },
-      { id: ids.estoque, email: "estoque@demo.local", passwordHash, nome: "Estoquista Demo" },
-      { id: ids.entregador, email: "entregador@demo.local", passwordHash, nome: "Entregador Demo" },
-      { id: ids.clienteCpf, email: "cliente.cpf@demo.local", passwordHash, nome: "Cliente CPF", whatsapp: "+5511999990001" },
-      { id: ids.clienteCnpj, email: "cliente.cnpj@demo.local", passwordHash, nome: "Cliente CNPJ", whatsapp: "+5511999990003" },
+      {
+        id: ids.admin,
+        email: "admin@casadosfrios.local",
+        passwordHash,
+        nome: "Admin Casa dos Frios",
+        whatsapp: "+5511988877700",
+        ativo: true,
+      },
+      {
+        id: ids.vendedor,
+        email: "vendedor@casadosfrios.local",
+        passwordHash,
+        nome: "Vendedor Casa dos Frios",
+        whatsapp: "+5511988877766",
+        ativo: true,
+      },
+      {
+        id: ids.cliente,
+        email: "cliente@mercadoexemplo.local",
+        passwordHash,
+        nome: "Contato Mercado Exemplo",
+        whatsapp: "+5511911112222",
+        ativo: true,
+      },
+      {
+        id: ids.prospecto,
+        email: "prospecto@novaloja.local",
+        passwordHash,
+        nome: "Prospecto Nova Loja",
+        whatsapp: "+5511933334444",
+        ativo: true,
+      },
     ],
   });
 
   await prisma.tenant.create({
     data: {
       id: TENANT,
-      slug: "demo",
-      nome: "Norte Atacado",
-      aceitaCpf: true,
-      aceitaCnpj: true,
-      canaisAviso: "ambos",
-      defaultSellerUserId: ids.vendedor,
-      subscriptionStatus: "ativa",
-      planDisplayName: "Plano Demo",
+      slug: "casa-dos-frios",
+      razaoSocial: "Casa dos Frios Distribuidora LTDA",
+      nomeFantasia: "Casa dos Frios",
+      cnpjDigits: TENANT_CNPJ,
+      cnpjLast4: TENANT_CNPJ.slice(-4),
+      whatsappComercial: "+5511988877766",
+      canaisAviso: "whatsapp",
+      lojaModo: "pedido_direto",
+      defaultVendedorUserId: ids.vendedor,
     },
   });
 
+  // Design tokens win (docs/design/tokens.md)
   await prisma.theme.create({
     data: {
       tenantId: TENANT,
-      marca: "Norte Atacado",
-      primary: "#0F4F3E",
-      accent: "#C2410C",
-      background: "#F6EFE3",
+      marca: "Casa dos Frios",
+      primary: "#7A1F1F",
+      accent: "#1F5C6B",
+      background: "#EEF2F4",
       logoUrl: null,
     },
   });
 
   await prisma.membership.createMany({
     data: [
-      { id: "mem_dono", tenantId: TENANT, userId: ids.dono, saasRole: "supervisor", accountOwner: true, isCustomer: false },
-      { id: "mem_supervisora", tenantId: TENANT, userId: ids.supervisora, saasRole: "supervisor", accountOwner: false, isCustomer: false },
-      { id: "mem_vendedor", tenantId: TENANT, userId: ids.vendedor, saasRole: "vendedor", accountOwner: false, isCustomer: false },
-      { id: "mem_estoque", tenantId: TENANT, userId: ids.estoque, saasRole: "estoquista", accountOwner: false, isCustomer: false },
-      { id: "mem_entregador", tenantId: TENANT, userId: ids.entregador, saasRole: "entregador", accountOwner: false, isCustomer: false },
-      { id: "mem_cpf", tenantId: TENANT, userId: ids.clienteCpf, saasRole: null, accountOwner: false, isCustomer: true },
-      { id: "mem_cnpj", tenantId: TENANT, userId: ids.clienteCnpj, saasRole: null, accountOwner: false, isCustomer: true },
+      {
+        id: "mem_admin",
+        tenantId: TENANT,
+        userId: ids.admin,
+        saasRole: "admin",
+        isCustomer: false,
+      },
+      {
+        id: "mem_vendedor",
+        tenantId: TENANT,
+        userId: ids.vendedor,
+        saasRole: "vendedor",
+        isCustomer: false,
+      },
+      {
+        id: "mem_cliente",
+        tenantId: TENANT,
+        userId: ids.cliente,
+        saasRole: null,
+        isCustomer: true,
+      },
+      {
+        id: "mem_prospecto",
+        tenantId: TENANT,
+        userId: ids.prospecto,
+        saasRole: null,
+        isCustomer: true,
+      },
     ],
   });
 
-  await prisma.customerProfile.createMany({
-    data: [
-      {
-        id: "cpf_demo",
-        tenantId: TENANT,
-        userId: ids.clienteCpf,
-        documentType: "cpf",
-        documentDigits: "52998224725",
-        documentLast4: "4725",
-        cnpjRegistroPendente: false,
-      },
-      {
-        id: "cnpj_demo",
-        tenantId: TENANT,
-        userId: ids.clienteCnpj,
-        documentType: "cnpj",
-        documentDigits: "11222333000181",
-        documentLast4: "0181",
-        cnpjRegistroPendente: false,
-        razaoSocial: "Cliente Atacado Demo Ltda",
-      },
-    ],
+  await prisma.company.create({
+    data: {
+      id: ids.companyMercado,
+      tenantId: TENANT,
+      cnpjDigits: CLIENTE_CNPJ,
+      cnpjLast4: CLIENTE_CNPJ.slice(-4),
+      cnpjRegistroPendente: false,
+      razaoSocial: "Mercado Exemplo LTDA",
+      nomeFantasia: "Mercado Exemplo",
+    },
+  });
+
+  await prisma.cliente.create({
+    data: {
+      id: ids.clienteRow,
+      tenantId: TENANT,
+      userId: ids.cliente,
+      companyId: ids.companyMercado,
+      cnpjDigits: CLIENTE_CNPJ,
+      cnpjLast4: CLIENTE_CNPJ.slice(-4),
+      cnpjRegistroPendente: false,
+      razaoSocial: "Mercado Exemplo LTDA",
+      contatoNome: "Contato Mercado Exemplo",
+      email: "cliente@mercadoexemplo.local",
+      whatsapp: "+5511911112222",
+      status: "aprovado",
+    },
+  });
+
+  await prisma.cadastroRequest.create({
+    data: {
+      id: ids.cadastroPendente,
+      tenantId: TENANT,
+      cnpjDigits: PROSPECTO_CNPJ,
+      cnpjLast4: PROSPECTO_CNPJ.slice(-4),
+      cnpjRegistroPendente: true,
+      razaoSocial: "Nova Loja Comércio LTDA",
+      contatoNome: "Prospecto Nova Loja",
+      email: "prospecto@novaloja.local",
+      whatsapp: "+5511933334444",
+      status: "pendente",
+      source: "loja",
+    },
   });
 
   await prisma.sku.createMany({
     data: [
       {
-        id: ids.skuCamiseta,
+        id: ids.skuPicanha,
         tenantId: TENANT,
-        codigo: "CAMISETA-BASICA",
-        nome: "Camiseta básica",
-        precoVarejoCentavos: 5990,
-        precoAtacadoCentavos: 3990,
+        codigo: "PICANHA-KG",
+        nome: "Picanha resfriada (kg)",
+        precoAtacadoCentavos: 8990,
         qtdMinAtacado: 1,
         visivelLoja: true,
       },
       {
-        id: ids.skuKit,
+        id: ids.skuLinguica,
         tenantId: TENANT,
-        codigo: "KIT-ATACADO-10",
-        nome: "Kit atacado 10 peças",
-        precoVarejoCentavos: 19900,
-        precoAtacadoCentavos: 14900,
-        qtdMinAtacado: 10,
+        codigo: "LINGUICA-CX",
+        nome: "Linguiça Toscana (caixa)",
+        precoAtacadoCentavos: 12900,
+        qtdMinAtacado: 5,
         visivelLoja: true,
       },
       {
         id: ids.skuOculto,
         tenantId: TENANT,
         codigo: "OCULTO-INTERNO",
-        nome: "Peça uso interno",
-        precoVarejoCentavos: 1000,
-        precoAtacadoCentavos: 800,
+        nome: "Corte interno (não vitrine)",
+        precoAtacadoCentavos: 4500,
         qtdMinAtacado: 1,
         visivelLoja: false,
       },
@@ -148,191 +279,430 @@ async function main() {
         id: ids.skuEsgotado,
         tenantId: TENANT,
         codigo: "ESGOTADO-VITRINE",
-        nome: "Item vitrine esgotado",
-        precoVarejoCentavos: 8900,
-        precoAtacadoCentavos: 7000,
+        nome: "Fraldinha (esgotada)",
+        precoAtacadoCentavos: 6990,
         qtdMinAtacado: 1,
         visivelLoja: true,
       },
     ],
   });
 
+  // reserved must match open Pedidos in confirmado/em_separacao
+  // Seed pedido uses 5kg PICANHA → reserved 5 on PICANHA; ESGOTADO reserved=3 with on_hand=3
   await prisma.inventoryBalance.createMany({
     data: [
-      { skuId: ids.skuCamiseta, tenantId: TENANT, onHand: 50, reserved: 5 },
-      { skuId: ids.skuKit, tenantId: TENANT, onHand: 80, reserved: 0 },
-      { skuId: ids.skuOculto, tenantId: TENANT, onHand: 20, reserved: 0 },
-      { skuId: ids.skuEsgotado, tenantId: TENANT, onHand: 2, reserved: 2 },
+      { skuId: ids.skuPicanha, tenantId: TENANT, onHand: 40, reserved: 5 },
+      { skuId: ids.skuLinguica, tenantId: TENANT, onHand: 30, reserved: 0 },
+      { skuId: ids.skuOculto, tenantId: TENANT, onHand: 10, reserved: 0 },
+      { skuId: ids.skuEsgotado, tenantId: TENANT, onHand: 3, reserved: 3 },
     ],
   });
 
-  type SeedOrder = {
-    id: string;
-    status: "novo" | "confirmado" | "separando" | "despachado" | "entregue" | "cancelado";
-    customer: string;
-    priceList: "varejo" | "atacado";
-    lines: { skuId: string; codigo: string; nome: string; qty: number; unit: number }[];
-  };
+  const validoAte = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-  const orders: SeedOrder[] = [
-    {
-      id: "ped_novo",
-      status: "novo",
-      customer: ids.clienteCpf,
-      priceList: "varejo",
-      lines: [{ skuId: ids.skuCamiseta, codigo: "CAMISETA-BASICA", nome: "Camiseta básica", qty: 1, unit: 5990 }],
-    },
-    {
-      id: "ped_confirmado",
-      status: "confirmado",
-      customer: ids.clienteCpf,
-      priceList: "varejo",
-      lines: [
-        { skuId: ids.skuCamiseta, codigo: "CAMISETA-BASICA", nome: "Camiseta básica", qty: 3, unit: 5990 },
-        { skuId: ids.skuEsgotado, codigo: "ESGOTADO-VITRINE", nome: "Item vitrine esgotado", qty: 2, unit: 8900 },
-      ],
-    },
-    {
-      id: "ped_separando",
-      status: "separando",
-      customer: ids.clienteCnpj,
-      priceList: "atacado",
-      lines: [{ skuId: ids.skuCamiseta, codigo: "CAMISETA-BASICA", nome: "Camiseta básica", qty: 2, unit: 3990 }],
-    },
-    {
-      id: "ped_despachado",
-      status: "despachado",
-      customer: ids.clienteCpf,
-      priceList: "varejo",
-      lines: [{ skuId: ids.skuKit, codigo: "KIT-ATACADO-10", nome: "Kit atacado 10 peças", qty: 1, unit: 19900 }],
-    },
-    {
-      id: "ped_entregue",
-      status: "entregue",
-      customer: ids.clienteCnpj,
-      priceList: "atacado",
-      lines: [{ skuId: ids.skuKit, codigo: "KIT-ATACADO-10", nome: "Kit atacado 10 peças", qty: 10, unit: 14900 }],
-    },
-    {
-      id: "ped_cancelado",
-      status: "cancelado",
-      customer: ids.clienteCpf,
-      priceList: "varejo",
-      lines: [{ skuId: ids.skuCamiseta, codigo: "CAMISETA-BASICA", nome: "Camiseta básica", qty: 1, unit: 5990 }],
-    },
-  ];
-
-  const pathTo: Record<SeedOrder["status"], Array<SeedOrder["status"] | null>> = {
-    novo: [null, "novo"],
-    confirmado: [null, "novo", "confirmado"],
-    separando: [null, "novo", "confirmado", "separando"],
-    despachado: [null, "novo", "confirmado", "separando", "despachado"],
-    entregue: [null, "novo", "confirmado", "separando", "despachado", "entregue"],
-    cancelado: [null, "novo", "cancelado"],
-  };
-
-  for (const order of orders) {
-    await prisma.order.create({
-      data: {
-        id: order.id,
-        tenantId: TENANT,
-        customerUserId: order.customer,
-        sellerUserId: ids.vendedor,
-        channel: "loja",
-        priceList: order.priceList,
-        status: order.status,
-        lines: {
-          create: order.lines.map((line, i) => ({
-            id: `${order.id}_l${i}`,
+  await prisma.orcamento.create({
+    data: {
+      id: ids.orcEnviado,
+      tenantId: TENANT,
+      clienteId: ids.clienteRow,
+      vendedorUserId: ids.vendedor,
+      status: "enviado",
+      validoAte,
+      channel: "saas",
+      lines: {
+        create: [
+          {
+            id: "oln_enviado_1",
             tenantId: TENANT,
-            skuId: line.skuId,
-            codigoSnapshot: line.codigo,
-            nomeSnapshot: line.nome,
-            qty: line.qty,
-            unitPriceCentavos: line.unit,
-            priceList: order.priceList,
-          })),
+            skuId: ids.skuLinguica,
+            codigoSnapshot: "LINGUICA-CX",
+            nomeSnapshot: "Linguiça Toscana (caixa)",
+            qty: 5,
+            unitPriceCentavos: 12900,
+          },
+        ],
+      },
+      history: {
+        create: [
+          {
+            id: "ohs_enviado_1",
+            tenantId: TENANT,
+            fromStatus: null,
+            toStatus: "rascunho",
+            actorUserId: ids.vendedor,
+          },
+          {
+            id: "ohs_enviado_2",
+            tenantId: TENANT,
+            fromStatus: "rascunho",
+            toStatus: "enviado",
+            actorUserId: ids.vendedor,
+          },
+        ],
+      },
+    },
+  });
+
+  await prisma.orcamento.create({
+    data: {
+      id: ids.orcRascunho,
+      tenantId: TENANT,
+      cadastroRequestId: ids.cadastroPendente,
+      vendedorUserId: ids.vendedor,
+      status: "rascunho",
+      channel: "whatsapp",
+      lines: {
+        create: [
+          {
+            id: "oln_rasc_1",
+            tenantId: TENANT,
+            skuId: ids.skuPicanha,
+            codigoSnapshot: "PICANHA-KG",
+            nomeSnapshot: "Picanha resfriada (kg)",
+            qty: 2,
+            unitPriceCentavos: 8990,
+          },
+        ],
+      },
+      history: {
+        create: {
+          id: "ohs_rasc_1",
+          tenantId: TENANT,
+          fromStatus: null,
+          toStatus: "rascunho",
+          actorUserId: ids.vendedor,
         },
       },
-    });
+    },
+  });
 
-    const steps = pathTo[order.status];
-    for (let i = 1; i < steps.length; i++) {
-      await prisma.orderStatusHistory.create({
-        data: {
-          id: `${order.id}_h${i}`,
-          tenantId: TENANT,
-          orderId: order.id,
-          fromStatus: steps[i - 1],
-          toStatus: steps[i] as SeedOrder["status"],
-          actorUserId: i === 1 ? order.customer : ids.vendedor,
-        },
-      });
-    }
-  }
+  await prisma.pedidoVenda.create({
+    data: {
+      id: ids.pedido,
+      tenantId: TENANT,
+      clienteId: ids.clienteRow,
+      vendedorUserId: ids.vendedor,
+      channel: "saas",
+      status: "em_separacao",
+      lines: {
+        create: [
+          {
+            id: "pln_1",
+            tenantId: TENANT,
+            skuId: ids.skuPicanha,
+            codigoSnapshot: "PICANHA-KG",
+            nomeSnapshot: "Picanha resfriada (kg)",
+            qty: 5,
+            unitPriceCentavos: 8990,
+          },
+        ],
+      },
+      history: {
+        create: [
+          {
+            id: "phs_1",
+            tenantId: TENANT,
+            fromStatus: null,
+            toStatus: "confirmado",
+            actorUserId: ids.vendedor,
+          },
+          {
+            id: "phs_2",
+            tenantId: TENANT,
+            fromStatus: "confirmado",
+            toStatus: "em_separacao",
+            actorUserId: ids.vendedor,
+          },
+        ],
+      },
+    },
+  });
 
   await prisma.inventoryMovement.createMany({
     data: [
-      { id: "mov_res_cam_conf", tenantId: TENANT, skuId: ids.skuCamiseta, orderId: "ped_confirmado", type: "reserve", deltaOnHand: 0, deltaReserved: 3, actorUserId: ids.vendedor },
-      { id: "mov_res_esg_conf", tenantId: TENANT, skuId: ids.skuEsgotado, orderId: "ped_confirmado", type: "reserve", deltaOnHand: 0, deltaReserved: 2, actorUserId: ids.vendedor },
-      { id: "mov_res_cam_sep", tenantId: TENANT, skuId: ids.skuCamiseta, orderId: "ped_separando", type: "reserve", deltaOnHand: 0, deltaReserved: 2, actorUserId: ids.vendedor },
-      { id: "mov_res_kit_desp", tenantId: TENANT, skuId: ids.skuKit, orderId: "ped_despachado", type: "reserve", deltaOnHand: 0, deltaReserved: 1, actorUserId: ids.vendedor },
-      { id: "mov_con_kit_desp", tenantId: TENANT, skuId: ids.skuKit, orderId: "ped_despachado", type: "consume", deltaOnHand: -1, deltaReserved: -1, actorUserId: ids.estoque },
-      { id: "mov_res_kit_ent", tenantId: TENANT, skuId: ids.skuKit, orderId: "ped_entregue", type: "reserve", deltaOnHand: 0, deltaReserved: 10, actorUserId: ids.vendedor },
-      { id: "mov_con_kit_ent", tenantId: TENANT, skuId: ids.skuKit, orderId: "ped_entregue", type: "consume", deltaOnHand: -10, deltaReserved: -10, actorUserId: ids.estoque },
+      {
+        id: "mov_reserve_picanha",
+        tenantId: TENANT,
+        skuId: ids.skuPicanha,
+        pedidoId: ids.pedido,
+        type: "reserve",
+        deltaOnHand: 0,
+        deltaReserved: 5,
+        actorUserId: ids.vendedor,
+      },
+      {
+        id: "mov_esgotado",
+        tenantId: TENANT,
+        skuId: ids.skuEsgotado,
+        type: "reserve",
+        deltaOnHand: 0,
+        deltaReserved: 3,
+        reason: "seed demo esgotado",
+        actorUserId: ids.admin,
+      },
     ],
   });
 
-  await prisma.notificationOutbox.createMany({
+  // CRM Phase A — default WA inbox + system labels + conversations
+  const sealedSecrets = sealSecrets({
+    api_token: "seed-token-not-for-production",
+    api_secret: "seed-secret-not-for-production",
+    webhook_verify_token: "seed-verify-not-for-production",
+  });
+
+  await prisma.inbox.create({
+    data: {
+      id: ids.inboxWa,
+      tenantId: TENANT,
+      name: "WhatsApp principal",
+      channelType: "whatsapp",
+      greeting: "Olá! Bem-vindo à Casa dos Frios.",
+      lockToSingleConversation: true,
+      vendedorSeeAll: false,
+    },
+  });
+  await prisma.channelWhatsapp.create({
+    data: {
+      id: ids.channelWa,
+      tenantId: TENANT,
+      inboxId: ids.inboxWa,
+      provider: "whatsapp_cloud",
+      phoneE164Display: "+5511988877766",
+      phoneNumberId: "seed_phone_number_id",
+      businessAccountId: "seed_waba_id",
+      secretsCiphertext: sealedSecrets,
+      connectionStatus: "ready_stub",
+      messageTemplatesJson: JSON.stringify([
+        { key: "greeting", body: "Olá {{contact.nome}}, somos a Casa dos Frios." },
+      ]),
+    },
+  });
+  await prisma.inboxMember.createMany({
+    data: [
+      { id: "inm_admin", tenantId: TENANT, inboxId: ids.inboxWa, userId: ids.admin },
+      { id: "inm_vendedor", tenantId: TENANT, inboxId: ids.inboxWa, userId: ids.vendedor },
+    ],
+  });
+
+  const systemLabels = [
+    { id: "lbl_cadastro", title: "intent:cadastro", color: "#7A1F1F" },
+    { id: "lbl_orcamento", title: "intent:orcamento", color: "#C4A35A" },
+    { id: "lbl_info", title: "intent:info_empresa", color: "#1F5C6B" },
+    { id: "lbl_outro", title: "intent:outro", color: "#6B7280" },
+  ];
+  await prisma.label.createMany({
+    data: systemLabels.map((l) => ({
+      id: l.id,
+      tenantId: TENANT,
+      title: l.title,
+      color: l.color,
+      showOnSidebar: true,
+      system: true,
+    })),
+  });
+
+  await prisma.team.create({
+    data: { id: ids.teamVendas, tenantId: TENANT, name: "Vendas" },
+  });
+  await prisma.teamMember.createMany({
+    data: [
+      { id: "tm_admin", tenantId: TENANT, teamId: ids.teamVendas, userId: ids.admin },
+      { id: "tm_vendedor", tenantId: TENANT, teamId: ids.teamVendas, userId: ids.vendedor },
+    ],
+  });
+
+  await prisma.cannedResponse.create({
+    data: {
+      id: "can_saudacao",
+      tenantId: TENANT,
+      shortCode: "saudacao",
+      content: "Olá {{contact.nome}}! Sou da Casa dos Frios, como posso ajudar?",
+    },
+  });
+
+  await prisma.agentNotificationSetting.createMany({
+    data: [
+      { id: "ans_admin", tenantId: TENANT, userId: ids.admin },
+      { id: "ans_vendedor", tenantId: TENANT, userId: ids.vendedor },
+    ],
+  });
+
+  await prisma.contact.createMany({
     data: [
       {
-        id: "out_email_cust",
+        id: ids.contactProspecto,
         tenantId: TENANT,
-        orderId: "ped_confirmado",
-        channel: "email",
-        recipientRole: "customer",
-        recipient: "cliente.cpf@demo.local",
-        templateKey: "pedido.status_alterado",
-        payloadJson: JSON.stringify({ order_id: "ped_confirmado", status: "confirmado" }),
-        status: "enviado",
+        nome: "Prospecto Nova Loja",
+        email: "prospecto@novaloja.local",
+        phoneE164: "+5511933334444",
+        cadastroRequestId: ids.cadastroPendente,
       },
       {
-        id: "out_email_seller",
+        id: ids.contactCliente,
         tenantId: TENANT,
-        orderId: "ped_confirmado",
-        channel: "email",
-        recipientRole: "seller",
-        recipient: "vendedor@demo.local",
-        templateKey: "pedido.status_alterado",
-        payloadJson: JSON.stringify({ order_id: "ped_confirmado", status: "confirmado" }),
-        status: "enviado",
+        nome: "Contato Mercado Exemplo",
+        email: "cliente@mercadoexemplo.local",
+        phoneE164: "+5511911112222",
+        companyId: ids.companyMercado,
+        clienteId: ids.clienteRow,
       },
       {
-        id: "out_wa_cust",
+        id: ids.contactInfo,
         tenantId: TENANT,
-        orderId: "ped_confirmado",
-        channel: "whatsapp",
-        recipientRole: "customer",
-        recipient: "+5511999990001",
-        templateKey: "pedido.status_alterado",
-        payloadJson: JSON.stringify({ order_id: "ped_confirmado", status: "confirmado" }),
-        status: "enviado",
-      },
-      {
-        id: "out_wa_seller",
-        tenantId: TENANT,
-        orderId: "ped_confirmado",
-        channel: "whatsapp",
-        recipientRole: "seller",
-        recipient: "+5511999990002",
-        templateKey: "pedido.status_alterado",
-        payloadJson: JSON.stringify({ order_id: "ped_confirmado", status: "confirmado" }),
-        status: "enviado",
+        nome: "+5511955556666",
+        phoneE164: "+5511955556666",
       },
     ],
   });
 
-  console.log("Seed demo ok. Senha: Demo@1234");
+  await prisma.cliente.update({
+    where: { id: ids.clienteRow },
+    data: { primaryContactId: ids.contactCliente },
+  });
+  await prisma.cadastroRequest.update({
+    where: { id: ids.cadastroPendente },
+    data: { contactId: ids.contactProspecto },
+  });
+
+  await prisma.contactInbox.createMany({
+    data: [
+      {
+        id: "ci_prospecto",
+        tenantId: TENANT,
+        contactId: ids.contactProspecto,
+        inboxId: ids.inboxWa,
+        sourceId: "+5511933334444",
+      },
+      {
+        id: "ci_cliente",
+        tenantId: TENANT,
+        contactId: ids.contactCliente,
+        inboxId: ids.inboxWa,
+        sourceId: "+5511911112222",
+      },
+      {
+        id: "ci_info",
+        tenantId: TENANT,
+        contactId: ids.contactInfo,
+        inboxId: ids.inboxWa,
+        sourceId: "+5511955556666",
+      },
+    ],
+  });
+
+  const now = new Date();
+  await prisma.conversation.create({
+    data: {
+      id: ids.convCadastro,
+      tenantId: TENANT,
+      inboxId: ids.inboxWa,
+      contactId: ids.contactProspecto,
+      status: "open",
+      cadastroRequestId: ids.cadastroPendente,
+      lastActivityAt: now,
+      messages: {
+        create: {
+          id: "msg_cad_1",
+          tenantId: TENANT,
+          messageType: "incoming",
+          content: "Olá, quero me cadastrar como atacadista.",
+          simulated: true,
+          deliveryStatus: "delivered",
+        },
+      },
+      labels: {
+        create: {
+          id: "clb_cad",
+          tenantId: TENANT,
+          labelId: "lbl_cadastro",
+        },
+      },
+    },
+  });
+  await prisma.conversation.create({
+    data: {
+      id: ids.convOrcamento,
+      tenantId: TENANT,
+      inboxId: ids.inboxWa,
+      contactId: ids.contactCliente,
+      status: "open",
+      clienteId: ids.clienteRow,
+      orcamentoId: ids.orcEnviado,
+      assigneeUserId: ids.vendedor,
+      teamId: ids.teamVendas,
+      lastActivityAt: now,
+      messages: {
+        create: {
+          id: "msg_orc_1",
+          tenantId: TENANT,
+          messageType: "incoming",
+          content: "Preciso de preço de linguiça caixa.",
+          simulated: true,
+          deliveryStatus: "delivered",
+        },
+      },
+      labels: {
+        create: {
+          id: "clb_orc",
+          tenantId: TENANT,
+          labelId: "lbl_orcamento",
+        },
+      },
+    },
+  });
+  await prisma.conversation.create({
+    data: {
+      id: ids.convInfo,
+      tenantId: TENANT,
+      inboxId: ids.inboxWa,
+      contactId: ids.contactInfo,
+      status: "resolved",
+      lastActivityAt: now,
+      messages: {
+        create: {
+          id: "msg_info_1",
+          tenantId: TENANT,
+          messageType: "incoming",
+          content: "Qual o horário de entrega na zona sul?",
+          simulated: true,
+          deliveryStatus: "delivered",
+        },
+      },
+      labels: {
+        create: {
+          id: "clb_info",
+          tenantId: TENANT,
+          labelId: "lbl_info",
+        },
+      },
+    },
+  });
+
+  await prisma.cadastroRequest.update({
+    where: { id: ids.cadastroPendente },
+    data: { conversationId: ids.convCadastro },
+  });
+
+  await prisma.notificationOutbox.create({
+    data: {
+      id: "out_orc_enviado",
+      tenantId: TENANT,
+      channel: "whatsapp",
+      recipientRole: "customer",
+      recipient: "+5511911112222",
+      templateKey: "orcamento.status",
+      category: "commerce",
+      payloadJson: JSON.stringify({
+        orcamento_id: ids.orcEnviado,
+        status: "enviado",
+        cnpj_last4: CLIENTE_CNPJ.slice(-4),
+      }),
+      status: "enviado",
+      orcamentoId: ids.orcEnviado,
+    },
+  });
+
+  console.log("Seed OK — tenant casa-dos-frios CRM Phase A (password Demo@1234)");
 }
 
 main()

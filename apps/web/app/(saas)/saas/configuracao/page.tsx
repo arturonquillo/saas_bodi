@@ -1,5 +1,5 @@
 import { ConfigScreen } from "@/ui/saas/ConfigScreen";
 
-export default function ConfigPage() {
+export default function Page() {
   return <ConfigScreen />;
 }

@@ -31,25 +31,25 @@ export function ColorModeToggle() {
           variant="ghost"
           size="icon"
           className="size-8"
-          aria-label={COPY.saas.color_mode}
+          aria-label={COPY.color_mode}
         >
           <ModeIcon mode={mode} />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-40">
-        <DropdownMenuLabel>{COPY.saas.color_mode}</DropdownMenuLabel>
+        <DropdownMenuLabel>{COPY.color_mode}</DropdownMenuLabel>
         <DropdownMenuRadioGroup value={mode} onValueChange={(value) => setMode(value as ColorMode)}>
           <DropdownMenuRadioItem value="light">
             <Sun className="size-4" strokeWidth={1.75} />
-            {COPY.saas.color_mode_light}
+            {COPY.color_mode_light}
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="dark">
             <Moon className="size-4" strokeWidth={1.75} />
-            {COPY.saas.color_mode_dark}
+            {COPY.color_mode_dark}
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="system">
             <Monitor className="size-4" strokeWidth={1.75} />
-            {COPY.saas.color_mode_system}
+            {COPY.color_mode_system}
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>

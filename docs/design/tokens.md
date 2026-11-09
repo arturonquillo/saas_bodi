@@ -1,125 +1,108 @@
-# Tokens
+# Tokens — Casa dos Frios
 
-Machine-readable sources: [`tokens.json`](./tokens.json), [`tokens.css`](./tokens.css).
+Machine-readable: [`tokens.json`](./tokens.json), [`tokens.css`](./tokens.css). Kit mapping: [`shadcn.md`](./shadcn.md).
 
-**Kit mapping:** [`shadcn.md`](./shadcn.md) §2 — tenant/product tokens map onto shadcn CSS variables **per surface**. Do not assign one global `--background` / `--accent` for all three chromes.
+Loja and SaaS share **tenant** tokens and differ only in density. **Account is out of MVP** — no product-theme chrome in this release.
 
-Store and SaaS share **tenant** tokens and differ only in density. Account uses **product** tokens and never reads the tenant theme.
+## Brand idea
+
+Cold-room wholesale meat distributor: deep carmine (frios / carnes), refrigerated steel teal, cool fog canvas. **Not** purple-on-white, **not** cream + terracotta + display serif, **not** default shadcn violet.
+
+Logo: **placeholder slot** until the official asset arrives. Empty `logo_url` → wordmark **Casa dos Frios** in Archivo.
 
 ## Who edits what
 
-| Token | CSS variable | Seed demo | Editor? |
+| Token | CSS variable | Seed | Editor? |
 |---|---|---|---|
-| marca | `--marca` | `Norte Atacado` | Tenant (supervisor) |
-| primary | `--color-primary` | `#0F4F3E` | Tenant |
-| accent | `--color-accent` | `#C2410C` | Tenant |
-| background | `--color-background` | `#F6EFE3` | Tenant |
-| logo | `--logo-url` | none (wordmark) | Tenant (URL or upload) |
-| text | `--color-text` | `#1C1917` | System — not in editor |
-| text muted | `--color-text-muted` | `#57534E` | System |
-| danger | `--color-danger` | `#B42318` | System |
-| success | `--color-success` | `#1B7A4A` | System |
-| warning | `--color-warning` | `#B45309` | System |
-| radius | `--radius-sm/md/lg/pill` | 4 / 8 / 12 / 999 | System |
-| spacing | `--space-1` … `--space-7` | 4 / 8 / 12 / 16 / 24 / 32 / 48 | System |
-| display font | `--font-display` | Inter (tenant); IBM Plex Sans (Account) | System — not in editor |
-| body font | `--font-body` | Same as display | System |
-| UI font | `--font-ui` | Inter, system-ui, sans-serif (tenant) | System |
-| sans (compat) | `--font-sans` | Alias of `--font-ui` | System |
-| card shadow | `--shadow-card` | Hairline `0 1px 2px rgba(0,0,0,.04)` | System |
-| card hover | `--shadow-card-hover` | Light lift, no primary wash | System |
-| float shadow | `--shadow-float` | Dialogs | System |
-| motion | `--duration-fast` / `--duration` / `--ease-standard` | 160ms / 180ms / emphasized ease | System |
+| marca | `--marca` | `Casa dos Frios` | Admin |
+| primary | `--color-primary` | `#7A1F1F` | Admin |
+| accent | `--color-accent` | `#1F5C6B` | Admin |
+| background | `--color-background` | `#EEF2F4` | Admin |
+| logo | `--logo-url` | none (wordmark) | Admin (URL/upload) |
+| text | `--color-text` | `#141A1F` | System |
+| text muted | `--color-text-muted` | `#5A6570` | System |
+| danger / success / warning | `--color-danger` etc. | fixed | System |
+| radius / spacing / motion / elevation | see JSON | fixed | System |
+| display font | `--font-display` | Archivo | System |
+| body / UI font | `--font-body` / `--font-ui` | IBM Plex Sans | System |
 
-Do not invent extra editable slots (font family, radius, danger, dark mode) in the MVP theme editor. Visual type and shadows are locked in [`visual.md`](./visual.md). Kit composition is locked in [`shadcn.md`](./shadcn.md).
+Do not add editable font family, dark mode, or radius to the MVP theme editor.
 
-Derived (not editable, computed from the set above):
+### Derived (computed, not editable)
 
 | Token | Rule |
 |---|---|
 | `--color-marca` | Same as primary unless a dedicated marca color is stored |
-| `--color-text-on-primary` | Light cream/ink that passes 4.5:1 on primary |
-| `--color-text-on-accent` | Light cream that passes 4.5:1 on accent |
-| `--color-surface` | Background lightened toward white (seed `#FFFBF5`) |
-| `--color-surface-raised` | `#FFFFFF` on light themes |
-| `--color-border` | Background darkened (~8–12%) |
+| `--color-text-on-primary` | `#F7F1F0` (passes ≥ 4.5:1 on `#7A1F1F`) |
+| `--color-text-on-accent` | `#F2F8FA` (passes ≥ 4.5:1 on `#1F5C6B`) |
+| `--color-surface` | Cool lift toward white (`#F7F9FA`) |
+| `--color-surface-raised` | `#FFFFFF` |
+| `--color-border` | Background darkened ~10% (`#D5DCE1`) |
 
-## Seed demo (must be visibly non-default)
+## Seed (must match)
 
-The `demo` tenant is **Norte Atacado**: pine green, burnt terracotta, cream background. Those colors tint **actions, links, prices, the SaaS active bar, photo-tile gradients, and the optional Store utility bar**. They do **not** paint SaaS chrome or the shop page.
+| Field | Value |
+|---|---|
+| slug | `casa-dos-frios` |
+| marca | `Casa dos Frios` |
+| primary | `#7A1F1F` |
+| accent | `#1F5C6B` |
+| background | `#EEF2F4` |
+| logo_url | `null` |
 
-- Primary `#0F4F3E` (pine), not `#2563EB` — buttons, links, active 3px bar, Store prices.
-- Accent `#C2410C` (terracotta), used for wholesale cues — not a second primary button on the same row.
-- Background `#F6EFE3` (cream) — **utility top bar only** on Store. Shop page is white. SaaS canvas is system `#0c0c0e`.
-
-Account (`[data-theme="product"]`) is cool ink (`#1E3A5F` on `#F4F6F8`). Side-by-side: white Woo shop / dark studio SaaS / navy billing. Three chromes.
+Architecture seed may still show an earlier example palette; **this file wins** for implementation.
 
 ## Density
 
-| Surface | `data-density` | Body | Tables / lists |
+| Surface | `data-density` | Body | Lists |
 |---|---|---|---|
-| Store | `comfortable` | 16px | Cards, 16–24px gaps |
-| SaaS | `compact` | 14px | Tables, 40px rows on desktop |
-| Account | `comfortable` | 16px | One card, generous padding |
-| SaaS warehouse / courier (viewport &lt; 768px) | `compact` + large hits | 16px body on device | Cards, 48–52px actions |
+| Loja | `comfortable` | 16px | Catalog tiles, 16–24px gaps |
+| SaaS | `compact` | 14px | Tables, ~40px rows desktop |
 
-Same color tokens. Do not ship a second palette for “mobile”.
+Same color tokens. No second palette for mobile.
 
-Type roles (see `visual.md`): Store and SaaS use **Inter** for chrome, titles, and prices. Account uses **IBM Plex Sans** only (`[data-theme="product"]` remaps `--font-*`). Do not load Fraunces or Source Serif 4.
+## Live preview (tema editor — admin only)
 
-## Live preview (theme editor)
+1. Changing marca, primary, accent, background, or logo updates CSS variables **immediately** in a framed preview: Loja header + price + primary button + SaaS table snippet + status badges.
+2. The rest of the SaaS shell does **not** hot-swap until **Salvar tema** succeeds.
+3. Contrast gate before save: text on background and text-on-primary on primary ≥ 4.5:1. Fail → inline error, no persist. MVP assumes **light** backgrounds.
+4. Logo empty → wordmark. Broken image → wordmark + “Logo indisponível”.
+5. Dirty cancel → discard confirm.
 
-1. Changing marca, primary, accent, background, or logo updates CSS variables **immediately** in a framed preview (store header + price chip + primary button + SaaS table snippet).
-2. The rest of the SaaS shell around the editor does **not** hot-swap until **Salvar tema** succeeds. Accidental edits must not recolor the operator’s whole shift.
-3. After save, Store and SaaS refetch tokens (or reload variables). Account is unchanged — assert this in QA.
-4. Contrast gate before save: system `--color-text` on the chosen background, and `--color-text-on-primary` on primary, must be ≥ 4.5:1. Fail → inline error, no persist. MVP assumes **light** backgrounds; do not add a dark-theme mode.
-5. Logo: image URL or upload. Empty logo → wordmark from `marca`. Broken image → wordmark + “Logo indisponível”.
-6. Cancel / navigate away with dirty fields → discard confirm.
+## shadcn mapping (summary)
 
-## shadcn variable mapping
+| Token | shadcn | Loja | SaaS |
+|---|---|---|---|
+| `--color-primary` | `--primary` | yes | yes |
+| `--color-text-on-primary` | `--primary-foreground` | yes | yes |
+| `--color-text` | `--foreground` | yes | yes |
+| `--color-text-muted` | `--muted-foreground` | yes | yes |
+| `--color-danger` | `--destructive` | yes | yes |
+| raised white | `--card` / `--popover` | yes | yes |
+| system hairline `#D8DEE3` | `--border` / `--input` | yes | yes |
+| `--color-accent` | **`--ring`** + `--brand-accent` | yes | yes |
+| `--color-accent` | **not** `--accent` | muted hover wash stays muted | same |
+| `--color-background` | **not** full-page `--background` | optional cool strip / hero wash only | unused on canvas |
+| system canvas | `--background` | `#FFFFFF` | `#F4F6F7` cool desk |
+| `--radius-md` | `--radius` | 8px | tables ≤ 4px |
+| `--font-ui` | `--font-sans` | IBM Plex Sans | IBM Plex Sans |
+| `--font-display` | utility / titles | Archivo | Archivo for page titles only |
 
-Frontend maps the tokens above onto shadcn CSS variables. **Per surface** — see the full table in [`shadcn.md`](./shadcn.md) §2.
+Full table: [`shadcn.md`](./shadcn.md) §2.
 
-| Token | shadcn | Store | SaaS | Account |
-|---|---|---|---|---|
-| `--color-primary` | `--primary` | yes | yes | product `#1E3A5F` |
-| `--color-text-on-primary` | `--primary-foreground` | yes | yes | `#F4F6F8` |
-| `--color-text` | `--foreground` | yes | yes | `#142033` |
-| `--color-text-muted` | `--muted-foreground` | yes | yes | `#5B6573` |
-| `--color-danger` | `--destructive` | yes | yes | yes |
-| `#fff` / raised | `--card` | shop white | list/form white | billing white |
-| system hairline `#e8e8e8` | `--border` `--input` | Woo hairline | Desk hairline | product `#D5DCE3` |
-| `--color-accent` | **`--ring`** and `--brand-accent` | terracotta focus + Atacado | same | product `#3D6B8C` |
-| `--color-accent` | **not** `--accent` | shadcn `--accent` stays a muted hover wash | same | same |
-| `--color-background` | **not** `--background` on Store/SaaS | utility bar only | unused on canvas | `--background` `#F4F6F8` |
-| system canvas | `--background` | `#ffffff` | `#0c0c0e` | `#F4F6F8` |
-| system sidebar | `--sidebar*` | unused | `#fafafa`, hover `#f0f0f0`, primary = 3px bar only | unused |
-| `--radius-md` 8px | `--radius` | yes | tables override ≤4px | yes |
-| `--font-ui` | `--font-sans` | Inter | Inter | IBM Plex Sans |
+## Applying tokens
 
-`--sidebar` is **never** `--color-primary`. `--color-border` cream is **never** the Woo/Desk hairline.
-
-## Applying tokens in UI
-
-- Store page: shadcn `--background` = system white. Tenant `--color-background` on the optional 36px utility bar only. SaaS `--background` = system `#0c0c0e`; `--card` `#141416`. Account: `--background` = product gray.
-- Cards, dialogs, inputs: `--card` / `--popover` (white). SaaS lists: 1px `#e8e8e8` `Table` wrap, **no** `--shadow-card`, **no** `Card`.
-- Primary buttons (`Button default`), links, Store prices, SaaS **active 3px bar + 8% wash**, Account header: `--primary`. **Not** the SaaS sidebar fill. Store header is white (see `visual.md`).
-- Brand accent (`--brand-accent`): atacado `Badge`, MOQ hint, focus `--ring`. Never the only cue (also use text). Never assign it to shadcn `--accent`.
-- Danger / success / warning: system tokens only. Status `cancelado` = `Badge destructive`; `entregue` = success tint; `separando` / `cnpj_registro_pendente` / entitlement = warning.
-- Focus ring: shadcn `--ring` ← `--color-accent` (tenant) or product `#3D6B8C`. Never `outline: none` without a replacement.
-- Store product tiles: hairline `--shadow-card` on `Card`; hover (fine pointer only) `--shadow-card-hover` + 1px lift. No primary-tinted kraft wash.
-- Product media placeholders: square tile, gradient from `--primary` → mix with `--brand-accent`, Inter initials in `--primary-foreground`. No extra color tokens. No stripe crate.
-- Buttons/inputs: `--duration-fast`. `prefers-reduced-motion: reduce` zeros movement.
-- Do not add the `dark` class. Leave shadcn `.dark` unused.
+- Loja page canvas: white. Tenant `--color-background` may tint hero atmosphere / thin utility strip — not the whole shop as a cream slab.
+- SaaS canvas: cool system gray; lists are border-first white panels — **no** Card shadow farm.
+- Primary: buttons, links, Loja prices, SaaS active nav accent bar.
+- Brand accent: cold-steel focus ring, intent chips secondary, WhatsApp CTA outline — never the only status cue.
+- Danger / success / warning: system only.
+- Do not add the `dark` class for tenant theme. Leave shadcn `.dark` unused in MVP.
 
 ## What frontend must not improvise
 
-- Hex for tenant colors in screens. Use variables. Desk canvas / sidebar system hexes are listed in [`saas-desk.md`](./saas-desk.md); Store footer hexes in [`visual.md`](./visual.md) — do not add them to the theme editor.
-- Tenant `--color-background` as shadcn `--background` on Store or SaaS.
+- Hex for tenant colors in screens — use variables.
+- Tenant `--color-background` as full Loja/SaaS `--background`.
 - Tenant `--color-accent` as shadcn `--accent`.
-- Tenant `--color-primary` as `--sidebar`.
-- Tenant theme on Account.
-- Account/product navy on Store or SaaS.
-- Extra theme fields.
-- Dark mode or per-role palettes.
-- A parallel CSS token kit beside shadcn variables.
+- Tenant `--color-primary` as sidebar fill.
+- Extra theme editor fields, dark mode, or a parallel CSS token kit.

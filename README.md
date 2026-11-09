@@ -1,8 +1,8 @@
-# saas_frota
+# Casa dos Frios — SaaS CRM + atacado
 
-Multi-tenant wholesale/retail SaaS: **Store** (`/loja`), **SaaS** (`/saas`), **Account** (`/conta`).
+Multi-tenant-ready wholesale CRM: **SaaS** (`/saas`) + public **Loja** (`/loja`). Account billing site and native app are later phases (not in MVP).
 
-Product: `docs/product/spec.md`. Architecture: `docs/architecture/`. Design: `docs/design/`.
+Product: `docs/product/spec.md`. Architecture: `docs/architecture/`. Design: `docs/design/` (after architect).
 
 ## Run locally
 
@@ -16,30 +16,28 @@ npm run dev
 
 - Loja: http://localhost:3000/loja
 - SaaS: http://localhost:3000/saas
-- Conta: http://localhost:3000/conta
 
-SQLite file: `prisma/dev.db`. No Docker required.
+SQLite file: `prisma/dev.db`. No Docker required. Stack locked in `docs/architecture/stack.md`.
 
-## Seed (`demo`)
+## Seed (`casa-dos-frios`)
 
 Password for every user: `Demo@1234`
 
-| Email | Surface |
+| Email | Surface / role |
 |---|---|
-| `dono@demo.local` | Account owner + supervisor (two chromes) |
-| `supervisora@demo.local` | SaaS supervisor only |
-| `vendedor@demo.local` | Seller (default Store assignee) |
-| `estoque@demo.local` | Warehouse |
-| `entregador@demo.local` | Courier |
-| `cliente.cpf@demo.local` | Store, varejo |
-| `cliente.cnpj@demo.local` | Store, atacado |
+| `admin@casadosfrios.local` | SaaS admin |
+| `vendedor@casadosfrios.local` | SaaS vendedor |
+| `cliente@mercadoexemplo.local` | Loja, Cliente aprovado (CNPJ) |
+| `prospecto@novaloja.local` | Loja, cadastro pendente |
 
 Full contract: `docs/architecture/seed.md`.
 
-## Stack
+## Hard rules
 
-One Next.js 15 app, Prisma + SQLite, shared types in `packages/shared`. See `docs/architecture/stack.md`.
+- Tenant isolation readiness; RBAC `admin` \| `vendedor`.
+- One stock ledger; Loja is a projection.
+- Cadastro CNPJ `aprovado` before Pedido / Venda.
+- WhatsApp = simulated inbox + outbox stub (no Meta in MVP).
+- No Account chrome in SaaS nav.
 
-## Ownership
-
-Do not put billing links in SaaS nav. Do not add a second stock table. Folder owners: `docs/architecture/ownership.md`.
+Folder owners: `docs/architecture/ownership.md`.

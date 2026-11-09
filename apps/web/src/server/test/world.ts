@@ -16,13 +16,14 @@ export type TestWorld = {
   tenantId: string;
   slug: string;
   users: {
-    supervisor: string;
+    admin: string;
     vendedor: string;
-    estoquista: string;
-    entregador: string;
-    customerCpf: string;
-    customerCnpj: string;
+    customer: string;
+    prospect: string;
   };
+  clienteId: string;
+  cadastroPendenteId: string;
+  inboxId: string;
   skus: {
     visivel: string;
     oculto: string;
@@ -33,29 +34,45 @@ export type TestWorld = {
 
 export function sessionOf(
   world: TestWorld,
-  role: SaasRole | "customer",
+  role: SaasRole | "customer" | "prospect",
   extras: Partial<SessionContext> = {},
 ): SessionContext {
-  const userId =
-    role === "customer"
-      ? world.users.customerCpf
-      : role === "supervisor"
-        ? world.users.supervisor
-        : role === "vendedor"
-          ? world.users.vendedor
-          : role === "estoquista"
-            ? world.users.estoquista
-            : world.users.entregador;
+  if (role === "customer") {
+    return {
+      userId: world.users.customer,
+      tenantId: world.tenantId,
+      tenantSlug: world.slug,
+      surface: "loja",
+      saasRole: null,
+      isCustomer: true,
+      clienteStatus: "aprovado",
+      clienteId: world.clienteId,
+      cnpjLast4: "0161",
+      ...extras,
+    };
+  }
+  if (role === "prospect") {
+    return {
+      userId: world.users.prospect,
+      tenantId: world.tenantId,
+      tenantSlug: world.slug,
+      surface: "loja",
+      saasRole: null,
+      isCustomer: true,
+      clienteStatus: "pendente",
+      cadastroRequestId: world.cadastroPendenteId,
+      cnpjLast4: "0103",
+      ...extras,
+    };
+  }
   return {
-    userId,
+    userId: role === "admin" ? world.users.admin : world.users.vendedor,
     tenantId: world.tenantId,
     tenantSlug: world.slug,
-    surface: role === "customer" ? "loja" : "saas",
-    saasRole: role === "customer" ? null : role,
-    accountOwner: false,
-    isCustomer: role === "customer",
-    subscriptionStatus: "ativa",
-    documentType: role === "customer" ? "cpf" : undefined,
+    surface: "saas",
+    saasRole: role,
+    isCustomer: false,
+    clienteStatus: null,
     ...extras,
   };
 }
@@ -65,12 +82,10 @@ export async function createWorld(label: string): Promise<TestWorld> {
   const tenantId = newId(`t_${label}`);
   const slug = `iso-${label}-${tenantId.slice(-6)}`;
   const users = {
-    supervisor: newId("u"),
+    admin: newId("u"),
     vendedor: newId("u"),
-    estoquista: newId("u"),
-    entregador: newId("u"),
-    customerCpf: newId("u"),
-    customerCnpj: newId("u"),
+    customer: newId("u"),
+    prospect: newId("u"),
   };
   const skus = {
     visivel: newId("sku"),
@@ -78,32 +93,40 @@ export async function createWorld(label: string): Promise<TestWorld> {
     esgotado: newId("sku"),
     moq: newId("sku"),
   };
+  const clienteId = newId("cli");
+  const cadastroPendenteId = newId("cad");
+
+  // Distinct valid CNPJs per world
+  const clienteCnpj = label === "a" ? "11444777000161" : "60746948000112";
+  const prospectCnpj = label === "a" ? "34028316000103" : "00000000000191";
+  const tenantCnpj = label === "a" ? "27865757000102" : "11222333000181";
 
   await db.user.createMany({
     data: [
-      { id: users.supervisor, email: `sup.${slug}@test.local`, passwordHash, nome: "Sup" },
+      { id: users.admin, email: `adm.${slug}@test.local`, passwordHash, nome: "Admin", ativo: true },
       {
         id: users.vendedor,
         email: `ven.${slug}@test.local`,
         passwordHash,
         nome: "Ven",
         whatsapp: "+5511999000002",
+        ativo: true,
       },
-      { id: users.estoquista, email: `est.${slug}@test.local`, passwordHash, nome: "Est" },
-      { id: users.entregador, email: `ent.${slug}@test.local`, passwordHash, nome: "Ent" },
       {
-        id: users.customerCpf,
-        email: `cpf.${slug}@test.local`,
+        id: users.customer,
+        email: `cli.${slug}@test.local`,
         passwordHash,
-        nome: "CPF",
+        nome: "Cliente",
         whatsapp: "+5511999000001",
+        ativo: true,
       },
       {
-        id: users.customerCnpj,
-        email: `cnpj.${slug}@test.local`,
+        id: users.prospect,
+        email: `pro.${slug}@test.local`,
         passwordHash,
-        nome: "CNPJ",
+        nome: "Prospect",
         whatsapp: "+5511999000003",
+        ativo: true,
       },
     ],
   });
@@ -112,54 +135,63 @@ export async function createWorld(label: string): Promise<TestWorld> {
     data: {
       id: tenantId,
       slug,
-      nome: `Tenant ${label}`,
-      aceitaCpf: true,
-      aceitaCnpj: true,
-      canaisAviso: "ambos",
-      defaultSellerUserId: users.vendedor,
-      subscriptionStatus: "ativa",
-      planDisplayName: "Plano Teste",
+      razaoSocial: `Tenant ${label} LTDA`,
+      nomeFantasia: `Tenant ${label}`,
+      cnpjDigits: tenantCnpj,
+      cnpjLast4: tenantCnpj.slice(-4),
+      whatsappComercial: "+5511988877766",
+      canaisAviso: "whatsapp",
+      lojaModo: "pedido_direto",
+      defaultVendedorUserId: users.vendedor,
     },
   });
   await db.theme.create({
     data: {
       tenantId,
       marca: "Teste",
-      primary: "#0F4F3E",
-      accent: "#C2410C",
-      background: "#F6EFE3",
+      primary: "#7A1F1F",
+      accent: "#1F5C6B",
+      background: "#EEF2F4",
       logoUrl: null,
     },
   });
   await db.membership.createMany({
     data: [
-      { id: newId("m"), tenantId, userId: users.supervisor, saasRole: "supervisor", isCustomer: false },
+      { id: newId("m"), tenantId, userId: users.admin, saasRole: "admin", isCustomer: false },
       { id: newId("m"), tenantId, userId: users.vendedor, saasRole: "vendedor", isCustomer: false },
-      { id: newId("m"), tenantId, userId: users.estoquista, saasRole: "estoquista", isCustomer: false },
-      { id: newId("m"), tenantId, userId: users.entregador, saasRole: "entregador", isCustomer: false },
-      { id: newId("m"), tenantId, userId: users.customerCpf, saasRole: null, isCustomer: true },
-      { id: newId("m"), tenantId, userId: users.customerCnpj, saasRole: null, isCustomer: true },
+      { id: newId("m"), tenantId, userId: users.customer, saasRole: null, isCustomer: true },
+      { id: newId("m"), tenantId, userId: users.prospect, saasRole: null, isCustomer: true },
     ],
   });
-  await db.customerProfile.createMany({
-    data: [
-      {
-        id: newId("cp"),
-        tenantId,
-        userId: users.customerCpf,
-        documentType: "cpf",
-        documentDigits: label === "a" ? "39053344705" : "15350946056",
-        documentLast4: label === "a" ? "4705" : "6056",
-      },
-      {
-        id: newId("cp"),
-        tenantId,
-        userId: users.customerCnpj,
-        documentType: "cnpj",
-        documentDigits: label === "a" ? "11444777000161" : "00000000000191",
-        documentLast4: label === "a" ? "0161" : "0191",
-      },
-    ],
+  await db.cliente.create({
+    data: {
+      id: clienteId,
+      tenantId,
+      userId: users.customer,
+      cnpjDigits: clienteCnpj,
+      cnpjLast4: clienteCnpj.slice(-4),
+      cnpjRegistroPendente: false,
+      razaoSocial: `Cliente ${label}`,
+      contatoNome: "Cliente",
+      email: `cli.${slug}@test.local`,
+      whatsapp: "+5511999000001",
+      status: "aprovado",
+    },
+  });
+  await db.cadastroRequest.create({
+    data: {
+      id: cadastroPendenteId,
+      tenantId,
+      cnpjDigits: prospectCnpj,
+      cnpjLast4: prospectCnpj.slice(-4),
+      cnpjRegistroPendente: true,
+      razaoSocial: `Prospect ${label}`,
+      contatoNome: "Prospect",
+      email: `pro.${slug}@test.local`,
+      whatsapp: "+5511999000003",
+      status: "pendente",
+      source: "loja",
+    },
   });
   await db.sku.createMany({
     data: [
@@ -168,7 +200,6 @@ export async function createWorld(label: string): Promise<TestWorld> {
         tenantId,
         codigo: `VIS-${label}`,
         nome: "Visivel",
-        precoVarejoCentavos: 5990,
         precoAtacadoCentavos: 3990,
         qtdMinAtacado: 1,
         visivelLoja: true,
@@ -178,7 +209,6 @@ export async function createWorld(label: string): Promise<TestWorld> {
         tenantId,
         codigo: `HID-${label}`,
         nome: "Oculto",
-        precoVarejoCentavos: 1000,
         precoAtacadoCentavos: 800,
         qtdMinAtacado: 1,
         visivelLoja: false,
@@ -188,7 +218,6 @@ export async function createWorld(label: string): Promise<TestWorld> {
         tenantId,
         codigo: `OUT-${label}`,
         nome: "Esgotado",
-        precoVarejoCentavos: 8900,
         precoAtacadoCentavos: 7000,
         qtdMinAtacado: 1,
         visivelLoja: true,
@@ -198,7 +227,6 @@ export async function createWorld(label: string): Promise<TestWorld> {
         tenantId,
         codigo: `MOQ-${label}`,
         nome: "Atacado MOQ",
-        precoVarejoCentavos: 19900,
         precoAtacadoCentavos: 14900,
         qtdMinAtacado: 10,
         visivelLoja: true,
@@ -214,19 +242,70 @@ export async function createWorld(label: string): Promise<TestWorld> {
     ],
   });
 
-  return { tenantId, slug, users, skus };
+  // Minimal CRM desk for simulate/visibility tests
+  const inboxId = newId("inx");
+  await db.inbox.create({
+    data: {
+      id: inboxId,
+      tenantId,
+      name: "WhatsApp",
+      channelType: "whatsapp",
+    },
+  });
+  await db.channelWhatsapp.create({
+    data: {
+      id: newId("chw"),
+      tenantId,
+      inboxId,
+      connectionStatus: "ready_stub",
+      messageTemplatesJson: "[]",
+    },
+  });
+  await db.inboxMember.createMany({
+    data: [
+      { id: newId("inm"), tenantId, inboxId, userId: users.admin },
+      { id: newId("inm"), tenantId, inboxId, userId: users.vendedor },
+    ],
+  });
+  for (const title of [
+    "intent:cadastro",
+    "intent:orcamento",
+    "intent:info_empresa",
+    "intent:outro",
+  ]) {
+    await db.label.create({
+      data: {
+        id: newId("lbl"),
+        tenantId,
+        title,
+        color: "#1F5C6B",
+        system: true,
+      },
+    });
+  }
+  await db.agentNotificationSetting.createMany({
+    data: [
+      { id: newId("ans"), tenantId, userId: users.admin },
+      { id: newId("ans"), tenantId, userId: users.vendedor },
+    ],
+  });
+
+  return { tenantId, slug, users, clienteId, cadastroPendenteId, skus, inboxId };
 }
 
 export async function destroyWorld(world: TestWorld) {
+  // Tenant cascades operational rows; users are global so delete after.
   await db.tenant.delete({ where: { id: world.tenantId } }).catch(() => undefined);
-  await db.user.deleteMany({
-    where: {
-      OR: [
-        { id: { in: Object.values(world.users) } },
-        { email: { contains: `${world.slug}@test.local` } },
-      ],
-    },
-  });
+  await db.user
+    .deleteMany({
+      where: {
+        OR: [
+          { id: { in: Object.values(world.users) } },
+          { email: { endsWith: `${world.slug}@test.local` } },
+        ],
+      },
+    })
+    .catch(() => undefined);
 }
 
 export async function catchApi(fn: () => Promise<unknown>) {

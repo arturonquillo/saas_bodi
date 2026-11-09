@@ -1,208 +1,271 @@
-# Product spec — saas_frota
+# Product spec — Casa dos Frios CRM + atacado
 
-Living spec. The **product** agent updates this when behavior changes. MVP brief: `docs/product/mvp.md`. Acceptance: `docs/product/mvp-acceptance.md`. Stack choices belong in `docs/architecture/` once the architect locks them.
+Living spec. The **product** agent updates this when behavior changes. MVP brief: `docs/product/mvp.md`. Acceptance: `docs/product/mvp-acceptance.md`. Feature overview: `docs/product/brief.md`. **CRM desk parity:** `docs/product/chatwoot-parity.md` (full Chatwoot inventory + phases). Stack choices belong in `docs/architecture/` once the architect locks them.
+
+This document **supersedes** the former `saas_frota` wholesale/retail MVP framing. Hard constraints from `AGENTS.md` still apply **unless** this spec explicitly replaces them below.
 
 ## Problem
 
-Companies need one system to sell wholesale and retail, let customers request orders on a store, and let internal workers run those orders with clear roles, stock, and notifications.
+**Casa dos Frios** (distribuidor atacadista, preferência carnes) precisa de um CRM operacional com WhatsApp como canal principal: receber pedidos de cadastro, orçamentos e dúvidas; converter orçamento em venda; e oferecer uma vitrine pública. O mesmo produto SaaS será vendido depois a outras empresas (white-label / multi-tenant).
+
+## Brand and locale
+
+| Item | Decision |
+|---|---|
+| Company (first tenant) | **Casa dos Frios** |
+| Market | Brazil only |
+| Language | **pt-BR** only (no i18n) |
+| Logo | Placeholder until the user supplies the official asset |
+| Vertical lean | Atacado; preferência carnes / frios (catalog can hold other SKUs) |
 
 ## Surfaces
 
-| Surface | Audience | Purpose |
+| Surface | Audience | MVP? | Purpose |
+|---|---|---|---|
+| **SaaS** | Workers of the tenant | Yes | Login, admin, CRM inbox, sales pipeline, customers, thin catalog/stock |
+| **Loja (storefront)** | Public + clientes cadastrados | Yes | Brand page, catalog, WhatsApp CTA, buy-on-site after cadastro |
+| **Account (product billing)** | Buyers of *this* SaaS | **No — later** | Sell/subscribe the platform to other companies |
+| **App nativo** | Same as loja | **No — phase 2** | Mobile app for customers |
+
+Each paying company is a **tenant**. MVP ships **one seeded tenant** (`casa-dos-frios`). Schema and auth must be tenant-scoped from day one; self-serve onboarding and white-label selling are out of MVP.
+
+## What this spec supersedes (from prior AGENTS / saas_frota)
+
+| Prior constraint | New decision |
+|---|---|
+| Dual varejo+atacado (CPF→varejo, CNPJ→atacado) | **MVP is atacado-first.** Cadastro B2B with **CNPJ** required before sales. Varejo/CPF checkout is later. |
+| Roles: supervisor, vendedor, estoquista, entregador | **MVP roles:** `admin`, `vendedor`. Fulfillment statuses exist but are operated by admin/vendedor (no dedicated warehouse/courier roles yet). |
+| Account site with manual subscription flag gating ops | **Deferred.** No Account chrome in MVP. First tenant is always operational. Product billing comes when the SaaS is sold to others. |
+| AI inventory chat with confirm | **Deferred** to a later inventory phase. |
+| Order machine `novo→…→entregue` as the only sales doc | Replaced by **Orçamento → Pedido de venda → Venda/Faturamento** (below). |
+| WhatsApp outbox only | Still **stub outbox** for outbound; MVP ships a **simulated inbox** (no Meta Cloud API). **Post-MVP CRM:** evolve that inbox into **Chatwoot feature parity** (`chatwoot-parity.md`) — WhatsApp channel remains **listo para conectar** (credentials/UI/contracts only) until paid Meta unlock. |
+
+Still in force: tenant isolation readiness, RBAC enforced server-side, pt-BR, LGPD for tax IDs, CNPJ checksum + public registry when registering companies, store stock as a **projection** of one storage ledger (when stock is shown), shadcn/ui for UI, no trusting the client for roles/prices/stock, no unpaid Meta/SMTP integrations silently.
+
+## SaaS foundation
+
+Must exist before CRM features are useful:
+
+1. **Login** — email + password; tenant-scoped session.
+2. **Users** — admin invites/creates users; deactivate without deleting audit history.
+3. **RBAC** — one SaaS role per user per tenant (`admin` | `vendedor`). Permissions enforced in the API; UI only hides.
+4. **Secure sessions** — HTTP-only secure cookies (or equivalent), logout, session expiry; no role/tenant id trusted from the client body.
+5. **Admin panel** — users, roles, tenant profile (razao social, nome fantasia, CNPJ, WhatsApp comercial), notification channel flags, theme tokens, read-only notification outbox + simulated inbox tools.
+
+## CRM core
+
+### WhatsApp inbox (first-class) → Chatwoot-parity desk
+
+Inbound messages land in a tenant **inbox** (simulated in MVP). Each thread is tied to a phone (E.164 BR) and optionally a customer/prospect record.
+
+**Product direction (locked in `chatwoot-parity.md`):** evolve this simulated inbox into a **native Chatwoot-parity CRM desk** (conversations, contacts, labels, teams, assignments, canned responses, automations, macros, CSAT, campaigns, help center, reports, agent bots, custom attributes, notifications, multi-channel inbox model, etc.). Do **not** add a second disconnected inbox product. Commerce pipeline and cadastro gates stay authoritative.
+
+**MVP intent tags** (manual or rule-assisted; seed examples). Under parity Phase A these become **system labels** (and optional conversation custom attributes) with the same commerce outcomes:
+
+| Intent / label | Meaning | Outcome |
 |---|---|---|
-| **Store** | End customers | Browse, request/create orders, see available stock |
-| **SaaS** | Company workers | Operate orders, inventory, people, configuration, theme |
-| **Account** | Billing admins (`account_owner`) | Subscription status and plan flag — never day-to-day operations |
+| `cadastro` | Pedido de cadastro atacadista | Opens/updates a **Solicitação de cadastro** |
+| `orcamento` | Pedido de orçamento / preços | Opens/updates an **Orçamento** draft or links to one |
+| `info_empresa` | Dúvidas sobre a empresa | Handled in thread; no sales doc required |
+| `outro` | Unclassified | Stays in inbox for vendedor |
 
-Each paying company is a **tenant**. Store, SaaS, and Account share tenant data; they do not share the same chrome or permission model. Operational SaaS must never link billing into its nav.
+**Conversation statuses (parity):** `open` \| `pending` \| `snoozed` \| `resolved` (Chatwoot enum). MVP simulator may keep a thinner thread model until Phase A lands.
 
-## Selling modes
+**WhatsApp channel (parity):** admin UI + credential fields + contracts = **Pronto para conectar / listo para conectar**. Live Meta Cloud API / unpaid provider calls remain **forbidden**; simulate inbound + `notification_outbox` stay until product unlocks paid Meta.
 
-A tenant sells **wholesale and retail** from **one catalog and one storage module**.
+Wholesale rule (locked): **no Pedido de venda and no Venda/Faturamento for a customer whose cadastro is not `aprovado`.** Orçamentos may be drafted for prospects, but converting to Pedido requires `aprovado`.
 
-- Shared SKUs. Dual price lists: `preco_varejo`, `preco_atacado`.
-- Optional per-SKU `qtd_min_atacado` (default 1).
-- Logged-out Store shows varejo prices.
-- **CPF customer → varejo.** **CNPJ customer → atacado** (MOQ enforced).
-- SaaS-created orders use the customer's document type to pick the list; unit price is **frozen on the line** at create time.
-- Inventory is never split by channel.
+### Cadastro (B2B)
 
-## Store
+- Public loja form and/or WhatsApp intent `cadastro`.
+- Required: CNPJ (checksum + public registry lookup), razao social (from registry when available), contact name, phone (WhatsApp), email.
+- Statuses: `pendente` → `aprovado` | `recusado`.
+- Who transitions: `admin` or `vendedor` may approve/refuse.
+- On approve: create **Cliente** record; notify prospect (outbox).
+- On refuse: notify with reason (free text, required).
+- CNPJ registry down: checksum still required; UX warning; save `cnpj_registro_pendente`; approval still allowed.
 
-- Customers **register then** place orders. No guest checkout.
-- Catalog availability is a **projection** of storage: SKU is listed only if `visivel_loja`; quantity shown is `max(0, on_hand - reserved)`. Visible + zero available = show “sem estoque”, cannot add.
-- Supervisors set `visivel_loja` per SKU. That flag does not create a second ledger.
-- Registration uses **CPF and/or CNPJ** per tenant `aceita_cpf` / `aceita_cnpj` (at least one true).
-- CNPJ is checksum-validated **and** looked up against public Brazilian registry data. Company identity is not free-text only.
-- Theme (brand, colors, logo) from the tenant theme module.
+CPF may be stored later for varejo; **MVP does not sell to CPF-only customers.**
 
-## SaaS (operations)
+## Sales pipeline (locked) — Odoo-style, Brazilian labels
 
-Workers sign in to create and edit orders and run the operation.
+Research baseline: Odoo Sales = Quotation → Sales Order → Delivery → Invoice → Payment. Brazilian ops language maps cleanly to **Orçamento → Pedido de venda → Venda/Faturamento**. MVP keeps delivery as statuses on the Pedido (no separate WMS module) and treats faturamento as a commercial document **stub** (no NF-e provider).
 
-### Roles and permissions
+### Document chain
 
-One SaaS role per user per tenant. `account_owner` is a **separate** flag for the Account surface; it does not grant supervisor powers and supervisor does not grant Account.
+```
+Orçamento  --(aceitar)-->  Pedido de venda  --(faturar)-->  Venda/Faturamento
+```
 
-| Role | Intent |
+One Orçamento produces at most one Pedido. One Pedido produces at most one Venda in MVP (full qty; partial invoice later).
+
+### 1) Orçamento
+
+| Status | Meaning |
 |---|---|
-| **Supervisor** | Config, store visibility, theme, AI inventory apply, oversight, all legal status transitions |
-| **Vendedor** | Create orders, confirm/cancel before warehouse dispatch, see tenant pipeline + notices |
-| **Estoquista** | Storage quantities, movements, pick/pack (`confirmado` → `separando` → `despachado`) |
-| **Entregador** | `despachado` → `entregue` on tenant dispatched orders (no assignment in MVP) |
+| `rascunho` | Internal draft; customer not notified |
+| `enviado` | Sent to customer (outbox WhatsApp and/or email) |
+| `aceito` | Customer accepted (vendedor/admin records acceptance, or customer accepts in loja when logged in) |
+| `recusado` | Customer declined |
+| `expirado` | Past `valido_ate` without accept |
+| `cancelado` | Cancelled internally |
 
-Permissions are enforced in the API. UI only hides what the role cannot do.
+Transitions:
 
-### Permission × status matrix
+| From → To | Admin | Vendedor | Cliente (loja) |
+|---|---|---|---|
+| → create `rascunho` | yes | yes | no |
+| `rascunho` → `enviado` | yes | yes | no |
+| `rascunho` → `cancelado` | yes | yes | no |
+| `enviado` → `aceito` | yes | yes | yes (own orçamento only) |
+| `enviado` → `recusado` | yes | yes | yes (own) |
+| `enviado` → `cancelado` | yes | yes | no |
+| `enviado` → `expirado` | system job or on read past date | | |
+| `aceito` → creates Pedido `confirmado` | automatic on accept | | |
 
-Statuses: `novo` → `confirmado` → `separando` → `despachado` → `entregue`. Terminal alternate: `cancelado`.
+Rules:
 
-| Transition | Supervisor | Vendedor | Estoquista | Entregador | Stock effect |
-|---|---|---|---|---|---|
-| create → `novo` (Store customer or SaaS seller/supervisor) | yes (SaaS) | yes (SaaS) | no | no | none |
-| `novo` → `confirmado` | yes | yes | no | no | **reserve** qty |
-| `novo` → `cancelado` | yes | yes | no | no | none |
-| `confirmado` → `separando` | yes | no | yes | no | none (still reserved) |
-| `confirmado` → `cancelado` | yes | yes | no | no | **release** reserve |
-| `separando` → `despachado` | yes | no | yes | no | **consume**: on-hand −=, reserve −= |
-| `separando` → `cancelado` | yes | no | no | no | **release** reserve |
-| `despachado` → `entregue` | yes | no | no | yes | none |
-| cancel after `despachado` or from `entregue` | no | no | no | no | n/a (returns = later) |
+- Lines snapshot SKU name, qty, unit price (atacado list), optional notes.
+- `valido_ate` required before `enviado` (default +7 days from send).
+- Accept is blocked if customer cadastro ≠ `aprovado` — vendedor must approve cadastro first (orçamento can stay `enviado`).
+- Notify customer + responsible vendedor on every status change except create→`rascunho`.
 
-Sellers see **all** tenant orders (small-company MVP). Warehouse list: `confirmado`, `separando`, `despachado`. Courier list: `despachado`, `entregue`. Customers see **own** Store orders only.
+### 2) Pedido de venda
 
-| Other action | Supervisor | Vendedor | Estoquista | Entregador |
-|---|---|---|---|---|
-| View on-hand, reserved, available, movements | yes | read | yes | no |
-| Manual qty adjust + reason | yes | no | yes | no |
-| Toggle `visivel_loja` | yes | no | no | no |
-| Theme, CPF/CNPJ flags, notification channels | yes | no | no | no |
-| AI inventory chat (preview + apply) | yes | no | no | no |
-| Read notification outbox | yes | yes | no | no |
+Created only from `Orçamento.aceito` **or** by admin/vendedor for an already `aprovado` cliente (direct pedido; still atacado prices).
 
-### Orders
-
-- Created from the Store **or** by seller/supervisor in SaaS.
-- Lines snapshot SKU name, qty, and unit price from the channel list.
-- Each status change appends history and notifies **customer and seller** (see Notifications).
-- Store orders are attributed to a tenant default seller (seed: `vendedor@demo.local`) so the seller recipient exists.
-- Pedido is a **purchase request**. MVP does not capture payment.
-
-### Storage
-
-- Canonical inventory lives here: `on_hand`, `reserved`, `available = on_hand - reserved`.
-- Store site stock is a **projection** (visibility + available), not a second quantity column that can drift.
-- Movements are written on reserve, release, consume, manual adjust, and confirmed AI apply.
-- Warehouse workers operate quantities; supervisors decide store visibility.
-
-### Inventory AI chat
-
-Not an agent platform. One chat thread that accepts a file.
-
-1. Supervisor uploads CSV or XLSX (and may type a short instruction).
-2. Parser maps headers (including synonyms: `código`/`sku`, `produto`/`nome`, `qtd`/`quantidade`, `preço`/`preco_varejo`, etc.) to canonical columns.
-3. Preview table: create / update / error per row. Nothing applied yet.
-4. Supervisor clicks **Confirmar aplicação**. That is the only apply path.
-5. Apply is transactional for valid rows; invalid rows are reported and skipped. No silent overwrite.
-
-Canonical columns:
-
-| Column | Rule |
+| Status | Meaning |
 |---|---|
-| `sku` | Required. Unique per tenant. |
-| `nome` | Required to **create**; optional on update. |
-| `quantidade` | Required. **Absolute** new `on_hand`. |
-| `preco_varejo` | Optional. |
-| `preco_atacado` | Optional. |
-| `qtd_min_atacado` | Optional, default 1. |
-| `visivel_loja` | Optional boolean. |
+| `confirmado` | Commercial commitment; **reserves** stock |
+| `em_separacao` | Being prepared |
+| `despachado` | Left warehouse / handed to carrier; **consumes** stock |
+| `entregue` | Delivered |
+| `cancelado` | Cancelled before dispatch |
 
-Parser may be deterministic (synonyms) plus an optional single LLM remap when a key is configured. Product does not require a live model. Confirm is a **button**, not a chat guess.
+Transitions:
 
-### Configuration
+| From → To | Admin | Vendedor | Stock |
+|---|---|---|---|
+| create → `confirmado` | yes | yes | reserve |
+| `confirmado` → `em_separacao` | yes | yes | none |
+| `confirmado` → `cancelado` | yes | yes | release |
+| `em_separacao` → `despachado` | yes | yes | consume |
+| `em_separacao` → `cancelado` | yes | yes | release |
+| `despachado` → `entregue` | yes | yes | none |
+| cancel after `despachado` | no | no | n/a (returns later) |
 
-- Accepted documents: CPF, CNPJ, or both (`aceita_cpf`, `aceita_cnpj`; at least one).
-- Store stock visibility: per-SKU `visivel_loja`.
-- Notification channels: `email`, `whatsapp`, `ambos`.
-- Default seller for Store orders.
+Notify customer + vendedor on every status change.
 
-### Theme
+### 3) Venda / Faturamento
 
-- Editable: brand name, primary color, accent, background, logo (URL or upload).
-- Store and SaaS consume the same tokens (CSS variables or equivalent).
-- Account uses **product** chrome, not the tenant theme, so billing stays visually separate.
+Commercial close of the Pedido. **MVP stub:** no SEFAZ/NF-e, no payment gateway. Document proves the sale was “faturada” internally for CRM and demo.
 
-## Account
+| Status | Meaning |
+|---|---|
+| `rascunho` | Draft invoice doc linked to Pedido (created when user clicks Faturar) |
+| `faturado` | Confirmed commercial invoice stub |
+| `cancelado` | Cancelled stub (only from `rascunho`) |
 
-- Separate site/area. Only users with `account_owner`.
-- Supervisor, seller, warehouse, and courier do **not** access Account by role.
-- The same person may hold `account_owner` + a SaaS role (seed `dono`); they still use two surfaces.
-- MVP billing is a **manual plan flag**, not a payment provider: `subscription_status` = `ativa` | `inadimplente` | `cancelada`.
-- Plan display name is free text on the tenant (seed: “Plano Demo”).
-- Entitlements are enforced **server-side**:
-  - `ativa`: Store checkout and SaaS writes allowed.
-  - `inadimplente` / `cancelada`: Store may browse; checkout blocked. SaaS reads allowed; mutations blocked. Account owner can still change the flag.
+Transitions:
+
+| From → To | Admin | Vendedor | Gate |
+|---|---|---|---|
+| Pedido (`confirmado`+) → create Venda `rascunho` | yes | yes | Pedido not `cancelado`; no existing non-cancelled Venda |
+| `rascunho` → `faturado` | yes | yes | — |
+| `rascunho` → `cancelado` | yes | yes | — |
+
+Notify customer + vendedor when status becomes `faturado`.
+
+Payment collection and fiscal NF-e are **out of MVP** (documented later).
+
+## Loja (storefront)
+
+Public, branded for Casa dos Frios (tenant theme).
+
+- **Hero / marca** — nome Casa dos Frios; logo placeholder.
+- **Catálogo** — SKUs with `visivel_loja`; shows available = `max(0, on_hand - reserved)`.
+- **WhatsApp CTA** — opens wa.me link with prefilled text in production config; in MVP the same CTA also logs a simulated inbound intent when using the demo simulator.
+- **Cadastro** — form → `Solicitação de cadastro` `pendente`.
+- **Compra no site** — only authenticated **cliente aprovado**; creates Pedido `confirmado` directly (or Orçamento `rascunho` if tenant flag `loja_modo` = `orcamento`; default MVP: **pedido direto** for listed SKUs, orçamento still available via WhatsApp/SaaS).
+- **Meus pedidos / orçamentos** — own documents + status history.
+- Guest checkout: **forbidden**.
+
+Phase 2: native app with the same customer capabilities.
+
+## Catalog and stock (thin)
+
+- One storage ledger: `on_hand`, `reserved`, `available = on_hand - reserved`.
+- Loja is a **projection** (`visivel_loja` + available) — never a second ledger.
+- Admin maintains SKUs (name, sku, `preco_atacado`, qty, visibility). No AI file chat in MVP.
+- Atacado MOQ optional per SKU (`qtd_min_atacado`, default 1).
 
 ## Notifications
 
-- On **every** status change: notify the **customer** and the **seller** on the order.
-- Channels follow tenant config. Both email and WhatsApp are first-class in the data model.
-- **MVP transport is an outbox stub.** Each send = a `notification_outbox` row (`channel`, recipients, template key, payload, `pendente`/`enviado`/`falha`). Adapters mark `enviado` without Meta Cloud API or required SMTP.
-- Warehouse and courier are not notified in MVP (they watch queues).
-- Outbox is visible in SaaS (supervisor: all; seller: yes).
+- Channels per tenant: `email`, `whatsapp`, `ambos` (default `whatsapp` for Casa dos Frios).
+- **Outbound MVP = `notification_outbox` stub** (`pendente` / `enviado` / `falha`). Adapters mark `enviado` without Meta Cloud API or required SMTP.
+- **Inbound MVP = `whatsapp_inbox` simulated store** — seed threads + admin “simular mensagem” action. No webhook from Meta.
+- Triggers: cadastro approve/refuse; every Orçamento/Pedido/Venda status change (except silent `rascunho` create); optional reply templates from inbox (still outbox rows).
 
-## Identity and compliance
+## Identity, LGPD, security
 
-- Market: Brazil. Default language: **pt-BR**.
-- CPF/CNPJ are LGPD-sensitive: minimize, mask in UI (e.g. `***.***.***-00`), **do not log in full**.
-- Checksum (módulo 11) always runs for both documents.
-- CNPJ lookup uses public registry data (recommended port: BrasilAPI CNPJ). If the registry is down: checksum still applies, UX shows an explicit warning, registration may proceed with `cnpj_registro_pendente`.
-- Auth is tenant-scoped. Never trust the client for role, price, or stock.
+- pt-BR copy on SaaS and Loja.
+- CNPJ (and any future CPF): mask in UI; never log full values.
+- Checksum módulo 11 always; CNPJ registry via public API port (e.g. BrasilAPI); degrade path documented above.
+- Auth tenant-scoped; never trust client for role, price, or stock.
+- Sessions: secure cookie, expiry, logout; password hashed server-side.
 
-## Seed / demo tenant
+## Theme
 
-MVP has **no self-serve onboarding wizard**. QA and demos use tenant slug `demo`.
+- Editable by admin: brand name (seed “Casa dos Frios”), primary, accent, background, logo URL/upload (placeholder until real logo).
+- SaaS and Loja consume the same tokens.
+- No Account product chrome in MVP.
 
-| Email | Surfaces / role |
+## Seed tenant
+
+Slug: `casa-dos-frios`. No self-serve wizard.
+
+| Email | Role |
 |---|---|
-| `dono@demo.local` | Account owner **and** supervisor |
-| `supervisora@demo.local` | Supervisor only (proves Account is denied) |
-| `vendedor@demo.local` | Seller (also default Store-order assignee) |
-| `estoque@demo.local` | Warehouse |
-| `entregador@demo.local` | Courier |
-| `cliente.cpf@demo.local` | Store customer, CPF, varejo |
-| `cliente.cnpj@demo.local` | Store customer, CNPJ, atacado |
+| `admin@casadosfrios.local` | `admin` |
+| `vendedor@casadosfrios.local` | `vendedor` |
+| `cliente@mercadoexemplo.local` | Cliente aprovado (CNPJ) |
+| `prospecto@novaloja.local` | Cadastro `pendente` |
 
-Shared password (dev/seed only): `Demo@1234`.
+Shared seed password (dev only): `Demo@1234`.
 
-Seed also includes: dual-priced SKUs, at least one `visivel_loja=false`, one zero-available visible SKU, MOQ > 1, orders in every status, theme tokens, notification channels `ambos`, `aceita_cpf` + `aceita_cnpj`, `subscription_status=ativa`.
+Also seed: SKUs (carnes/frios lean), one hidden SKU, one zero-available, inbox threads for each intent, one orçamento in `enviado`, one pedido mid-pipeline, theme tokens, channels `whatsapp`.
 
-## MVP vs later
+## Phased roadmap
 
-### MVP (ships)
+### MVP (this spec)
 
-Thin vertical slice of **every** required module: Store, SaaS roles, storage + projection, dual prices, CPF/CNPJ, status machine + outbox notices, theme, AI file chat with confirm, Account manual entitlement, seed tenant.
+- SaaS foundation (login, users, RBAC, sessions, admin).
+- CRM inbox (simulated WhatsApp) + cadastro approval.
+- Orçamento → Pedido → Venda/Faturamento stub with notifications outbox.
+- Loja pública (marca, catálogo, WhatsApp CTA, cadastro, compra se aprovado).
+- Single seed tenant Casa dos Frios; tenant-ready data model.
+- pt-BR, LGPD, CNPJ validation.
 
-### Stubbed in MVP (documented, not fake-hidden)
+### Stubbed in MVP (explicit)
 
 | Capability | Stub |
 |---|---|
-| WhatsApp | Outbox row only; no Meta API |
-| Email | Outbox row only; SMTP optional later |
-| Billing | Manual `subscription_status`; no Stripe/PIX |
-| CNPJ registry | Real public API when reachable; tests may mock the port |
-| AI | File parse + preview + confirm; optional LLM header map; no tool platform |
-| Courier assignment | Any tenant courier may deliver |
-| Payments | Pedido is unpaid request |
+| WhatsApp outbound | Outbox row; no Meta API |
+| WhatsApp inbound | Simulated inbox + seed; no Meta webhooks |
+| Email | Outbox row; SMTP optional later |
+| Venda/Faturamento | Internal stub document; no NF-e / SEFAZ |
+| Payments | Not collected |
+| Multi-tenant selling | One seed tenant; no Account billing site |
 
-### Later (explicitly out)
+### Later (explicitly out of MVP)
 
-- Native apps; marketplace of unrelated sellers; multi-country tax; analytics dashboards.
-- Payment gateway / PIX checkout; NF-e; returns; customer self-cancel.
-- Multi-warehouse; courier assignment, routing, GPS.
-- Self-serve tenant wizard; Account team; seller territories / credit limits.
-- Coupons, shipping calculator, safety stock, rich media PDP.
-- Languages other than pt-BR.
+- Account site to sell this SaaS; self-serve tenant onboarding; white-label domains.
+- Native customer app (phase 2).
+- **Chatwoot parity desk** phases A→E — full inventory in `docs/product/chatwoot-parity.md` (evolves simulated inbox; WhatsApp stays stub until paid Meta).
+- Meta WhatsApp Cloud API (paid) replacing stubs (unlock after credentials “live”).
+- NF-e, PIX/payment gateway, returns, partial invoice.
+- Roles estoquista / entregador; courier assignment; multi-warehouse.
+- AI inventory import; varejo/CPF channel; i18n (Help Center multi-locale is parity Phase E).
 
 ## Open questions
 
@@ -210,11 +273,14 @@ Thin vertical slice of **every** required module: Store, SaaS roles, storage + p
 
 | Question | Decision |
 |---|---|
-| Order status machine | Five-step happy path + `cancelado`; matrix above. |
-| Wholesale vs retail | Shared SKUs, dual price lists; CPF varejo / CNPJ atacado. |
-| WhatsApp | Stub outbox; not a real provider. |
-| Account vs Supervisor | `account_owner` only; supervisor has no billing chrome. |
-| Seed / onboarding | Tenant `demo`; no wizard. |
-| AI inventory | CSV/XLSX canonical columns; preview; button confirm; absolute on-hand. |
+| Sales pipeline | Orçamento → Pedido de venda → Venda/Faturamento with statuses/matrices above |
+| WhatsApp | Stub outbox + simulated inbox; no Meta until paid integration is approved. Parity desk: credentials UI “pronto para conectar”; evolve inbox per `chatwoot-parity.md` |
+| CRM desk scope | Full Chatwoot feature parity committed; phased A–E; omit only with explicit phase-later justification in that brief |
+| Cadastro gate | CNPJ cadastro `aprovado` required before Pedido/Venda |
+| First tenant | Casa dos Frios seed; multi-tenant sell later |
+| Roles | `admin` + `vendedor` only |
+| Loja buy path | Default direct Pedido for aprovado; orçamentos via CRM/WhatsApp |
+| Account / SaaS billing | Out of MVP |
+| Logo | Placeholder |
 
-New questions go here only if they **block** a later phase.
+**Blocking open questions:** none for MVP build start. Non-blocking later: Meta WABA ownership, fiscal NF-e provider, native app store accounts.

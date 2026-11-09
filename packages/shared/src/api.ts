@@ -1,7 +1,7 @@
 import type { ApiErrorCode } from "./errors";
-import type { DocumentType } from "./documents";
+import type { CanalAviso } from "./subscription";
 import type { SaasRole, Surface } from "./roles";
-import type { SubscriptionStatus } from "./subscription";
+import type { CadastroStatus, LojaModo, WhatsappIntent } from "./sales-status";
 import type { ThemeTokens } from "./theme";
 
 export type ApiOk<T> = { data: T };
@@ -13,17 +13,15 @@ export type SessionDto = {
   tenant_slug: string;
   surface: Surface;
   saas_role: SaasRole | null;
-  account_owner: boolean;
   is_customer: boolean;
-  subscription_status: SubscriptionStatus;
-  document_type?: DocumentType;
+  cliente_status?: "aprovado" | "pendente" | null;
+  cnpj_last4?: string;
 };
 
 export type CatalogItemDto = {
   id: string;
   sku: string;
   nome: string;
-  preco_varejo_centavos: number;
   preco_atacado_centavos: number;
   qtd_min_atacado: number;
   available: number;
@@ -32,8 +30,16 @@ export type CatalogItemDto = {
 
 export type ThemeDto = ThemeTokens;
 
+export type LojaConfigDto = {
+  loja_modo: LojaModo;
+  whatsapp_comercial: string | null;
+  nome_fantasia: string;
+};
+
 export type Page<T> = { items: T[]; next_cursor: string | null };
 
 export function availableQty(onHand: number, reserved: number): number {
   return Math.max(0, onHand - reserved);
 }
+
+export type { CadastroStatus, WhatsappIntent, CanalAviso };

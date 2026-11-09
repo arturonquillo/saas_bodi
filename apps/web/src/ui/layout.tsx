@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { COPY } from "./copy";
 
 export function SkipLink() {
   return (
@@ -28,6 +27,32 @@ export function StoreMain({
   );
 }
 
+/**
+ * saas-starter dashboard page shell:
+ * <section className="flex-1 p-4 lg:p-8">
+ *   <h1 className="text-lg lg:text-2xl font-medium text-gray-900 mb-6">…
+ */
+export function SaasPage({
+  title,
+  actions,
+  children,
+}: {
+  title: string;
+  actions?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="flex-1 p-4 lg:p-8">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-lg font-medium text-gray-900 lg:text-2xl">{title}</h1>
+        {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/** @deprecated Prefer SaasPage — kept for store/account until rewired */
 export function SaasMain({
   children,
   className,
@@ -36,12 +61,13 @@ export function SaasMain({
   className?: string;
 }) {
   return (
-    <main id="conteudo" className={cn("mx-auto w-full max-w-[1400px] flex-1 px-4 py-6 md:px-8 md:py-8", className)}>
+    <section id="conteudo" className={cn("flex-1 p-4 lg:p-8", className)}>
       {children}
-    </main>
+    </section>
   );
 }
 
+/** @deprecated Prefer SaasPage title prop */
 export function ListHeader({
   title,
   subtitle,
@@ -54,16 +80,16 @@ export function ListHeader({
   filters?: React.ReactNode;
 }) {
   return (
-    <header className="mb-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-          {subtitle ? <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p> : null}
+          <h1 className="text-lg font-medium text-gray-900 lg:text-2xl">{title}</h1>
+          {subtitle ? <p className="mt-1 text-sm text-gray-500">{subtitle}</p> : null}
         </div>
         {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
       </div>
       {filters ? <div className="mt-3">{filters}</div> : null}
-    </header>
+    </div>
   );
 }
 
@@ -73,7 +99,7 @@ export function DeskWrap({
   ...props
 }: React.ComponentProps<"div">) {
   return (
-    <div className={cn("overflow-hidden rounded-xl border border-border bg-card", className)} {...props}>
+    <div className={cn("overflow-hidden rounded-xl border border-gray-200 bg-white", className)} {...props}>
       {children}
     </div>
   );
@@ -81,19 +107,20 @@ export function DeskWrap({
 
 export function FormWrap({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("rounded-xl border border-border bg-card p-6", className)}>{children}</div>
+    <div className={cn("rounded-xl border border-gray-200 bg-white p-6", className)}>{children}</div>
   );
 }
 
 export function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="space-y-3 py-4 first:pt-0">
-      <h2 className="text-sm font-semibold">{title}</h2>
+      <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
       {children}
     </section>
   );
 }
 
+/** saas-starter (login)/login.tsx shell */
 export function AuthStage({
   children,
   className,
@@ -104,7 +131,10 @@ export function AuthStage({
   return (
     <main
       id="conteudo"
-      className={cn("flex min-h-dvh flex-col items-center justify-center bg-background px-4 py-8", className)}
+      className={cn(
+        "flex min-h-[100dvh] flex-col justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8",
+        className,
+      )}
     >
       {children}
     </main>

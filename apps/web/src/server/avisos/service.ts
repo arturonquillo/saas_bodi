@@ -1,47 +1,38 @@
-import { db } from "../db";
 import type { SessionContext } from "../authz/session";
-import { decodeCursor, encodeCursor } from "../http/pagination";
+import { assertSaasRole } from "../authz/gates";
+import { db } from "../db";
+import { decodeCursor, encodeCursor, parsePaging } from "../http/pagination";
 
-export async function listAvisos(session: SessionContext, paging: { limit: number; cursor: string | null }) {
-  const decoded = decodeCursor(paging.cursor);
-  const cursorDate = decoded?.[0] ? new Date(decoded[0]) : null;
-  const cursorId = decoded?.[1];
-  const items = await db.notificationOutbox.findMany({
+export async function listAvisos(session: SessionContext, url: URL) {
+  assertSaasRole(session, "admin", "vendedor");
+  const { limit, cursor } = parsePaging(url);
+  const decoded = decodeCursor(cursor);
+  const rows = await db.notificationOutbox.findMany({
     where: {
       tenantId: session.tenantId,
-      ...(cursorDate && cursorId
-        ? {
-            OR: [
-              { createdAt: { lt: cursorDate } },
-              { createdAt: cursorDate, id: { lt: cursorId } },
-            ],
-          }
-        : {}),
+      // Commerce UX: treat null-era rows as commerce via default; filter category.
+      category: "commerce",
+      ...(decoded ? { id: { gt: decoded[0] } } : {}),
     },
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    take: paging.limit + 1,
+    orderBy: { id: "asc" },
+    take: limit + 1,
   });
-  const next = items.length > paging.limit ? items.pop()! : null;
+  const page = rows.slice(0, limit);
   return {
-    items: items.map((row) => ({
-      id: row.id,
-      order_id: row.orderId,
-      channel: row.channel,
-      recipient_role: row.recipientRole,
-      recipient: row.recipient,
-      template_key: row.templateKey,
-      payload: safeJson(row.payloadJson),
-      status: row.status,
-      created_at: row.createdAt.toISOString(),
+    items: page.map((r) => ({
+      id: r.id,
+      channel: r.channel,
+      recipient_role: r.recipientRole,
+      // mask recipient lightly for list (still PII — keep short)
+      recipient: r.recipient.length > 4 ? `${r.recipient.slice(0, 2)}***` : "***",
+      template_key: r.templateKey,
+      status: r.status,
+      orcamento_id: r.orcamentoId,
+      pedido_id: r.pedidoId,
+      venda_id: r.vendaId,
+      cadastro_request_id: r.cadastroRequestId,
+      created_at: r.createdAt.toISOString(),
     })),
-    next_cursor: next ? encodeCursor([next.createdAt.toISOString(), next.id]) : null,
+    next_cursor: rows.length > limit ? encodeCursor([page[page.length - 1]!.id]) : null,
   };
-}
-
-function safeJson(value: string) {
-  try {
-    return JSON.parse(value) as unknown;
-  } catch {
-    return {};
-  }
 }

@@ -2,8 +2,10 @@ import type { CSSProperties } from "react";
 import type { ThemeTokens } from "@saas-frota/shared";
 import { THEME_CSS_VARS } from "@saas-frota/shared";
 
-const INK = "#1C1917";
-const CREAM = "#F6EFE3";
+/** Design locked contrast pair — docs/design/tokens.md */
+const TEXT = "#141A1F";
+const ON_PRIMARY = "#F7F1F0";
+const ON_ACCENT = "#F2F8FA";
 const WHITE = "#FFFFFF";
 
 function parseHex(hex: string): [number, number, number] | null {
@@ -49,21 +51,18 @@ function mix(hex: string, toward: string, t: number) {
   ]);
 }
 
-export function textOn(bg: string) {
-  return contrastRatio(CREAM, bg) >= contrastRatio(INK, bg) ? CREAM : INK;
+export function textOnPrimary(_bg: string) {
+  void _bg;
+  return ON_PRIMARY;
 }
 
 export function themePassesContrast(tokens: ThemeTokens) {
-  const onPrimary = textOn(tokens.primary);
-  return contrastRatio(INK, tokens.background) >= 4.5 && contrastRatio(onPrimary, tokens.primary) >= 4.5;
+  return contrastRatio(TEXT, tokens.background) >= 4.5 && contrastRatio(ON_PRIMARY, tokens.primary) >= 4.5;
 }
 
-/** Apply tenant editor-contract vars on Store/SaaS. Account must not call this.
- *  shadcn --primary/--background/--accent are mapped per surface in globals.css —
- *  never assign tenant --color-background to --background or --color-accent to --accent. */
+/** Apply tenant editor-contract vars on Loja/SaaS.
+ *  Never assign tenant --color-background to --background or --color-accent to shadcn --accent. */
 export function themeStyle(tokens: ThemeTokens): CSSProperties {
-  const onPrimary = textOn(tokens.primary);
-  const onAccent = textOn(tokens.accent);
   return {
     [THEME_CSS_VARS.marca]: tokens.marca,
     [THEME_CSS_VARS.primary]: tokens.primary,
@@ -71,12 +70,13 @@ export function themeStyle(tokens: ThemeTokens): CSSProperties {
     [THEME_CSS_VARS.background]: tokens.background,
     [THEME_CSS_VARS.logo_url]: tokens.logo_url ? `url(${tokens.logo_url})` : "none",
     "--color-marca": tokens.primary,
-    "--color-text-on-primary": onPrimary,
-    "--color-text-on-accent": onAccent,
+    "--color-text": TEXT,
+    "--color-text-on-primary": ON_PRIMARY,
+    "--color-text-on-accent": ON_ACCENT,
     "--color-surface": mix(tokens.background, WHITE, 0.55),
     "--color-surface-raised": WHITE,
-    "--color-border": mix(tokens.background, INK, 0.12),
+    "--color-border": mix(tokens.background, TEXT, 0.12),
     "--brand-accent": tokens.accent,
-    "--brand-accent-foreground": onAccent,
+    "--brand-accent-foreground": ON_ACCENT,
   } as CSSProperties;
 }

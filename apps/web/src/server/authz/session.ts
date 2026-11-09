@@ -7,9 +7,8 @@ import { env } from "../env";
 import { ApiError } from "../http/respond";
 
 export const SESSION_COOKIE: Record<Surface, string> = {
-  loja: "sf_sessao_loja",
-  saas: "sf_sessao_saas",
-  conta: "sf_sessao_conta",
+  loja: "cdf_sessao_loja",
+  saas: "cdf_sessao_saas",
 };
 
 const TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -20,10 +19,11 @@ export type SessionContext = {
   tenantSlug: string;
   surface: Surface;
   saasRole: SaasRole | null;
-  accountOwner: boolean;
   isCustomer: boolean;
-  subscriptionStatus: "ativa" | "inadimplente" | "cancelada";
-  documentType?: "cpf" | "cnpj";
+  clienteStatus: "aprovado" | "pendente" | null;
+  cnpjLast4?: string;
+  clienteId?: string;
+  cadastroRequestId?: string;
 };
 
 function hashToken(token: string) {
@@ -65,6 +65,36 @@ export async function destroySession(surface: Surface) {
   jar.delete(SESSION_COOKIE[surface]);
 }
 
+async function resolveClienteContext(userId: string, tenantId: string) {
+  const cliente = await db.cliente.findFirst({
+    where: { tenantId, userId, status: "aprovado" },
+  });
+  if (cliente) {
+    return {
+      clienteStatus: "aprovado" as const,
+      cnpjLast4: cliente.cnpjLast4,
+      clienteId: cliente.id,
+      cadastroRequestId: cliente.cadastroRequestId ?? undefined,
+    };
+  }
+  const user = await db.user.findUnique({ where: { id: userId } });
+  if (!user) {
+    return { clienteStatus: null };
+  }
+  const cadastro = await db.cadastroRequest.findFirst({
+    where: { tenantId, email: user.email, status: "pendente" },
+    orderBy: { createdAt: "desc" },
+  });
+  if (cadastro) {
+    return {
+      clienteStatus: "pendente" as const,
+      cnpjLast4: cadastro.cnpjLast4,
+      cadastroRequestId: cadastro.id,
+    };
+  }
+  return { clienteStatus: null };
+}
+
 export async function readSession(surface: Surface): Promise<SessionContext | null> {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE[surface])?.value;
@@ -73,23 +103,22 @@ export async function readSession(surface: Surface): Promise<SessionContext | nu
     where: { tokenHash: hashToken(token) },
     include: {
       tenant: true,
-      user: { include: { memberships: true, customerOf: true } },
+      user: { include: { memberships: true } },
     },
   });
   if (!row || row.surface !== surface || row.expiresAt < new Date()) return null;
+  if (!row.user.ativo) return null;
   const membership = row.user.memberships.find((m) => m.tenantId === row.tenantId);
   if (!membership) return null;
-  const profile = row.user.customerOf.find((p) => p.tenantId === row.tenantId);
+  const clienteCtx = await resolveClienteContext(row.userId, row.tenantId);
   return {
     userId: row.userId,
     tenantId: row.tenantId,
     tenantSlug: row.tenant.slug,
     surface,
     saasRole: membership.saasRole,
-    accountOwner: membership.accountOwner,
     isCustomer: membership.isCustomer,
-    subscriptionStatus: row.tenant.subscriptionStatus,
-    documentType: profile?.documentType,
+    ...clienteCtx,
   };
 }
 
@@ -110,7 +139,7 @@ export async function loginSurface(input: {
     where: { email: input.email.toLowerCase() },
     include: { memberships: true },
   });
-  if (!user || !(await bcrypt.compare(input.password, user.passwordHash))) {
+  if (!user || !user.ativo || !(await bcrypt.compare(input.password, user.passwordHash))) {
     throw new ApiError("unauthenticated", "E-mail ou senha inválidos.");
   }
   const tenant = await db.tenant.findUnique({ where: { slug } });
@@ -123,9 +152,6 @@ export async function loginSurface(input: {
   }
   if (input.surface === "saas" && !membership.saasRole) {
     throw new ApiError("forbidden", "Esta conta não tem papel no SaaS.");
-  }
-  if (input.surface === "conta" && !membership.accountOwner) {
-    throw new ApiError("forbidden", "Apenas o dono da conta acessa Conta.");
   }
 
   await createSession({ userId: user.id, tenantId: tenant.id, surface: input.surface });

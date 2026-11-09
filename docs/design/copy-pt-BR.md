@@ -1,311 +1,273 @@
-# Copy pt-BR
+# Copy pt-BR — Casa dos Frios
 
-Canonical strings. Frontend must not invent synonyms for status, channels, or entitlement reasons.
+Locked strings for MVP. Do not invent alternate status labels.
 
-## Shared — status
-
-| Key | Label |
-|---|---|
-| `novo` | Novo |
-| `confirmado` | Confirmado |
-| `separando` | Separando |
-| `despachado` | Despachado |
-| `entregue` | Entregue |
-| `cancelado` | Cancelado |
-
-Trail helper: `Novo → Confirmado → Separando → Despachado → Entregue`
-
-## Shared — stock and price
-
-| Key | Label |
-|---|---|
-| on_hand | Em estoque |
-| reserved | Reservado |
-| available | Disponível |
-| preco_varejo / guest+CPF | Varejo |
-| preco_atacado / CNPJ | Atacado |
-| qtd_min_atacado | Qtd. mín. {n} un |
-| visivel_loja | Visível na loja |
-| sem_estoque | Sem estoque |
-
-## Shared — documents
+## Brand
 
 | Key | String |
 |---|---|
-| cpf | CPF |
-| cnpj | CNPJ |
-| doc_switch_hint | Informe o documento da conta |
-| checksum_invalid | CPF ou CNPJ inválido. |
-| cnpj_loading | Consultando CNPJ… |
-| cnpj_filled | Confira os dados da empresa. |
-| cnpj_registry_down | Não consultamos o CNPJ agora. Você pode continuar e completar os dados. |
-| razao_social | Razão social |
-| mask_cpf | ***.***.***-00 |
-| mask_cnpj | **.***.***/****-00 |
+| marca | Casa dos Frios |
+| hero_headline | Frios e carnes no atacado, com atendimento no WhatsApp. |
+| hero_support | Cadastro CNPJ, orçamento e pedido em um só lugar. |
+| logo_unavailable | Logo indisponível |
+| logo_placeholder_alt | Casa dos Frios |
 
-## Shared — actions
+## Auth
 
 | Key | String |
 |---|---|
-| entrar | Entrar |
-| cadastrar | Cadastrar |
-| sair | Sair |
-| salvar | Salvar |
-| cancelar | Cancelar |
-| tentar_de_novo | Tentar de novo |
-| confirmar | Confirmar |
-| fechar | Fechar |
+| login_title_saas | Entrar no SaaS |
+| login_title_loja | Entrar na loja |
+| email | E-mail |
+| password | Senha |
+| submit_login | Entrar |
+| logout | Sair |
+| login_error | E-mail ou senha inválidos. |
+| account_disabled | Conta desativada. |
+| session_expired | Sua sessão expirou. Entre novamente. |
 
-## Shared — notify after status change
-
-Use immediately after a successful transition (SaaS detail). Match tenant `canais_aviso`.
-
-| `canais_aviso` | String |
-|---|---|
-| `whatsapp` | Cliente avisado no WhatsApp. |
-| `email` | Cliente avisado por e-mail. |
-| `ambos` | Cliente avisado no WhatsApp e por e-mail. |
-
-Second line (always, after the customer line): `Vendedor avisado no mesmo canal.`
-
-Outbox channel column: `E-mail` · `WhatsApp`  
-Outbox status: `Pendente` · `Enviado` · `Falha`
-
-## Shared — entitlement
-
-| Key | String |
-|---|---|
-| store_blocked_inadimplente | A loja não está aceitando pedidos (assinatura inadimplente). |
-| store_blocked_cancelada | A loja não está aceitando pedidos (assinatura cancelada). |
-| saas_ro_inadimplente | Assinatura inadimplente. Somente leitura. |
-| saas_ro_cancelada | Assinatura cancelada. Somente leitura. |
-| account_effect_lock | Pedidos na loja e alterações no SaaS ficarão bloqueados. |
-| account_effect_unlock | Pedidos na loja e alterações no SaaS serão liberados. |
-
-Do not add “Ir para a Conta” / “Falar com o financeiro”.
-
-## Store
-
-Woo shop chrome (do not rename status labels). Footer columns use `footer_col_*`; links reuse `nav_catalogo`, `nav_carrinho`, `entrar`, `cadastrar`, `nav_pedidos`. Cart header: `nav_carrinho` + `cart_itens` / `cart_item_one`. Breadcrumb starts with `breadcrumb_inicio`.
+## Loja chrome / CTAs
 
 | Key | String |
 |---|---|
 | nav_catalogo | Catálogo |
+| nav_cadastro | Cadastro |
 | nav_carrinho | Carrinho |
-| nav_pedidos | Meus pedidos |
-| add | Adicionar |
-| added | Adicionado ao carrinho |
-| qty | Quantidade |
-| finalizar | Finalizar pedido |
-| entrar_para_pedir | Entrar para pedir |
-| pedido_enviado | Pedido enviado |
-| pedido_n | Pedido {id} |
-| empty_catalog | Nenhum produto visível na loja. |
-| empty_cart | Seu carrinho está vazio. |
-| empty_orders | Você ainda não fez pedidos. |
-| ver_catalogo | Ver catálogo |
-| moq_error | Quantidade mínima no atacado: {n}. |
-| price_changed | Os preços do carrinho foram atualizados para a sua lista. |
-| pdp_unavailable | Produto indisponível. |
-| order_not_found | Pedido não encontrado. |
-| load_error | Não foi possível carregar. |
-| guest_hint | Entre para enviar o pedido. Não vendemos como convidado. |
-| password | Senha |
-| submit_register | Criar conta |
-| submit_login | Entrar |
-| catalog_kicker | Estoque visível |
-| catalog_lede_guest | Preços de varejo. Cadastre um CNPJ para ver o atacado. |
-| catalog_lede_varejo | Lista varejo · CPF |
-| catalog_lede_atacado | Lista atacado · CNPJ |
-| auth_kicker_store | Acesso do cliente |
-| auth_my_account | Minha conta |
-| shop_showing | Mostrando {n} produtos |
-| shop_showing_one | Mostrando 1 produto |
-| cart_itens | {n} itens |
-| cart_item_one | 1 item |
-| breadcrumb_inicio | Início |
-| footer_col_loja | Loja |
-| footer_col_conta | Minha conta |
+| nav_meus_docs | Meus documentos |
+| cta_whatsapp | WhatsApp |
+| cta_ver_catalogo | Ver catálogo |
+| cta_cadastrar | Quero me cadastrar |
+| add_to_cart | Adicionar |
+| sem_estoque | Sem estoque |
+| moq | Qtd. mín. {n} un |
+| price_atacado | Atacado |
+| checkout | Enviar pedido |
+| cart_empty | Seu carrinho está vazio. |
+| catalog_empty | Nenhum produto visível na loja. |
 
-## SaaS — nav and chrome
-
-| Role | Nav items (order) |
-|---|---|
-| supervisor | Pedidos · Estoque · Chat de estoque · Tema · Configuração · Avisos |
-| vendedor | Pedidos · Estoque · Avisos |
-| estoquista | Fila do depósito · Estoque |
-| entregador | Entregas |
-
-Role chip: `Supervisor` / `Supervisora` (seed: Supervisora) · `Vendedor` · `Estoquista` · `Entregador`
-
-Visual kickers / page subtitles (do not replace nav labels):
+## Cadastro
 
 | Key | String |
 |---|---|
-| auth_kicker_saas | Acesso da equipe |
-| nav_group_ops | Operação |
-| nav_group_casa | Casa |
-| kpi_novo | Novos |
-| kpi_confirmado | Confirmados |
-| kpi_separando | Separando |
-| kpi_despachado | Despachados |
-| kpi_entregue | Entregues |
-| kpi_skus | SKUs |
-| kpi_hidden | Ocultos na loja |
-| kpi_zero | Sem estoque |
-| color_mode | Aparência |
-| color_mode_light | Claro |
-| color_mode_dark | Escuro |
-| color_mode_system | Automático |
-| saas_sub_pedidos | Pipeline da casa |
-| saas_sub_fila | Confirmado, separando, despachado |
-| saas_sub_entregas | Despachado e entregue |
-| saas_sub_novo | Preço pela lista do cliente |
-| saas_sub_estoque | Em estoque, reservado, disponível |
-| saas_sub_chat | Prévia antes de aplicar |
-| saas_sub_tema | Cores da loja e do SaaS |
-| saas_sub_config | Documentos e canais |
-| saas_sub_avisos | Caixa de saída |
+| cadastro_title | Cadastro atacadista |
+| cnpj | CNPJ |
+| razao_social | Razão social |
+| contato | Nome do contato |
+| whatsapp | WhatsApp |
+| cadastro_submit | Enviar cadastro |
+| cadastro_ok | Cadastro enviado. Aguarde aprovação. |
+| cadastro_pendente_gate | Seu cadastro ainda não foi aprovado. Você será avisado no WhatsApp. |
+| cnpj_invalid | CNPJ inválido. |
+| registry_down | Não consultamos o CNPJ agora. Você pode continuar e completar os dados. |
+| registry_pending_badge | Registro pendente |
+| approve | Aprovar |
+| refuse | Recusar |
+| refuse_reason | Motivo da recusa |
+| refuse_reason_required | Informe o motivo da recusa. |
+| status_pendente | Pendente |
+| status_aprovado | Aprovado |
+| status_recusado | Recusado |
 
-## SaaS — Desk chrome
-
-Do not rename status labels. Reuse `customer`, `novo_pedido`, `auth_kicker_saas`, and `saas_sub_*` above.
+## Cadastro gate (SaaS)
 
 | Key | String |
 |---|---|
-| desk_menu | Menu |
-| filter_status | Status |
-| filter_todos | Todos |
-| col_pedido | Pedido |
-| col_total | Total |
-| col_updated | Atualizado |
-| col_sku | SKU |
-| col_nome | Nome |
-| col_date | Data |
-| col_channel | Canal |
-| col_dest | Destino |
-| col_template | Modelo |
-| col_action | Ação |
-| col_msg | Msg |
-| col_row | # |
-| section_items | Itens |
-| section_qty | Quantidades |
-| history | Histórico |
-| load_more | Carregar mais |
-| criar_pedido | Criar pedido |
+| gate_not_approved | Cadastro não aprovado. Aprove o cadastro antes de continuar. |
+| error_cadastro_nao_aprovado | Cliente sem cadastro aprovado. |
 
-## SaaS — orders
+## Orçamento statuses
+
+| Status | Label |
+|---|---|
+| rascunho | Rascunho |
+| enviado | Enviado |
+| aceito | Aceito |
+| recusado | Recusado |
+| expirado | Expirado |
+| cancelado | Cancelado |
 
 | Key | String |
 |---|---|
-| novo_pedido | Novo pedido |
-| customer | Cliente |
-| buscar_cliente | Buscar cliente |
-| add_line | Adicionar item |
-| unit_price | Preço unitário |
-| to_confirmado | Confirmar pedido |
-| to_cancelado | Cancelar pedido |
-| to_separando | Separar |
-| to_despachado | Despachar |
+| orcamento_novo | Novo orçamento |
+| orcamento_enviar | Enviar orçamento |
+| orcamento_aceitar | Aceitar orçamento |
+| orcamento_recusar | Recusar orçamento |
+| orcamento_expired | Este orçamento expirou. |
+| valido_ate | Válido até |
+
+## Pedido statuses
+
+| Status | Label |
+|---|---|
+| confirmado | Confirmado |
+| em_separacao | Em separação |
+| despachado | Despachado |
+| entregue | Entregue |
+| cancelado | Cancelado |
+
+| Key | String |
+|---|---|
+| pedido_novo | Novo pedido |
+| pedido_ok | Pedido confirmado. |
+| to_em_separacao | Iniciar separação |
+| to_despachado | Marcar despachado |
 | to_entregue | Marcar entregue |
-| confirm_dispatch | Isso baixa o estoque. Confirmar despacho? |
-| cancel_confirm | Cancelar este pedido? |
-| empty_orders | Nenhum pedido. |
-| empty_warehouse | Nada na fila do depósito. |
-| empty_courier | Nenhuma entrega. |
-| illegal_hidden | (no string — omit the button) |
+| cancel_pedido | Cancelar pedido |
 
-## SaaS — stock
+## Venda statuses
+
+| Status | Label |
+|---|---|
+| rascunho | Rascunho |
+| faturado | Faturado |
+| cancelado | Cancelado |
 
 | Key | String |
 |---|---|
-| empty_skus | Nenhum SKU. |
-| movements | Movimentações |
-| adjust | Ajustar quantidade |
-| adjust_reason | Motivo |
-| adjust_submit | Registrar ajuste |
-| visible_on | Visível na loja |
-| visible_off | Oculto na loja |
-| toggle_hint | Controla se o SKU aparece no catálogo. Não altera quantidades. |
+| faturar | Faturar |
+| confirmar_faturamento | Confirmar faturamento |
+| venda_stub_banner | Faturamento interno (stub) — sem NF-e. |
+| venda_faturada | Faturamento interno registrado (stub). |
 
-## SaaS — chat
+## Inbox (legacy keys — map UI to CRM)
 
 | Key | String |
 |---|---|
-| chat_title | Chat de estoque |
-| chat_empty | Envie um CSV ou XLSX para gerar a prévia. |
-| instruction_ph | Instrução curta (opcional) |
-| upload | Enviar arquivo |
-| parsing | Lendo o arquivo… |
-| preview_title | Prévia — nada foi aplicado |
-| row_create | Criar |
-| row_update | Atualizar |
-| row_error | Erro |
-| confirm_apply | Confirmar aplicação |
-| confirm_hint | Só este botão aplica o estoque. Linhas com erro serão ignoradas. |
-| discard_preview | Descartar |
-| discarded | Nada foi aplicado. |
-| apply_ok | {n} linhas aplicadas. {m} linhas ignoradas. |
-| file_unreadable | Não foi possível ler o arquivo. |
-| headers_missing | Faltam colunas: {cols}. |
-| confirm_disabled_all_bad | Nenhuma linha válida para aplicar. |
+| inbox_title | Conversas |
+| inbox_empty | Nenhuma conversa ainda. |
+| simulate_message | Simular mensagem |
+| simulate_ok | Mensagem simulada adicionada. |
+| intent | Label |
+| intent_cadastro | Cadastro |
+| intent_orcamento | Orçamento |
+| intent_info_empresa | Info empresa |
+| intent_outro | Outro |
+| outbox_stub_note | Registrado (stub). |
 
-Composer placeholder: `Escreva uma instrução ou envie o arquivo.` Sending text alone does **not** apply stock.
-
-## SaaS — theme and config
+## CRM desk (Phase A)
 
 | Key | String |
 |---|---|
+| nav_conversas | Conversas |
+| nav_contatos | Contatos |
+| nav_empresas | Empresas |
+| nav_labels | Labels |
+| nav_equipes | Equipes |
+| nav_respostas_rapidas | Respostas rápidas |
+| nav_caixas | Caixas de entrada |
+| nav_notificacoes | Notificações |
+| nav_perfil_crm | Perfil |
+| nav_relatorios | Relatórios |
+| conversas_title | Conversas |
+| conversas_empty | Nenhuma conversa ainda. |
+| conversas_empty_filter | Nenhuma conversa neste filtro. |
+| conversas_filter_mine | Minhas |
+| conversas_filter_unassigned | Não atribuídas |
+| conversas_filter_open | Abertas |
+| conversas_filter_pending | Pendentes |
+| conversas_filter_snoozed | Adiadas |
+| conversas_filter_resolved | Resolvidas |
+| conversas_clear_filters | Limpar filtros |
+| status_open | Aberta |
+| status_pending | Pendente |
+| status_snoozed | Adiada |
+| status_resolved | Resolvida |
+| priority_low | Baixa |
+| priority_medium | Média |
+| priority_high | Alta |
+| priority_urgent | Urgente |
+| assign | Atribuir |
+| team | Equipe |
+| private_note | Nota privada |
+| send_reply | Enviar |
+| snooze | Adiar |
+| mute | Silenciar |
+| bulk_actions | Ações em massa |
+| viewing_collision | {nome} está vendo esta conversa. |
+| sse_poll_fallback | Atualizando a cada 15s… |
+| contatos_title | Contatos |
+| contatos_empty | Nenhum contato. |
+| contato_novo | Novo contato |
+| contato_nova_conversa | Nova conversa |
+| empresas_title | Empresas |
+| empresas_empty | Nenhuma empresa. |
+| empresa_nova | Nova empresa |
+| labels_title | Labels |
+| labels_empty | Nenhum label. |
+| label_create | Criar label |
+| label_system | Sistema |
+| equipes_title | Equipes |
+| equipes_empty | Nenhuma equipe. |
+| equipe_create | Criar equipe |
+| equipe_members | Membros |
+| respostas_title | Respostas rápidas |
+| respostas_empty | Nenhuma resposta rápida. |
+| resposta_create | Criar resposta |
+| resposta_shortcode | Atalho |
+| caixas_title | Caixas de entrada |
+| caixa_members | Membros da caixa |
+| canal_title | Canal WhatsApp |
+| canal_not_configured | Não configurado |
+| canal_credentials_saved | Credenciais salvas |
+| canal_ready_stub | Pronto para conectar |
+| canal_mark_ready | Marcar pronto para conectar |
+| canal_stub_alert | Envio e recebimento reais aguardam integração Meta aprovada. Você pode salvar credenciais e simular mensagens. |
+| canal_secrets_change | Alterar |
+| canal_templates | Modelos (cache stub) |
+| notificacoes_empty | Nenhuma notificação. |
+| notificacoes_prefs | Preferências de notificação |
+| perfil_availability | Disponibilidade |
+| availability_online | Online |
+| availability_busy | Ocupado |
+| availability_offline | Offline |
+| perfil_signature | Assinatura |
+| search_placeholder | Buscar conversas, contatos, mensagens… |
+| search_empty | Nenhum resultado para “{q}”. |
+| relatorios_stub | Relatórios na fase C. |
+| phase_later_tooltip | Em breve — fase {phase} |
+
+## Notify lines
+
+| canais_aviso | String |
+|---|---|
+| whatsapp | Cliente avisado no WhatsApp. |
+| email | Cliente avisado por e-mail. |
+| ambos | Cliente avisado no WhatsApp e por e-mail. |
+| seller_same | Vendedor avisado no mesmo canal. |
+
+## Admin / users
+
+| Key | String |
+|---|---|
+| users_title | Usuários |
+| user_create | Criar usuário |
+| user_deactivate | Desativar |
+| user_deactivate_confirm | Desativar este usuário? Ele não poderá entrar. |
+| role_admin | Admin |
+| role_vendedor | Vendedor |
 | theme_title | Tema |
-| theme_marca | Nome da marca |
-| theme_primary | Cor principal |
-| theme_accent | Cor de destaque |
-| theme_background | Fundo |
-| theme_logo | Logo |
 | theme_save | Salvar tema |
-| theme_preview | Prévia |
-| theme_contrast | Este fundo não tem contraste suficiente com o texto. |
-| theme_logo_missing | Logo indisponível |
-| theme_dirty | Descartar alterações do tema? |
+| theme_contrast_fail | Contraste insuficiente. Ajuste as cores. |
 | config_title | Configuração |
-| aceita_cpf | Aceitar CPF (varejo) |
-| aceita_cnpj | Aceitar CNPJ (atacado) |
-| last_flag | Mantenha ao menos um documento. |
-| canais | Canais de aviso |
-| canal_email | E-mail |
-| canal_whatsapp | WhatsApp |
-| canal_ambos | E-mail e WhatsApp |
-| default_seller | Vendedor padrão da loja |
-| outbox_title | Avisos |
-| empty_outbox | Nenhum aviso registrado. |
+| avisos_title | Avisos |
 
-## Account
+## Estoque
 
 | Key | String |
 |---|---|
-| title | Conta |
-| product | saas_frota |
-| plan | Plano |
-| status | Status |
-| status_ativa | Ativa |
-| status_inadimplente | Inadimplente |
-| status_cancelada | Cancelada |
-| reativar | Reativar |
-| marcar_inadimplente | Marcar inadimplente |
-| cancelar_assinatura | Cancelar assinatura |
-| confirm_inadimplente | Marcar o plano como inadimplente? Pedidos na loja e alterações no SaaS ficarão bloqueados. |
-| confirm_cancel | Cancelar a assinatura? Pedidos na loja e alterações no SaaS ficarão bloqueados. |
-| confirm_reativar | Reativar o plano? Pedidos na loja e alterações no SaaS serão liberados. |
-| save_error | Não foi possível atualizar o plano. |
-| forbidden | Você não tem acesso. |
-| seed_plan | Plano Demo |
-| auth_kicker_account | Acesso da conta |
+| on_hand | Em estoque |
+| reserved | Reservado |
+| available | Disponível |
+| visivel_loja | Visível na loja |
+| adjust_qty | Ajustar quantidade |
+| motivo | Motivo |
 
-## Errors (generic)
+## Shared errors / empty
 
 | Key | String |
 |---|---|
-| load_error | Não foi possível carregar. |
-| save_error | Não foi possível concluir. |
+| load_fail | Não foi possível carregar. |
+| retry | Tentar de novo |
+| save_fail | Não foi possível concluir. |
 | not_found | Não encontrado. |
-| forbidden | Você não tem acesso. |
+| discard_theme | Descartar alterações do tema? |

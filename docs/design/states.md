@@ -1,116 +1,112 @@
-# States
+# States — Casa dos Frios
 
-Cross-surface empty, error, forbidden, loading, entitlement, and parse-error. Copy strings: [`copy-pt-BR.md`](./copy-pt-BR.md).
+Empty, loading, error, forbidden, and **cadastro gates**. Copy: [`copy-pt-BR.md`](./copy-pt-BR.md).
 
-Use these patterns; do not invent extra full-page illustrations or a toast-only error language.
+**No subscription entitlement states** in MVP.
 
 ## Loading
 
-- Keep the surface chrome (Store header / SaaS nav / Account product bar).
-- Replace the main body with skeletons that match the layout (cards on Store catalog, rows on SaaS tables, one card on Account).
+- Keep chrome (Loja header / SaaS sidebar).
+- Body → skeletons matching layout (tiles on Loja, rows on SaaS tables, Conversas panes).
 - No spinner-only blank page.
-- Chat parse: a single in-thread line “Lendo o arquivo…” — not a new route.
 
 ## Empty
 
 | Surface | Context | Title | Next step |
 |---|---|---|---|
-| Store | Catalog, no visible SKUs | Nenhum produto visível na loja. | None for the customer (supervisor must toggle `visivel_loja`) |
-| Store | Cart | Seu carrinho está vazio. | Ver catálogo |
-| Store | Meus pedidos | Você ainda não fez pedidos. | Ver catálogo |
-| SaaS | Pedidos (supervisor/vendedor) | Nenhum pedido. | Novo pedido |
-| SaaS | Fila depósito | Nada na fila do depósito. | None (they wait) |
-| SaaS | Entregas | Nenhuma entrega. | None |
-| SaaS | Estoque | Nenhum SKU. | Chat de estoque (supervisor only) |
-| SaaS | Outbox | Nenhum aviso registrado. | None |
-| SaaS | Chat (no file yet) | Envie um CSV ou XLSX para gerar a prévia. | Upload |
-| Account | — | Do not use an empty state; plan always exists | — |
+| Loja | Catalog, no visible SKUs | Nenhum produto visível na loja. | None for customer |
+| Loja | Cart | Seu carrinho está vazio. | Ver catálogo |
+| Loja | Meus docs | Você ainda não tem orçamentos ou pedidos. | Ver catálogo / WhatsApp |
+| SaaS | Conversas (zero) | Nenhuma conversa ainda. | Simular mensagem (admin) |
+| SaaS | Conversas (filter) | Nenhuma conversa neste filtro. | Limpar filtros |
+| SaaS | Contatos | Nenhum contato. | Novo contato |
+| SaaS | Empresas | Nenhuma empresa. | Nova empresa |
+| SaaS | Labels | Nenhum label. | Criar label |
+| SaaS | Equipes | Nenhuma equipe. | Criar equipe |
+| SaaS | Respostas rápidas | Nenhuma resposta rápida. | Criar resposta |
+| SaaS | Notificações | Nenhuma notificação. | — |
+| SaaS | Relatórios stub | Relatórios na fase C. | — |
+| SaaS | Cadastros | Nenhum cadastro. | — |
+| SaaS | Orçamentos | Nenhum orçamento. | Novo orçamento |
+| SaaS | Pedidos | Nenhum pedido. | Novo pedido (aprovado) |
+| SaaS | Vendas | Nenhuma venda. | Faturar a partir de um pedido |
+| SaaS | Estoque | Nenhum SKU. | Criar SKU (admin) |
+| SaaS | Outbox | Nenhum aviso registrado. | — |
+| SaaS | Usuários | Nenhum usuário. | Criar usuário |
 
-Empty is the existing title + optional one secondary link. A small CSS-only art block (gradient tile, no image files) may sit above the title per [`visual.md`](./visual.md). Do not add a marketing empty-module or raster illustrations.
+Empty = title + optional one secondary action. Optional cool gradient tile — no marketing illustration packs. CRM detail: [`crm-desk.md`](./crm-desk.md).
 
 ## Error (recoverable)
 
-Inline or page section, not a modal that blocks nav.
-
 - Load fail: “Não foi possível carregar.” + **Tentar de novo**.
-- Save / transition fail: keep the form; show the server reason if it is a known domain error (MOQ, estoque, entitlement, 409 transition); otherwise generic “Não foi possível concluir.”
-- Network: same generic + retry.
-- Do not dump stack traces.
+- Save / transition fail: keep form; show domain reason (MOQ, estoque, `cadastro_nao_aprovado`, 409) or “Não foi possível concluir.”
+- Network: generic + retry.
+- No stack traces.
 
 ## Forbidden
 
 | Who | Where | UX |
 |---|---|---|
-| Guest | Store meus pedidos / submit | Redirect `entrar` with return |
-| Customer | Someone else’s pedido | Same as unknown id: “Pedido não encontrado.” |
-| Worker | Screen their role cannot open | Redirect role home; do not list the denied module |
-| Worker | Illegal transition posted | 403/409 toast; detail refreshes; no stock change |
-| Non-owner | `/conta` | Generic “Você não tem acesso.” — **not** “só o dono” vs “supervisora” |
-| Other tenant | Any id | 403/404 identical to not found |
+| Guest | Meus docs / checkout | Redirect `entrar` with return |
+| Customer | Someone else’s doc | “Não encontrado.” |
+| Vendedor | Usuários / Tema / Config / Caixas / Canal / Equipes / Simular | Redirect Conversas; omit nav |
+| Worker | Illegal transition | 403/409 toast; refresh; no side effects |
+| Other tenant | Any id | Same as not found |
 
-Never explain another tenant’s existence.
+## Cadastro gates (replace old entitlement)
 
-## Entitlement
+### Loja — prospecto `pendente`
 
-Server is the gate. UI mirrors it.
+- Catalog/PDP OK.
+- Cart may exist for browsing qty, but **Enviar pedido** removed.
+- Banner (`role="status"`): “Seu cadastro ainda não foi aprovado. Você será avisado no WhatsApp.”
+- Orçamento accept that creates Pedido: same gate.
 
-### Store (`inadimplente` / `cancelada`)
+### Loja — guest
 
-- Catalog and PDP remain.
-- Cart primary submit is **removed**.
-- Banner in cart (and on PDP add-to-cart if you must explain a disabled finalize path — prefer cart):
-  - inadimplente: “A loja não está aceitando pedidos (assinatura inadimplente).”
-  - cancelada: “A loja não está aceitando pedidos (assinatura cancelada).”
-- Do not say “fale com o financeiro” as a SaaS/Account link.
+- Checkout → entrar. Cadastro CTA visible.
 
-### SaaS (not `ativa`)
+### SaaS — accept orçamento / create pedido / faturar
 
-- Banner on **every** screen: “Assinatura inadimplente. Somente leitura.” or “Assinatura cancelada. Somente leitura.”
-- Disable: status buttons, novo pedido, visível toggle, ajuste, tema save, config save, **Confirmar aplicação**.
-- Reads: lists, detail, outbox, chat history/preview (preview without confirm is read).
-- **No** link to `/conta`.
+- If cliente not `aprovado`: primary blocked; Alert “Cadastro não aprovado. Aprove o cadastro antes de continuar.”
+- Orçamento may remain `enviado`.
 
-### Account
+## Registry-down (CNPJ)
 
-Owner can still change the flag. No read-only lock on this surface.
+- Warning Alert (not hard error): “Não consultamos o CNPJ agora. Você pode continuar e completar os dados.”
+- Submit allowed; `cnpj_registro_pendente`.
+- SaaS cadastro detail shows Badge **Registro pendente**.
 
-## Parse-error (inventory chat)
+## Orçamento expirado
 
-| Case | UI |
+- Badge `expirado`; accept/refuse removed.
+- Copy: “Este orçamento expirou.”
+
+## Indisponível / MOQ (Loja)
+
+- Available 0: **Sem estoque**, add disabled, still listed if `visivel_loja`.
+- Not visible: not listed.
+- Qty &lt; MOQ: inline “Quantidade mínima: N.”
+
+## Success
+
+- Cadastro submitted: confirmation panel, no checkout CTA.
+- Pedido placed: “Pedido confirmado.” + link meus docs.
+- Cadastro aprovado/recusado: Sonner + detail refresh + notify line.
+- Faturado: success Badge + “Faturamento interno registrado (stub).”
+
+## Async / stub honesty
+
+- Outbox rows may show `enviado` without Meta — UI copy still names the **intended** channel.
+- Simulate inbound: success toast “Mensagem simulada adicionada.”
+- WA canal `ready_stub`: Badge **Pronto para conectar** + Alert that real send/receive awaits Meta approval — never imply live Graph.
+- Conversas SSE drop: muted “Atualizando a cada 15s…” + poll fallback; no error explosion.
+
+## CRM connection statuses (Phase A)
+
+| Status | Empty / banner behavior |
 |---|---|
-| Unreadable / not CSV or XLSX | Thread error: “Não foi possível ler o arquivo.” No preview table. Nothing applied. |
-| Missing required headers after synonym map | Thread error listing missing canonical columns. No confirm. |
-| Mixed rows | Preview table: each row `criar` / `atualizar` / `erro` + message. **Confirmar aplicação** applies **valid rows only**. Helper: “Linhas com erro serão ignoradas.” |
-| All rows invalid | Preview with errors. Confirm **disabled**. |
-| User closes / Descartar | “Nada foi aplicado.” Preview id discarded. |
-| Apply partial success | Result: “N linhas aplicadas. M linhas ignoradas.” Error rows listed again. |
-
-Confirm is a **button** on the preview card. Composer text never applies.
-
-## Registry-down (Store cadastro CNPJ)
-
-- Checksum passed, registry timeout/5xx.
-- Warning (not error): “Não consultamos o CNPJ agora. Você pode continuar e completar os dados.”
-- Razão social stays editable (empty or user-typed).
-- Submit allowed. Badge later in SaaS customer context is out of MVP list — do not add a supervisor queue for pendentes.
-
-## Indisponível / MOQ (Store)
-
-- `visivel_loja` + available 0: **Sem estoque**, add disabled. Still listed.
-- Not visible: not listed (not a “indisponível” state).
-- CNPJ qty &lt; `qtd_min_atacado`: inline “Quantidade mínima no atacado: N.” Submit blocked.
-
-## Masked CPF/CNPJ
-
-- After blur/save and in every read view: CPF `***.***.***-00`, CNPJ `**.***.***/****-00` (last 2 digits visible).
-- Active input: formatted digits (`000.000.000-00` / `00.000.000/0000-00`).
-- No full id in `title`, `aria-label` (use “CPF do cliente” without digits), URL, or logs.
-- Outbox recipients: mask if a tax id appears; email may show local-part with domain (`c***@demo.local` optional — if messy, show role label “cliente” / “vendedor” + channel).
-
-## Theme contrast fail
-
-Theme editor only. Save blocked: “Este fundo não tem contraste suficiente com o texto.” Preview may still live-update so the supervisor sees why.
-
-## Focus / disabled
-
-Disabled write controls (entitlement, sem estoque, confirm disabled) need a text reason nearby, not color alone. Focus ring stays visible on the next enabled control.
+| `not_configured` | Canal form empty; primary Salvar |
+| `credentials_saved` | Masked secrets; CTA Marcar pronto para conectar |
+| `ready_stub` | Success Badge + stub Alert; Simular still available |
+| `live` | Not offered |

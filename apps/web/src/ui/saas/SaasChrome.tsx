@@ -3,242 +3,227 @@
 import type { SaasRole } from "@saas-frota/shared";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
+import { useEffect, useState } from "react";
+import { Home, LogOut, Menu } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-  SidebarSeparator,
-  SidebarTrigger,
-  useSidebar,
-} from "@/components/ui/sidebar";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
+import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import { BrandMark } from "../BrandMark";
 import { COPY } from "../copy";
 import { SkipLink } from "../layout";
 import { useSession } from "../session";
-import { ColorModeToggle } from "../theme/ColorModeToggle";
-import { useTenantTheme } from "../theme/TenantTheme";
+import { CrmHeaderChrome } from "./CrmHeaderChrome";
 import {
   canOpen,
-  currentNavGroup,
   currentPageLabel,
+  isConversasPath,
   roleHome,
-  saasNav,
+  roleLabel,
   saasNavSections,
+  type NavItem,
+  type NavSection,
 } from "./nav";
 import { NavIcon } from "./NavIcon";
 
 function navActive(pathname: string, href: string) {
-  return pathname === href || pathname.startsWith(`${href}/`);
+  const path = pathname.startsWith("/saas/inbox")
+    ? pathname.replace("/saas/inbox", "/saas/conversas")
+    : pathname;
+  return path === href || path.startsWith(`${href}/`);
 }
 
-function groupLabel(group: "ops" | "casa") {
-  return group === "casa" ? COPY.saas.nav_group_casa : COPY.saas.nav_group_ops;
-}
-
-function SaasNav({
-  pathname,
-  role,
-  roleLabel,
-}: {
-  pathname: string;
-  role: SaasRole | null | undefined;
-  roleLabel: string;
-}) {
-  const { setOpenMobile, isMobile, state } = useSidebar();
-  const { tokens } = useTenantTheme();
-  const sections = saasNavSections(role);
-  const initial = (tokens?.marca || roleLabel || "S").slice(0, 1).toUpperCase();
-  const iconRail = !isMobile && state === "collapsed";
+function UserMenu({ role }: { role: SaasRole | null | undefined }) {
+  const { logout, session } = useSession();
+  const router = useRouter();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const label = roleLabel(role) || session?.user_id || "SF";
+  const initials = label
+    .split(/[\s@._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((n) => n[0]?.toUpperCase() ?? "")
+    .join("")
+    .slice(0, 2) || "SF";
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
-      <SidebarHeader className="group-data-[collapsible=icon]:px-3">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              size="lg"
-              asChild
-              tooltip={tokens?.marca}
-              className="gap-2.5 bg-transparent! hover:bg-transparent active:bg-transparent group-data-[collapsible=icon]:mx-auto"
-            >
-              <BrandMark href="/saas/pedidos" layout="sidebar" iconOnly={iconRail} className="text-sidebar-foreground" />
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarHeader>
-      <SidebarContent className={cn("gap-1 px-2", iconRail && "items-center px-1")}>
-        {sections.map((section) => (
-          <SidebarGroup key={section.id} className="py-1">
-            {iconRail ? null : (
-              <SidebarGroupLabel className="px-2 text-[11px] font-medium tracking-[0.14em] text-muted-foreground uppercase">
-                {section.label}
-              </SidebarGroupLabel>
-            )}
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {section.items.map((item) => (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={navActive(pathname, item.href)}
-                      tooltip={item.label}
-                      className="h-9 rounded-lg text-[13.5px] data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground"
-                      onClick={() => {
-                        if (isMobile) setOpenMobile(false);
-                      }}
-                    >
-                      <Link href={item.href}>
-                        <NavIcon name={item.icon} />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ))}
-      </SidebarContent>
-      <SidebarFooter className={cn("p-2", iconRail && "items-center")}>
-        {iconRail ? null : <SidebarSeparator className="mx-0 mb-2" />}
-        <div className={cn("flex items-center gap-3 overflow-hidden rounded-lg px-1 py-1", iconRail && "justify-center px-0")}>
-          <span
-            aria-hidden="true"
-            className="grid size-8 shrink-0 place-items-center rounded-full bg-sidebar-accent text-xs font-medium text-sidebar-foreground"
-          >
-            {initial}
-          </span>
-          {iconRail ? null : (
-            <div className="min-w-0">
-              <p className="truncate text-[13px] font-medium text-sidebar-foreground">{roleLabel || tokens?.marca}</p>
-              <p className="truncate text-[11px] text-muted-foreground">{tokens?.marca}</p>
-            </div>
-          )}
+    <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+      <DropdownMenuTrigger>
+        <Avatar className="size-9 cursor-pointer">
+          <AvatarFallback>{initials}</AvatarFallback>
+        </Avatar>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="flex flex-col gap-1">
+        <DropdownMenuItem className="cursor-pointer">
+          <Link href="/saas/conversas" className="flex w-full items-center">
+            <Home className="mr-2 h-4 w-4" />
+            <span>{COPY.crm.nav_conversas}</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem className="cursor-pointer">
+          <Link href="/saas/crm/perfil" className="flex w-full items-center">
+            <span>{COPY.crm.nav_perfil_crm}</span>
+          </Link>
+        </DropdownMenuItem>
+        <p className="px-2 py-1 text-xs text-gray-500">{roleLabel(role)}</p>
+        <DropdownMenuItem
+          className="cursor-pointer"
+          onClick={() => {
+            void logout().then(() => router.push("/saas/entrar"));
+          }}
+        >
+          <LogOut className="mr-2 h-4 w-4" />
+          <span>{COPY.logout}</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function Header({ role }: { role: SaasRole | null | undefined }) {
+  return (
+    <header className="border-b border-gray-200 bg-white">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+        <BrandMark href="/saas/conversas" className="text-gray-900" />
+        <div className="flex items-center gap-2 sm:gap-4">
+          <CrmHeaderChrome />
+          <UserMenu role={role} />
         </div>
-      </SidebarFooter>
-    </Sidebar>
+      </div>
+    </header>
+  );
+}
+
+function SectionNav({
+  sections,
+  pathname,
+  onNavigate,
+}: {
+  sections: NavSection[];
+  pathname: string;
+  onNavigate: () => void;
+}) {
+  return (
+    <nav className="h-full overflow-y-auto p-3">
+      {sections.map((section, idx) => (
+        <div key={section.id} className="mb-2">
+          {idx > 0 ? <Separator className="my-3" /> : null}
+          <p className="mb-1 px-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+            {section.label}
+          </p>
+          {section.items.map((item: NavItem) => {
+            const active = navActive(pathname, item.href);
+            return (
+              <Link key={item.href} href={item.href} passHref>
+                <Button
+                  variant="ghost"
+                  className={cn(
+                    "my-0.5 w-full justify-start shadow-none",
+                    active &&
+                      "bg-[color-mix(in_srgb,var(--color-primary)_8%,transparent)] text-gray-900 border-l-[3px] border-l-primary rounded-l-none",
+                  )}
+                  onClick={onNavigate}
+                >
+                  <NavIcon name={item.icon} />
+                  {item.label}
+                </Button>
+              </Link>
+            );
+          })}
+        </div>
+      ))}
+    </nav>
   );
 }
 
 export function SaasChrome({ children }: { children: React.ReactNode }) {
-  const { status, session, logout } = useSession();
+  const { status, session } = useSession();
   const pathname = usePathname();
   const router = useRouter();
   const role = session?.saas_role;
-  const items = saasNav(role);
   const loginPage = pathname === "/saas/entrar";
-  const readOnly = session && session.subscription_status !== "ativa";
-  const warehouse = role === "estoquista" || role === "entregador";
   const pageLabel = currentPageLabel(pathname, role);
-  const crumbGroup = groupLabel(currentNavGroup(pathname, role));
-  const roleLabel = role ? COPY.saas.role[role] : "";
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { sections } = saasNavSections(role);
+  const conversas = isConversasPath(pathname);
 
   useEffect(() => {
     if (status === "loading") return;
     if (status === "guest" && !loginPage) {
       router.replace(`/saas/entrar?return=${encodeURIComponent(pathname)}`);
     }
+    if (status === "auth" && loginPage) {
+      router.replace(roleHome(role));
+    }
     if (status === "auth" && !canOpen(role, pathname)) {
       router.replace(roleHome(role));
     }
   }, [status, loginPage, pathname, role, router]);
 
-  async function onLogout() {
-    await logout();
-    router.push("/saas/entrar");
-  }
-
   if (loginPage) {
     return <>{children}</>;
   }
 
+  if (status === "loading") {
+    return <div className="min-h-screen bg-gray-50" aria-busy="true" />;
+  }
+
   return (
-    <SidebarProvider
-      style={{ "--sidebar-width": "16rem", "--sidebar-width-icon": "3.5rem" } as React.CSSProperties}
-      className={cn("min-h-svh", warehouse && "max-md:text-base")}
-      data-role={role ?? undefined}
-    >
+    <section className="flex min-h-screen flex-col bg-[#F4F6F7]">
       <SkipLink />
-      <SaasNav pathname={pathname} role={role} roleLabel={roleLabel} />
-      <SidebarInset className="bg-background">
-        <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur-md md:px-6">
-          <SidebarTrigger className="-ml-1 size-8" />
-          <Separator orientation="vertical" className="mr-1 h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbPage className="text-muted-foreground">{crumbGroup}</BreadcrumbPage>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage className="font-medium">{pageLabel}</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-          <div className="ml-auto flex items-center gap-2">
-            {roleLabel ? (
-              <span className="hidden rounded-full border border-border bg-card px-2.5 py-1 text-xs text-muted-foreground sm:inline">
-                {roleLabel}
-              </span>
-            ) : null}
-            <ColorModeToggle />
-            <Button type="button" variant="ghost" size="sm" onClick={() => void onLogout()}>
-              {COPY.actions.sair}
-            </Button>
-          </div>
-        </header>
-        {readOnly ? (
-          <Alert className="rounded-none border-x-0 border-t-0 bg-[var(--color-warning)]/12">
-            <AlertDescription>
-              {session.subscription_status === "cancelada"
-                ? COPY.entitlement.saas_ro_cancelada
-                : COPY.entitlement.saas_ro_inadimplente}
-            </AlertDescription>
-          </Alert>
-        ) : null}
-        {children}
-        {warehouse ? (
-          <nav
-            aria-label="Fila"
-            className="sticky bottom-0 z-8 flex gap-2 border-t border-border bg-card/90 p-3 backdrop-blur md:hidden"
+      <Header role={role} />
+      <Toaster richColors position="top-right" />
+
+      <div
+        className={cn(
+          "mx-auto flex w-full flex-col min-h-[calc(100dvh-68px)]",
+          conversas ? "max-w-none" : "max-w-7xl",
+        )}
+      >
+        <div className="flex items-center justify-between border-b border-gray-200 bg-white p-4 lg:hidden">
+          <span className="font-medium text-gray-900">{pageLabel}</span>
+          <Button
+            className="-mr-3"
+            variant="ghost"
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           >
-            {items.map((item) => {
-              const active = navActive(pathname, item.href);
-              return (
-                <Button
-                  key={item.href}
-                  variant={active ? "secondary" : "ghost"}
-                  asChild
-                  className="h-12 flex-1"
-                >
-                  <Link href={item.href}>{item.label}</Link>
-                </Button>
-              );
-            })}
-          </nav>
-        ) : null}
-      </SidebarInset>
-    </SidebarProvider>
+            <Menu className="h-6 w-6" />
+            <span className="sr-only">Toggle sidebar</span>
+          </Button>
+        </div>
+
+        <div className="relative flex h-full flex-1 overflow-hidden">
+          <aside
+            className={cn(
+              "absolute inset-y-0 left-0 z-40 w-64 transform border-r border-[#E5E9EC] bg-[#FAFBFC] transition-transform duration-300 ease-in-out lg:relative lg:block lg:translate-x-0",
+              isSidebarOpen ? "block translate-x-0" : "hidden -translate-x-full",
+            )}
+          >
+            <SectionNav
+              sections={sections}
+              pathname={pathname}
+              onNavigate={() => setIsSidebarOpen(false)}
+            />
+          </aside>
+
+          <main
+            id="conteudo"
+            className={cn(
+              "flex-1 overflow-y-auto",
+              conversas ? "p-0" : "p-0 lg:p-4",
+            )}
+          >
+            {children}
+          </main>
+        </div>
+      </div>
+    </section>
   );
 }

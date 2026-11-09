@@ -1,24 +1,42 @@
 import {
+  BarChart3,
   Bell,
+  Building2,
   ClipboardList,
-  MessageSquare,
+  Contact,
+  FileText,
+  Inbox,
+  MessageSquareText,
   Package,
   Palette,
+  Receipt,
   Settings,
-  Truck,
-  Warehouse,
+  Tags,
+  UserPlus,
+  Users,
+  UsersRound,
+  Zap,
 } from "lucide-react";
 import type { NavIconName } from "./nav";
 
 const icons = {
+  conversas: MessageSquareText,
+  contatos: Contact,
+  empresas: Building2,
+  cadastros: UserPlus,
+  orcamentos: FileText,
   pedidos: ClipboardList,
+  vendas: Receipt,
   estoque: Package,
-  chat: MessageSquare,
+  usuarios: Users,
   tema: Palette,
   config: Settings,
   avisos: Bell,
-  fila: Warehouse,
-  entregas: Truck,
+  labels: Tags,
+  equipes: UsersRound,
+  respostas: Zap,
+  caixas: Inbox,
+  relatorios: BarChart3,
 } as const;
 
 export function NavIcon({ name }: { name: NavIconName }) {

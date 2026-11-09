@@ -1,3 +1,5 @@
+import type { SystemIntentLabel } from "./crm";
+
 export type CnpjRegistryResult =
   | { ok: true; razaoSocial: string }
   | { ok: false; reason: "not_found" | "unavailable" };
@@ -18,22 +20,56 @@ export type OutboxTransportPort = {
   }) => Promise<void>;
 };
 
-export type CanonicalImportRow = {
-  sku: string;
-  nome?: string;
-  quantidade: number;
-  preco_varejo_centavos?: number;
-  preco_atacado_centavos?: number;
-  qtd_min_atacado?: number;
-  visivel_loja?: boolean;
+/** @deprecated Prefer ChannelSimulateInboundPort — kept for migration callers. */
+export type WhatsappInboxSimulatePort = {
+  ingestInbound: (input: {
+    tenantId: string;
+    phoneE164: string;
+    body: string;
+    intentHint?: "cadastro" | "orcamento" | "info_empresa" | "outro";
+  }) => Promise<{ threadId: string; messageId: string }>;
 };
 
-export type InventoryFileParsePort = {
-  parse: (input: {
-    bytes: Uint8Array;
-    filename: string;
-    instruction?: string;
-  }) => Promise<{
-    rows: Array<CanonicalImportRow | { error: string; raw: unknown }>;
-  }>;
+export type ChannelSimulateInboundPort = {
+  ingestInbound: (input: {
+    tenantId: string;
+    inboxId?: string;
+    phoneE164: string;
+    body: string;
+    intentLabel?: SystemIntentLabel;
+  }) => Promise<{ conversationId: string; messageId: string; contactId: string }>;
+};
+
+export type ChannelSendPort = {
+  sendOutgoing: (input: {
+    tenantId: string;
+    inboxId: string;
+    conversationId: string;
+    messageId: string;
+    toE164: string;
+    body: string;
+  }) => Promise<{ deliveryStatus: "queued" | "sent" | "failed" }>;
+};
+
+export type ChannelCredentialsVaultPort = {
+  seal: (secrets: Record<string, string>) => Promise<string>;
+  open: (ciphertext: string) => Promise<Record<string, string>>;
+  mask: (secretsPresent: boolean) => { secrets_present: boolean };
+};
+
+export type JobEnqueuePort = {
+  enqueue: (input: {
+    tenantId: string;
+    kind: string;
+    payload: unknown;
+    runAfter?: Date;
+  }) => Promise<{ id: string }>;
+};
+
+export type JobWorkerPort = {
+  tick: (limit?: number) => Promise<number>;
+};
+
+export type UrlEgressGuardPort = {
+  assertSafeHttpsUrl: (url: string) => Promise<{ href: string; hostname: string }>;
 };

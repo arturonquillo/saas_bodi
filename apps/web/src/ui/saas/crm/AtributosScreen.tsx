@@ -73,7 +73,7 @@ export function AtributosScreen() {
           .toLowerCase()
           .replace(/\s+/g, "_"),
         attribute_display_name: fd.get("attribute_display_name"),
-        attribute_values_json: listRaw
+        attribute_values: listRaw
           ? listRaw.split(",").map((s) => s.trim()).filter(Boolean)
           : undefined,
       });

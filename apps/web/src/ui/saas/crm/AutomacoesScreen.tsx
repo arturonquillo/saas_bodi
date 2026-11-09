@@ -54,7 +54,7 @@ const emptyDraft = (): Draft => ({
   event_name: "message_created",
   active: false,
   conditions: [{ attribute_key: "status", filter_operator: "equal", values: ["open"] }],
-  actions: [{ action_name: "add_label", action_params: { label: "" } }],
+  actions: [{ action_name: "add_label", action_params: { label_id: "" } }],
 });
 
 export function AutomacoesScreen() {
@@ -405,13 +405,17 @@ export function AutomacoesScreen() {
                     value={
                       typeof a.action_params?.value === "string"
                         ? String(a.action_params.value)
-                        : a.action_params?.label
-                          ? String(a.action_params.label)
+                        : a.action_params?.label_id
+                          ? String(a.action_params.label_id)
                           : a.action_params?.content
                             ? String(a.action_params.content)
-                            : a.action_params
-                              ? JSON.stringify(a.action_params)
-                              : ""
+                            : a.action_params?.assignee_user_id
+                              ? String(a.action_params.assignee_user_id)
+                              : a.action_params?.status
+                                ? String(a.action_params.status)
+                                : a.action_params
+                                  ? JSON.stringify(a.action_params)
+                                  : ""
                     }
                     onChange={(e) =>
                       setDraft((d) => {
@@ -420,11 +424,25 @@ export function AutomacoesScreen() {
                         const raw = e.target.value;
                         let action_params: Record<string, unknown> = { value: raw };
                         if (name === "add_label" || name === "remove_label") {
-                          action_params = { label: raw };
+                          action_params = { label_id: raw };
                         } else if (name === "send_message" || name === "add_private_note") {
                           action_params = { content: raw };
                         } else if (name === "send_webhook") {
                           action_params = { url: raw };
+                        } else if (name === "assign_agent") {
+                          action_params = { assignee_user_id: raw };
+                        } else if (name === "assign_team") {
+                          action_params = { team_id: raw };
+                        } else if (name === "change_status") {
+                          action_params = { status: raw };
+                        } else if (name === "change_priority") {
+                          action_params = { priority: raw };
+                        } else if (name === "set_custom_attribute") {
+                          const [attribute_key, ...rest] = raw.split("=");
+                          action_params = {
+                            attribute_key: attribute_key?.trim() || "",
+                            value: rest.join("=").trim(),
+                          };
                         } else if (raw.startsWith("{")) {
                           try {
                             action_params = JSON.parse(raw) as Record<string, unknown>;

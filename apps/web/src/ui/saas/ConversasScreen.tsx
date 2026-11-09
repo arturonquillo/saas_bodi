@@ -292,7 +292,7 @@ function FilterStrip({
               .filter((f) => f.filter_type !== "contact")
               .map((f) =>
                 chip(`saved-${f.id}`, f.name, false, () => {
-                  const q = f.query_json ?? {};
+                  const q = f.query ?? {};
                   setFilter({
                     status: (typeof q.status === "string" ? q.status : "") as ConversationStatus | "",
                     assignee:
@@ -801,7 +801,7 @@ export function ConversasScreen() {
       await apiSend("/api/saas/crm/filtros", "POST", {
         name: name.trim(),
         filter_type: "conversation",
-        query_json: {
+        query: {
           status: filter.status || undefined,
           assignee: filter.assignee || undefined,
           inbox_id: filter.inbox_id || undefined,

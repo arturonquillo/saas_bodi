@@ -103,6 +103,7 @@ export type CrmInboxDto = {
   csat_enabled?: boolean;
   lock_to_single_conversation?: boolean;
   allow_auto_assign?: boolean;
+  timezone?: string;
   member_count?: number;
   connection_status?: WaConnectionStatus | string;
 };
@@ -250,8 +251,8 @@ export type CrmAttributeDto = {
   attribute_display_type: AttributeDisplayType | string;
   attribute_key: string;
   attribute_display_name: string;
-  default_value_json?: unknown;
-  attribute_values_json?: string[] | unknown;
+  default_value?: unknown;
+  attribute_values?: string[] | unknown;
 };
 
 export type CrmBotDto = {
@@ -259,8 +260,9 @@ export type CrmBotDto = {
   name: string;
   description?: string | null;
   outgoing_url: string;
-  token_masked?: string | null;
+  /** Masked by default; plaintext only when `token_revealed` on create. */
   token?: string | null;
+  token_revealed?: boolean;
   active: boolean;
   inbox_ids?: string[];
 };
@@ -312,17 +314,25 @@ export type CrmFilterDto = {
   id: string;
   name: string;
   filter_type: "conversation" | "contact" | string;
-  query_json: Record<string, unknown>;
+  query: Record<string, unknown>;
+  user_id?: string;
+};
+
+export type CrmImportPreviewDto = {
+  total_rows: number;
+  preview: Array<Record<string, string>>;
+  dry_run: boolean;
 };
 
 export type CrmImportBatchDto = {
   batch_id: string;
-  status: "queued" | "running" | "done" | "failed" | string;
+  status: "pendente" | "processando" | "concluido" | "falha" | string;
   stats?: {
     total?: number;
     created?: number;
     updated?: number;
+    errors?: number;
     failed?: number;
-    preview_rows?: Array<Record<string, string>>;
   };
+  last_error?: string | null;
 };

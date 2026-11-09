@@ -102,7 +102,7 @@ export function BotsScreen() {
         await apiSend(`/api/saas/crm/bots/${created.id}/inboxes`, "PUT", {
           inbox_ids: inboxIds,
         });
-        if (created.token) {
+        if (created.token_revealed && created.token) {
           setCreatedToken(created.token);
         } else {
           setOpen(false);
@@ -159,8 +159,7 @@ export function BotsScreen() {
                       <p className="font-medium text-gray-900">{bot.name}</p>
                       <p className="truncate text-sm text-muted-foreground">{bot.outgoing_url}</p>
                       <p className="text-xs text-muted-foreground">
-                        {(bot.inbox_ids ?? []).length} caixa(s) · token{" "}
-                        {bot.token_masked || "••••"}
+                        {(bot.inbox_ids ?? []).length} caixa(s) · token {bot.token || "••••"}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">

@@ -25,9 +25,17 @@ import {
 } from "@/components/ui/select";
 import { api, apiGet, apiSend, asPage, isApiError } from "../../api";
 import { COPY } from "../../copy";
-import type { CrmContactDto, CrmImportBatchDto } from "../../crm/types";
+import type {
+  CrmContactDto,
+  CrmImportBatchDto,
+  CrmImportPreviewDto,
+} from "../../crm/types";
 import { SaasPage } from "../../layout";
 import { ErrorState, TableSkeleton } from "../../states";
+
+async function readCsvFile(file: File) {
+  return file.text();
+}
 
 export function ContatosImportScreen() {
   const [file, setFile] = useState<File | null>(null);
@@ -39,19 +47,14 @@ export function ContatosImportScreen() {
     if (!file) return;
     setBusy(true);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await api<CrmImportBatchDto | { rows?: Array<Record<string, string>>; preview_rows?: Array<Record<string, string>> }>(
+      const csv = await readCsvFile(file);
+      const res = await apiSend<CrmImportPreviewDto>(
         "/api/saas/crm/contatos/importar/preview",
-        { method: "POST", body: fd },
+        "POST",
+        { csv },
       );
-      const rows =
-        (res as CrmImportBatchDto).stats?.preview_rows ??
-        (res as { preview_rows?: Array<Record<string, string>> }).preview_rows ??
-        (res as { rows?: Array<Record<string, string>> }).rows ??
-        [];
-      setPreview(rows);
-      toast.success("Pré-visualização pronta.");
+      setPreview(res.preview ?? []);
+      toast.success(`Pré-visualização: ${res.total_rows ?? 0} linha(s).`);
     } catch (err) {
       toast.error(isApiError(err) ? err.message : COPY.save_fail);
     } finally {
@@ -85,7 +88,7 @@ export function ContatosImportScreen() {
         `/api/saas/crm/contatos/importar/${batchId}`,
       );
       setBatch(res);
-      if (res.status === "queued" || res.status === "running") {
+      if (res.status === "pendente" || res.status === "processando") {
         window.setTimeout(() => void pollBatch(batchId), 1500);
       }
     } catch {
@@ -121,7 +124,12 @@ export function ContatosImportScreen() {
             />
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" disabled={!file || busy} onClick={() => void onPreview()}>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!file || busy}
+              onClick={() => void onPreview()}
+            >
               {COPY.crm.contatos_import_preview}
             </Button>
             <Button type="button" disabled={!file || busy} onClick={() => void onImport()}>
@@ -159,8 +167,9 @@ export function ContatosImportScreen() {
               <AlertDescription>
                 Lote {batch.batch_id}: {batch.status}
                 {batch.stats
-                  ? ` · criados ${batch.stats.created ?? 0}, atualizados ${batch.stats.updated ?? 0}, falhas ${batch.stats.failed ?? 0}`
+                  ? ` · criados ${batch.stats.created ?? 0}, atualizados ${batch.stats.updated ?? 0}, erros ${batch.stats.errors ?? batch.stats.failed ?? 0}`
                   : ""}
+                {batch.last_error ? ` · ${batch.last_error}` : ""}
               </AlertDescription>
             </Alert>
           ) : null}

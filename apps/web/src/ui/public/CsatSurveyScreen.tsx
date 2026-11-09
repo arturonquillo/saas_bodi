@@ -11,6 +11,8 @@ type SurveyPayload = {
   brand?: string | null;
   conversation_id?: string;
   already_submitted?: boolean;
+  contact_nome?: string | null;
+  tenant?: { nome_fantasia?: string | null; marca?: string | null };
 };
 
 export function CsatSurveyScreen() {
@@ -61,7 +63,12 @@ export function CsatSurveyScreen() {
     <main className="mx-auto flex min-h-dvh max-w-md items-center px-4 py-10">
       <Card className="w-full">
         <CardHeader>
-          <CardTitle>{payload?.brand || "Pesquisa de satisfação"}</CardTitle>
+          <CardTitle>
+            {payload?.tenant?.marca ||
+              payload?.tenant?.nome_fantasia ||
+              payload?.brand ||
+              "Pesquisa de satisfação"}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {status === "loading" ? (

@@ -238,7 +238,10 @@ export function MacrosScreen() {
                   onClick={() =>
                     setDraft((d) => ({
                       ...d,
-                      actions: [...d.actions, { action_name: "add_label", action_params: { label: "" } }],
+                      actions: [
+                        ...d.actions,
+                        { action_name: "add_label", action_params: { label_id: "" } },
+                      ],
                     }))
                   }
                 >
@@ -269,10 +272,11 @@ export function MacrosScreen() {
                     </SelectContent>
                   </Select>
                   <Input
-                    placeholder="Parâmetro"
+                    placeholder="Parâmetro (label_id / content / …)"
                     value={String(
-                      a.action_params?.label ??
+                      a.action_params?.label_id ??
                         a.action_params?.content ??
+                        a.action_params?.assignee_user_id ??
                         a.action_params?.value ??
                         "",
                     )}
@@ -283,10 +287,18 @@ export function MacrosScreen() {
                         const raw = e.target.value;
                         const action_params =
                           name === "add_label" || name === "remove_label"
-                            ? { label: raw }
+                            ? { label_id: raw }
                             : name === "send_message" || name === "add_private_note"
                               ? { content: raw }
-                              : { value: raw };
+                              : name === "assign_agent"
+                                ? { assignee_user_id: raw }
+                                : name === "assign_team"
+                                  ? { team_id: raw }
+                                  : name === "change_status"
+                                    ? { status: raw }
+                                    : name === "change_priority"
+                                      ? { priority: raw }
+                                      : { value: raw };
                         actions[idx] = { action_name: name, action_params };
                         return { ...d, actions };
                       })

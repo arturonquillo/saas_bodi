@@ -29,12 +29,12 @@ import { SaasPage } from "../../layout";
 import { ErrorState, TableSkeleton } from "../../states";
 
 function queryToHref(filter: CrmFilterDto) {
+  const q = filter.query ?? {};
   if (filter.filter_type === "contact") {
-    const q = typeof filter.query_json?.q === "string" ? filter.query_json.q : "";
-    return q ? `/saas/contatos?q=${encodeURIComponent(q)}` : "/saas/contatos";
+    const search = typeof q.q === "string" ? q.q : "";
+    return search ? `/saas/contatos?q=${encodeURIComponent(search)}` : "/saas/contatos";
   }
   const params = new URLSearchParams();
-  const q = filter.query_json ?? {};
   if (typeof q.status === "string" && q.status) params.set("status", q.status);
   if (typeof q.assignee === "string" && q.assignee) params.set("assignee", q.assignee);
   if (typeof q.inbox_id === "string" && q.inbox_id) params.set("inbox_id", q.inbox_id);
@@ -70,7 +70,7 @@ export function FiltrosScreen() {
     e.preventDefault();
     setBusy(true);
     const fd = new FormData(e.currentTarget);
-    const query_json =
+    const query =
       filterType === "contact"
         ? { q: String(fd.get("q") || "") }
         : {
@@ -83,7 +83,7 @@ export function FiltrosScreen() {
       await apiSend("/api/saas/crm/filtros", "POST", {
         name: fd.get("name"),
         filter_type: filterType,
-        query_json,
+        query,
       });
       setOpen(false);
       void load();
@@ -136,7 +136,7 @@ export function FiltrosScreen() {
                     <div className="min-w-0">
                       <p className="font-medium text-gray-900">{item.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {JSON.stringify(item.query_json)}
+                        {JSON.stringify(item.query)}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">

@@ -30,6 +30,7 @@ export type CrmContactDto = {
   cadastro_request_id?: string | null;
   notas?: string | null;
   labels?: CrmLabelDto[];
+  custom_attributes?: Record<string, unknown>;
   updated_at?: string;
   created_at?: string;
 };
@@ -80,6 +81,8 @@ export type CrmConversationDto = {
   orcamento_id?: string | null;
   draft?: string | null;
   viewers?: Array<{ user_id: string; nome?: string }>;
+  custom_attributes?: Record<string, unknown>;
+  bot_agent_bot_id?: string | null;
   last_activity_at?: string;
   updated_at: string;
   created_at?: string;
@@ -183,4 +186,143 @@ export type CrmSseEvent = {
   type: string;
   ts: string;
   payload: unknown;
+};
+
+/** Phase B — operator power DTOs */
+
+export type AutomationEventName =
+  | "conversation_created"
+  | "conversation_updated"
+  | "conversation_status_changed"
+  | "conversation_resolved"
+  | "message_created"
+  | "contact_created"
+  | "contact_updated";
+
+export type ConditionOperator =
+  | "equal"
+  | "not_equal"
+  | "contains"
+  | "does_not_contain"
+  | "is_present"
+  | "is_not_present"
+  | "is_greater_than"
+  | "is_less_than";
+
+export type AutomationCondition = {
+  attribute_key: string;
+  filter_operator: ConditionOperator | string;
+  values: string[];
+};
+
+export type AutomationAction = {
+  action_name: string;
+  action_params?: Record<string, unknown>;
+};
+
+export type CrmAutomationDto = {
+  id: string;
+  name: string;
+  description?: string | null;
+  event_name: AutomationEventName | string;
+  conditions: { operator: "and"; values: AutomationCondition[] } | AutomationCondition[];
+  actions: AutomationAction[];
+  active: boolean;
+  created_by_user_id?: string | null;
+  updated_at?: string;
+};
+
+export type CrmMacroDto = {
+  id: string;
+  name: string;
+  visibility: "public" | "private" | string;
+  owner_user_id?: string | null;
+  actions: AutomationAction[];
+  updated_at?: string;
+};
+
+export type AttributeDisplayType = "text" | "number" | "link" | "date" | "list" | "checkbox";
+export type AttributeModel = "contact" | "conversation";
+
+export type CrmAttributeDto = {
+  id: string;
+  attribute_model: AttributeModel | string;
+  attribute_display_type: AttributeDisplayType | string;
+  attribute_key: string;
+  attribute_display_name: string;
+  default_value_json?: unknown;
+  attribute_values_json?: string[] | unknown;
+};
+
+export type CrmBotDto = {
+  id: string;
+  name: string;
+  description?: string | null;
+  outgoing_url: string;
+  token_masked?: string | null;
+  token?: string | null;
+  active: boolean;
+  inbox_ids?: string[];
+};
+
+export type CrmWebhookDto = {
+  id: string;
+  name?: string | null;
+  url: string;
+  subscriptions: string[];
+  inbox_id?: string | null;
+  active: boolean;
+};
+
+export type CrmWorkingHourDto = {
+  day_of_week: number;
+  closed_all_day?: boolean;
+  open_all_day?: boolean;
+  open_hour?: number | null;
+  open_minutes?: number | null;
+  close_hour?: number | null;
+  close_minutes?: number | null;
+};
+
+export type CrmWorkingHoursDto = {
+  timezone: string;
+  hours: CrmWorkingHourDto[];
+  open_now?: boolean;
+  next_open_at?: string | null;
+};
+
+export type CrmAssignmentPolicyDto = {
+  kind: "round_robin" | string;
+  enabled: boolean;
+  last_assigned_user_id?: string | null;
+};
+
+export type CrmCsatDto = {
+  id: string;
+  conversation_id: string;
+  inbox_id: string;
+  contact_id?: string | null;
+  rating: number;
+  feedback_message?: string | null;
+  assigned_agent_id?: string | null;
+  submitted_at: string;
+};
+
+export type CrmFilterDto = {
+  id: string;
+  name: string;
+  filter_type: "conversation" | "contact" | string;
+  query_json: Record<string, unknown>;
+};
+
+export type CrmImportBatchDto = {
+  batch_id: string;
+  status: "queued" | "running" | "done" | "failed" | string;
+  stats?: {
+    total?: number;
+    created?: number;
+    updated?: number;
+    failed?: number;
+    preview_rows?: Array<Record<string, string>>;
+  };
 };

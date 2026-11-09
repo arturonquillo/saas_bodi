@@ -28,7 +28,9 @@ export type NavIconName =
   | "horarios"
   | "atribuicao"
   | "csat"
-  | "filtros";
+  | "filtros"
+  | "campanhas"
+  | "ajuda";
 
 export type NavItem = {
   href: string;
@@ -104,6 +106,20 @@ const CRM_CONFIG_NAV: NavItem[] = [
   },
   { href: "/saas/crm/csat", label: COPY.crm.nav_csat, icon: "csat", adminOnly: true, crmConfig: true },
   {
+    href: "/saas/crm/campanhas",
+    label: COPY.crm.nav_campanhas,
+    icon: "campanhas",
+    adminOnly: true,
+    crmConfig: true,
+  },
+  {
+    href: "/saas/crm/central-ajuda",
+    label: COPY.crm.nav_central_ajuda,
+    icon: "ajuda",
+    adminOnly: true,
+    crmConfig: true,
+  },
+  {
     href: "/saas/crm/relatorios",
     label: COPY.crm.nav_relatorios,
     icon: "relatorios",
@@ -176,6 +192,8 @@ const ADMIN_CRM_PATHS = [
   "/saas/crm/horarios",
   "/saas/crm/atribuicao",
   "/saas/crm/csat",
+  "/saas/crm/campanhas",
+  "/saas/crm/central-ajuda",
 ];
 
 export function canOpen(role: SaasRole | null | undefined, path: string) {
@@ -237,6 +255,8 @@ export function currentPageLabel(pathname: string, role: SaasRole | null | undef
   if (pathname.startsWith("/saas/crm/notificacoes")) return COPY.crm.nav_notificacoes;
   if (pathname.startsWith("/saas/crm/perfil")) return COPY.crm.nav_perfil_crm;
   if (pathname.startsWith("/saas/crm/relatorios")) return COPY.crm.nav_relatorios;
+  if (pathname.startsWith("/saas/crm/campanhas")) return COPY.crm.nav_campanhas;
+  if (pathname.startsWith("/saas/crm/central-ajuda")) return COPY.crm.nav_central_ajuda;
   if (pathname.startsWith("/saas/crm/automacoes")) return COPY.crm.nav_automacoes;
   if (pathname.startsWith("/saas/crm/macros")) return COPY.crm.nav_macros;
   if (pathname.startsWith("/saas/crm/atributos")) return COPY.crm.nav_atributos;

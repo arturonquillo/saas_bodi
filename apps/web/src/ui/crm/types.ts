@@ -336,3 +336,137 @@ export type CrmImportBatchDto = {
   };
   last_error?: string | null;
 };
+
+/** Phase C — campaigns, help center, reports */
+
+export type CampaignKind = "one_off" | "ongoing";
+export type CampaignStatus = "draft" | "scheduled" | "active" | "completed" | "cancelled";
+export type CampaignChannel = "whatsapp" | "sms";
+export type CampaignDisplayStatus = "awaiting_widget" | "ready";
+export type CampaignRecipientStatus = "pendente" | "enviado" | "falha" | "omitido";
+
+export type CrmCampaignDto = {
+  id: string;
+  title: string;
+  description?: string | null;
+  kind: CampaignKind | string;
+  status: CampaignStatus | string;
+  inbox_id?: string | null;
+  channel: CampaignChannel | string;
+  audience_label_ids: string[];
+  template_key?: string | null;
+  message?: string | null;
+  scheduled_at?: string | null;
+  display_status?: CampaignDisplayStatus | string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+  created_by_user_id?: string | null;
+  stats?: {
+    targeted?: number;
+    enviado?: number;
+    falha?: number;
+    omitido?: number;
+  } | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type CrmCampaignRecipientDto = {
+  id: string;
+  campaign_id: string;
+  contact_id: string;
+  /** Not currently returned by Phase C recipient DTO — UI falls back to contact_id. */
+  contact_nome?: string | null;
+  status: CampaignRecipientStatus | string;
+  outbox_id?: string | null;
+  error?: string | null;
+};
+
+export type ArticleStatus = "draft" | "published" | "archived";
+
+export type CrmPortalDto = {
+  id: string;
+  name: string;
+  slug: string;
+  header_text?: string | null;
+  homepage_md?: string | null;
+  locale: string;
+  enabled: boolean;
+  custom_domain?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type CrmHelpCategoryDto = {
+  id: string;
+  portal_id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  position: number;
+  parent_category_id?: string | null;
+};
+
+export type CrmHelpArticleDto = {
+  id: string;
+  portal_id: string;
+  category_id: string;
+  title: string;
+  slug: string;
+  content_md: string;
+  content_html?: string | null;
+  status: ArticleStatus | string;
+  author_user_id?: string | null;
+  published_at?: string | null;
+  position?: number | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type PublicHelpPortalDto = {
+  name: string;
+  slug: string;
+  header_text?: string | null;
+  homepage_md?: string | null;
+  locale: string;
+};
+
+export type PublicHelpCategoryDto = {
+  id?: string;
+  portal_id?: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  position: number;
+  parent_category_id?: string | null;
+  /** Backend field name (Phase C). */
+  published_count: number;
+};
+
+export type PublicHelpArticleListDto = {
+  id: string;
+  title: string;
+  slug: string;
+  category_id: string;
+  published_at?: string | null;
+  position?: number | null;
+};
+
+export type PublicHelpArticleDto = {
+  id: string;
+  title: string;
+  slug: string;
+  category_id: string;
+  content_md?: string | null;
+  content_html?: string | null;
+  published_at?: string | null;
+};
+
+/** Backend `series` is polymorphic: row array, named day buckets, or scalar map. */
+export type CrmReportDto = {
+  series:
+    | Array<Record<string, string | number | null | undefined>>
+    | Record<string, unknown>;
+  totals: Record<string, number | string | null>;
+  generated_at: string;
+};

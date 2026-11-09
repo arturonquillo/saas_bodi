@@ -1,5 +1,5 @@
-import { RelatoriosStubScreen } from "@/ui/saas/crm/RelatoriosStubScreen";
+import { RelatoriosScreen } from "@/ui/saas/crm/RelatoriosScreen";
 
 export default function Page() {
-  return <RelatoriosStubScreen />;
+  return <RelatoriosScreen />;
 }

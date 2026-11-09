@@ -82,9 +82,23 @@ Suggested balances:
 
 `reserved` must match open Pedidos in `confirmado` / `em_separacao`.
 
-## CRM inbox
+## CRM desk (Phase A — Chatwoot-parity)
 
-At least one thread per intent: `cadastro`, `orcamento`, `info_empresa` (and optionally `outro`). Messages marked `simulated=true` where created via simulator/seed.
+After Phase A migration, seed **must** realize:
+
+| Object | Contract |
+|---|---|
+| Default WhatsApp **Inbox** | One per tenant; all seed agents are InboxMembers |
+| **ChannelWhatsapp** | `connection_status=ready_stub` or `credentials_saved`; stub templates JSON ≥1 row; secrets sealed or empty with `not_configured` only if intentionally demoing empty state — prefer `ready_stub` with sealed placeholder secrets |
+| System **Labels** | `intent:cadastro`, `intent:orcamento`, `intent:info_empresa`, `intent:outro` |
+| **Team** | e.g. “Vendas” with admin + vendedor members |
+| **CannedResponse** | ≥1 shortcode |
+| **Conversations** | ≥1 per intent label (migrated from old threads); status `open` except one `resolved` optional |
+| **Contacts** | One per conversation phone; approved Cliente linked via `Contact.cliente_id` + Company CNPJ |
+| **Messages** | `simulated=true` on simulator/seed paths |
+| Agent notification prefs | rows for admin + vendedor |
+
+Until Phase A ships, legacy seed “one thread per intent” remains acceptable; migration must map them as above.
 
 ## Sales documents
 

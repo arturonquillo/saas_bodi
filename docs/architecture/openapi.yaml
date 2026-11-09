@@ -3,10 +3,12 @@ info:
   title: Casa dos Frios CRM + atacado API
   version: 0.2.0
   description: |
-    Canonical HTTP shapes for the Casa dos Frios MVP. TypeScript unions in packages/shared
-    win if this file lags. Money is integer centavos. Authenticated tenant comes from the
-    session cookie, not the body. No Account/billing routes. WhatsApp inbox is simulated;
-    outbox is a transport stub.
+    Canonical HTTP shapes for Casa dos Frios. TypeScript unions in packages/shared win if
+    this file lags. Money is integer centavos. Authenticated tenant comes from the session
+    cookie, not the body. No Account/billing routes. Chatwoot-parity CRM Phase A lives under
+    /api/saas/crm/* (see docs/architecture/api.md + crm-chatwoot-parity.md). Legacy
+    /api/saas/inbox* is deprecated after Conversation migration. WhatsApp channel I/O is
+    stubbed; outbox is a transport stub.
 servers:
   - url: http://localhost:3000
 paths:
@@ -195,13 +197,15 @@ paths:
 
   /api/saas/inbox:
     get:
-      summary: WhatsApp simulated threads
+      deprecated: true
+      summary: Legacy simulated threads — use /api/saas/crm/conversas
       responses:
-        "200": { description: Thread page }
+        "200": { description: Deprecated; proxy to CRM during migration }
 
   /api/saas/inbox/simular:
     post:
-      summary: Admin-only inbound simulator
+      deprecated: true
+      summary: Legacy simulator — use /api/saas/crm/simular
       requestBody:
         content:
           application/json:
@@ -214,8 +218,159 @@ paths:
                 intent_hint:
                   enum: [cadastro, orcamento, info_empresa, outro]
       responses:
-        "201": { description: Thread + message }
+        "201": { description: Deprecated }
         "403": { description: admin only }
+
+  /api/saas/crm/inboxes:
+    get:
+      summary: CRM inboxes (Phase A)
+      responses:
+        "200": { description: Inbox list }
+    post:
+      summary: Admin create inbox
+      responses:
+        "201": { description: Created }
+        "403": { description: admin only }
+
+  /api/saas/crm/inboxes/{id}/channel:
+    get:
+      summary: WhatsApp channel config (secrets masked)
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: ChannelWhatsapp DTO without raw secrets }
+    put:
+      summary: Save credentials (encrypted); connection_status ≤ ready_stub
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: Saved }
+        "422": { description: live status rejected }
+
+  /api/saas/crm/conversas:
+    get:
+      summary: Conversation desk list
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200": { description: Conversation page }
+
+  /api/saas/crm/conversas/{id}:
+    get:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: Conversation + contact + labels }
+        "404": { description: Missing or not visible }
+    patch:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: Updated status/assignee/priority/links }
+
+  /api/saas/crm/conversas/{id}/mensagens:
+    get:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200": { description: Messages page }
+    post:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: { type: string }
+                private: { type: boolean }
+      responses:
+        "201": { description: Outgoing or private note }
+
+  /api/saas/crm/simular:
+    post:
+      summary: Admin-only inbound simulator (Conversation)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone_e164, body]
+              properties:
+                inbox_id: { type: string }
+                phone_e164: { type: string }
+                body: { type: string }
+                intent_label:
+                  enum:
+                    - "intent:cadastro"
+                    - "intent:orcamento"
+                    - "intent:info_empresa"
+                    - "intent:outro"
+      responses:
+        "201": { description: Conversation + message + contact }
+        "403": { description: admin only }
+
+  /api/saas/crm/contatos:
+    get:
+      responses:
+        "200": { description: Contact page }
+    post:
+      responses:
+        "201": { description: Contact created }
+
+  /api/saas/crm/empresas:
+    get:
+      responses:
+        "200": { description: Company page }
+
+  /api/saas/crm/labels:
+    get:
+      responses:
+        "200": { description: Labels incl. system intents }
+
+  /api/saas/crm/teams:
+    get:
+      responses:
+        "200": { description: Teams }
+
+  /api/saas/crm/respostas-rapidas:
+    get:
+      responses:
+        "200": { description: Canned responses }
+
+  /api/saas/crm/notificacoes:
+    get:
+      responses:
+        "200": { description: Agent notifications }
+
+  /api/saas/crm/presence:
+    post:
+      summary: Viewing/typing/availability heartbeat
+      responses:
+        "204": { description: Recorded }
+
+  /api/saas/crm/events/stream:
+    get:
+      summary: SSE CRM events (Phase A realtime)
+      responses:
+        "200":
+          description: text/event-stream
+
+  /api/saas/crm/busca:
+    get:
+      summary: Global search conversations/contacts/messages
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Search hits }
 
   /api/saas/cadastros:
     get:

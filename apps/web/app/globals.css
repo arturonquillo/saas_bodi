@@ -1,61 +1,61 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "shadcn/tailwind.css";
 @import "./design-tokens.css";
 @import "./ui.css";
 
 @source "../src";
 @source ".";
 
-html,
-body {
-  margin: 0;
-  min-height: 100%;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --font-heading: var(--font-display), ui-sans-serif, system-ui, sans-serif;
   --font-sans: var(--font-body), var(--font-ui), "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --color-foreground: var(--foreground);
+
   --color-background: var(--background);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar-background);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-xl: calc(var(--radius) + 4px);
 }
 
+/*
+  saas-starter CSS variable shell (new-york / zinc) with Casa dos Frios brand
+  mapped onto --primary / --ring. Tenant --color-accent never overwrites
+  shadcn --accent (hover wash). Tenant --color-background never paints
+  full-page --background.
+*/
 :root {
   --background: #ffffff;
   --foreground: #141a1f;
@@ -72,6 +72,7 @@ body {
   --accent: #f4f6f7;
   --accent-foreground: #141a1f;
   --destructive: #b42318;
+  --destructive-foreground: #f7f1f0;
   --border: #d8dee3;
   --input: #d8dee3;
   --ring: #1f5c6b;
@@ -80,8 +81,8 @@ body {
   --chart-3: #5a6570;
   --chart-4: #d8dee3;
   --chart-5: #141a1f;
-  --radius: 8px;
-  --sidebar: #fafbfc;
+  --radius: 0.5rem;
+  --sidebar-background: #fafbfc;
   --sidebar-foreground: #141a1f;
   --sidebar-primary: #7a1f1f;
   --sidebar-primary-foreground: #f7f1f0;
@@ -90,10 +91,6 @@ body {
   --sidebar-border: #e5e9ec;
   --sidebar-ring: #1f5c6b;
 }
-
-/* Per-surface shadcn mapping (docs/design/shadcn.md §2).
-   Tenant --color-accent never overwrites --accent.
-   Tenant --color-background never paints Loja/SaaS --background. */
 
 [data-theme="tenant"][data-density="comfortable"] {
   --background: #ffffff;
@@ -111,10 +108,11 @@ body {
   --accent: #f4f6f7;
   --accent-foreground: var(--color-text);
   --destructive: var(--color-danger);
+  --destructive-foreground: var(--color-text-on-primary);
   --border: #d8dee3;
   --input: #d8dee3;
   --ring: var(--color-accent);
-  --radius: 8px;
+  --radius: 0.5rem;
 }
 
 [data-theme="tenant"][data-density="compact"] {
@@ -133,11 +131,12 @@ body {
   --accent: #eceff1;
   --accent-foreground: var(--color-text);
   --destructive: var(--color-danger);
+  --destructive-foreground: var(--color-text-on-primary);
   --border: #d8dee3;
   --input: #d8dee3;
   --ring: var(--color-accent);
-  --radius: 4px;
-  --sidebar: #fafbfc;
+  --radius: 0.375rem;
+  --sidebar-background: #fafbfc;
   --sidebar-foreground: var(--color-text);
   --sidebar-primary: var(--color-primary);
   --sidebar-primary-foreground: var(--color-text-on-primary);
@@ -148,17 +147,23 @@ body {
 }
 
 @layer base {
-  * {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
     border-color: var(--border);
-    outline-color: color-mix(in oklab, var(--ring) 50%, transparent);
   }
+
+  * {
+    @apply border-border outline-ring/50;
+  }
+
   body {
-    background-color: var(--background);
-    color: var(--foreground);
-  }
-  html {
+    @apply bg-background text-foreground;
     font-family: var(--font-sans);
   }
+
   h1,
   h2,
   .font-display {

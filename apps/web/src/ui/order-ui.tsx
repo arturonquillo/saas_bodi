@@ -13,8 +13,6 @@ import {
   LEGAL_PEDIDO_TRANSITIONS,
   LEGAL_VENDA_TRANSITIONS,
 } from "@saas-frota/shared";
-import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { COPY } from "./copy";
 import { formatMoney } from "./format";
@@ -62,22 +60,15 @@ export function notifyCopy(canais: CanalAviso | undefined) {
 }
 
 function toneClass(tone: "muted" | "primary" | "warning" | "success" | "danger" | "accent") {
-  if (tone === "warning") return "border-transparent bg-[var(--color-warning)]/15 text-[var(--color-warning)]";
-  if (tone === "success") return "border-transparent bg-[var(--color-success)]/15 text-[var(--color-success)]";
-  if (tone === "danger") return undefined;
-  if (tone === "accent") return "border-transparent bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]";
-  if (tone === "primary") return undefined;
-  return undefined;
+  if (tone === "warning") return "bg-[var(--color-warning)]/15 text-[var(--color-warning)]";
+  if (tone === "success") return "bg-[var(--color-success)]/15 text-[var(--color-success)]";
+  if (tone === "danger") return "bg-destructive/15 text-destructive";
+  if (tone === "accent") return "bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]";
+  if (tone === "primary") return "bg-primary text-primary-foreground";
+  return "bg-secondary text-secondary-foreground";
 }
 
-function toneVariant(tone: "muted" | "primary" | "warning" | "success" | "danger" | "accent") {
-  if (tone === "danger") return "destructive" as const;
-  if (tone === "primary") return "default" as const;
-  if (tone === "muted") return "secondary" as const;
-  return "outline" as const;
-}
-
-function StatusBadgeBase({
+function StatusPill({
   label,
   tone,
   large,
@@ -87,9 +78,15 @@ function StatusBadgeBase({
   large?: boolean;
 }) {
   return (
-    <Badge variant={toneVariant(tone)} className={cn(toneClass(tone), large && "h-8 px-3 text-sm")}>
+    <span
+      className={cn(
+        "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium",
+        large && "px-3 py-1 text-sm",
+        toneClass(tone),
+      )}
+    >
       {label}
-    </Badge>
+    </span>
   );
 }
 
@@ -107,7 +104,7 @@ export function OrcamentoStatusBadge({ status, large }: { status: OrcamentoStatu
               ? "danger"
               : "muted";
   const label = COPY.orcamento[status as OrcamentoStatus] ?? status;
-  return <StatusBadgeBase label={label} tone={tone} large={large} />;
+  return <StatusPill label={label} tone={tone} large={large} />;
 }
 
 export function PedidoStatusBadge({ status, large }: { status: PedidoStatus | string; large?: boolean }) {
@@ -124,7 +121,7 @@ export function PedidoStatusBadge({ status, large }: { status: PedidoStatus | st
               ? "danger"
               : "muted";
   const label = COPY.pedido[status as PedidoStatus] ?? status;
-  return <StatusBadgeBase label={label} tone={tone} large={large} />;
+  return <StatusPill label={label} tone={tone} large={large} />;
 }
 
 /** @deprecated Prefer PedidoStatusBadge — alias for gradual migration */
@@ -136,7 +133,7 @@ export function VendaStatusBadge({ status, large }: { status: VendaStatus | stri
   const tone =
     status === "rascunho" ? "muted" : status === "faturado" ? "success" : status === "cancelado" ? "danger" : "muted";
   const label = COPY.venda[status as VendaStatus] ?? status;
-  return <StatusBadgeBase label={label} tone={tone} large={large} />;
+  return <StatusPill label={label} tone={tone} large={large} />;
 }
 
 export function CadastroStatusBadge({ status }: { status: CadastroStatus | string }) {
@@ -150,11 +147,11 @@ export function CadastroStatusBadge({ status }: { status: CadastroStatus | strin
         : status === "recusado"
           ? COPY.status_recusado
           : status;
-  return <StatusBadgeBase label={label} tone={tone} />;
+  return <StatusPill label={label} tone={tone} />;
 }
 
 export function IntentBadge({ intent }: { intent: WhatsappIntent | null | undefined }) {
-  if (!intent) return <Badge variant="secondary">—</Badge>;
+  if (!intent) return <StatusPill label="—" tone="muted" />;
   const label =
     intent === "cadastro"
       ? COPY.intent_cadastro
@@ -163,23 +160,13 @@ export function IntentBadge({ intent }: { intent: WhatsappIntent | null | undefi
         : intent === "info_empresa"
           ? COPY.intent_info_empresa
           : COPY.intent_outro;
-  return (
-    <Badge variant="outline" className="border-transparent bg-[var(--brand-accent)]/12 text-[var(--brand-accent)]">
-      {label}
-    </Badge>
-  );
+  return <StatusPill label={label} tone="accent" />;
 }
 
 export function OutboxBadge({ status }: { status: string }) {
-  if (status === "enviado") {
-    return (
-      <Badge variant="secondary" className="border-transparent bg-[var(--color-success)]/15 text-[var(--color-success)]">
-        {COPY.outbox.enviado}
-      </Badge>
-    );
-  }
-  if (status === "falha") return <Badge variant="destructive">{COPY.outbox.falha}</Badge>;
-  return <Badge variant="outline">{COPY.outbox.pendente}</Badge>;
+  if (status === "enviado") return <StatusPill label={COPY.outbox.enviado} tone="success" />;
+  if (status === "falha") return <StatusPill label={COPY.outbox.falha} tone="danger" />;
+  return <StatusPill label={COPY.outbox.pendente} tone="muted" />;
 }
 
 const PEDIDO_TRAIL: PedidoStatus[] = ["confirmado", "em_separacao", "despachado", "entregue"];
@@ -214,11 +201,9 @@ export function PedidoStatusTrail({ status }: { status: PedidoStatus }) {
 export function NotifyAlert({ canais }: { canais?: CanalAviso }) {
   const copy = notifyCopy(canais);
   return (
-    <Alert role="status" className="border-[var(--brand-accent)]/30 bg-[var(--brand-accent)]/8">
-      <AlertDescription>
-        {copy.customer} {copy.seller}
-      </AlertDescription>
-    </Alert>
+    <p role="status" className="rounded-md border border-[var(--brand-accent)]/30 bg-[var(--brand-accent)]/8 px-3 py-2 text-sm">
+      {copy.customer} {copy.seller}
+    </p>
   );
 }
 

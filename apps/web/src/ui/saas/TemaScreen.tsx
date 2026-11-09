@@ -2,23 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { ThemeTokens } from "@saas-frota/shared";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
 import { apiGet, apiSend, isApiError } from "../api";
 import { COPY } from "../copy";
-import { ListHeader, SaasMain } from "../layout";
+import { SaasPage } from "../layout";
 import { themePassesContrast, themeStyle } from "../theme/apply-tokens";
 import { useTenantTheme } from "../theme/TenantTheme";
 import { ErrorState, FormSkeleton } from "../states";
@@ -85,108 +75,152 @@ export function TemaScreen() {
 
   if (status === "loading") {
     return (
-      <SaasMain>
+      <SaasPage title={COPY.theme_title}>
         <FormSkeleton />
-      </SaasMain>
+      </SaasPage>
     );
   }
   if (status === "error") {
     return (
-      <SaasMain>
+      <SaasPage title={COPY.theme_title}>
         <ErrorState onRetry={() => void load()} />
-      </SaasMain>
+      </SaasPage>
     );
   }
 
   return (
-    <SaasMain>
-      <ListHeader
-        title={COPY.theme_title}
-        actions={
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" disabled={!dirty} onClick={() => setDiscardOpen(true)}>
-              {COPY.actions.cancelar}
-            </Button>
-            <Button type="button" disabled={busy || !dirty} onClick={() => void save()}>
+    <SaasPage
+      title={COPY.theme_title}
+      actions={
+        <>
+          <Button type="button" variant="outline" disabled={!dirty} onClick={() => setDiscardOpen(true)}>
+            {COPY.actions.cancelar}
+          </Button>
+          <Button
+            type="button"
+            className="bg-primary text-white hover:bg-primary/90"
+            disabled={busy || !dirty}
+            onClick={() => void save()}
+          >
+            {COPY.theme_save}
+          </Button>
+        </>
+      }
+    >
+      {discardOpen ? (
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>{COPY.actions.cancelar}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-gray-500">{COPY.discard_theme}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={() => setDiscardOpen(false)}>
+                {COPY.actions.fechar}
+              </Button>
+              <Button
+                type="button"
+                className="bg-primary text-white hover:bg-primary/90"
+                onClick={discard}
+              >
+                {COPY.actions.confirmar}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>Tokens da marca</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void save();
+            }}
+          >
+            <div>
+              <Label htmlFor="marca" className="mb-2">
+                {COPY.theme_marca}
+              </Label>
+              <Input
+                id="marca"
+                value={draft.marca}
+                onChange={(e) => setDraft({ ...draft, marca: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="primary" className="mb-2">
+                {COPY.theme_primary}
+              </Label>
+              <Input
+                id="primary"
+                type="color"
+                value={draft.primary}
+                onChange={(e) => setDraft({ ...draft, primary: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="accent" className="mb-2">
+                {COPY.theme_accent}
+              </Label>
+              <Input
+                id="accent"
+                type="color"
+                value={draft.accent}
+                onChange={(e) => setDraft({ ...draft, accent: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="background" className="mb-2">
+                {COPY.theme_background}
+              </Label>
+              <Input
+                id="background"
+                type="color"
+                value={draft.background}
+                onChange={(e) => setDraft({ ...draft, background: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="logo" className="mb-2">
+                {COPY.theme_logo}
+              </Label>
+              <Input
+                id="logo"
+                value={draft.logo_url ?? ""}
+                onChange={(e) => setDraft({ ...draft, logo_url: e.target.value || null })}
+                placeholder="https://…"
+              />
+            </div>
+            {!contrastOk ? <p className="text-sm text-red-500">{COPY.theme_contrast_fail}</p> : null}
+            {error ? <p className="text-sm text-red-500">{error}</p> : null}
+            <Button
+              type="submit"
+              className="bg-primary text-white hover:bg-primary/90"
+              disabled={busy || !dirty}
+            >
               {COPY.theme_save}
             </Button>
-          </div>
-        }
-      />
+          </form>
+        </CardContent>
+      </Card>
 
-      <div className="grid gap-8 lg:grid-cols-2">
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void save();
-          }}
-        >
-          <Field>
-            <FieldLabel htmlFor="marca">{COPY.theme_marca}</FieldLabel>
-            <Input
-              id="marca"
-              value={draft.marca}
-              onChange={(e) => setDraft({ ...draft, marca: e.target.value })}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="primary">{COPY.theme_primary}</FieldLabel>
-            <Input
-              id="primary"
-              type="color"
-              value={draft.primary}
-              onChange={(e) => setDraft({ ...draft, primary: e.target.value })}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="accent">{COPY.theme_accent}</FieldLabel>
-            <Input
-              id="accent"
-              type="color"
-              value={draft.accent}
-              onChange={(e) => setDraft({ ...draft, accent: e.target.value })}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="background">{COPY.theme_background}</FieldLabel>
-            <Input
-              id="background"
-              type="color"
-              value={draft.background}
-              onChange={(e) => setDraft({ ...draft, background: e.target.value })}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="logo">{COPY.theme_logo}</FieldLabel>
-            <Input
-              id="logo"
-              value={draft.logo_url ?? ""}
-              onChange={(e) => setDraft({ ...draft, logo_url: e.target.value || null })}
-              placeholder="https://…"
-            />
-          </Field>
-          {!contrastOk ? (
-            <Alert>
-              <AlertDescription>{COPY.theme_contrast_fail}</AlertDescription>
-            </Alert>
-          ) : null}
-          {error ? (
-            <Alert>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          ) : null}
-        </form>
-
-        <div>
-          <p className="mb-2 text-sm font-semibold">{COPY.theme_preview}</p>
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>{COPY.theme_preview}</CardTitle>
+        </CardHeader>
+        <CardContent>
           <div
-            className="overflow-hidden rounded-md border border-border"
+            className="overflow-hidden rounded-md border border-gray-200"
             style={themeStyle(draft)}
             data-theme="tenant"
           >
             <div className="space-y-4 p-4" style={{ background: "var(--color-background)" }}>
-              <p className="font-display text-2xl font-semibold" style={{ color: "var(--color-text)" }}>
+              <p className="text-2xl font-semibold" style={{ color: "var(--color-text)" }}>
                 {draft.marca || COPY.marca}
               </p>
               <p className="text-sm font-semibold" style={{ color: "var(--color-primary)" }}>
@@ -199,41 +233,41 @@ export function TemaScreen() {
               >
                 Botão primário
               </button>
-              <div className="rounded-md border bg-white p-3 text-xs" style={{ borderColor: "var(--color-border)" }}>
-                <table className="w-full">
-                  <tbody>
-                    <tr>
-                      <td>SKU</td>
-                      <td className="text-right">12</td>
-                    </tr>
-                  </tbody>
-                </table>
+              <div
+                className="rounded-md border bg-white p-3 text-xs"
+                style={{ borderColor: "var(--color-border)" }}
+              >
+                <ul className="space-y-1">
+                  <li className="flex justify-between gap-2">
+                    <span>SKU</span>
+                    <span>12</span>
+                  </li>
+                </ul>
               </div>
               <div className="flex gap-2 text-xs">
-                <span className="rounded px-2 py-1" style={{ background: "color-mix(in srgb, var(--color-success) 15%, transparent)", color: "var(--color-success)" }}>
+                <span
+                  className="rounded px-2 py-1"
+                  style={{
+                    background: "color-mix(in srgb, var(--color-success) 15%, transparent)",
+                    color: "var(--color-success)",
+                  }}
+                >
                   Aprovado
                 </span>
-                <span className="rounded px-2 py-1" style={{ background: "color-mix(in srgb, var(--color-warning) 15%, transparent)", color: "var(--color-warning)" }}>
+                <span
+                  className="rounded px-2 py-1"
+                  style={{
+                    background: "color-mix(in srgb, var(--color-warning) 15%, transparent)",
+                    color: "var(--color-warning)",
+                  }}
+                >
                   Pendente
                 </span>
               </div>
             </div>
           </div>
-        </div>
-      </div>
-
-      <AlertDialog open={discardOpen} onOpenChange={setDiscardOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{COPY.actions.cancelar}</AlertDialogTitle>
-            <AlertDialogDescription>{COPY.discard_theme}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{COPY.actions.fechar}</AlertDialogCancel>
-            <AlertDialogAction onClick={discard}>{COPY.actions.confirmar}</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </SaasMain>
+        </CardContent>
+      </Card>
+    </SaasPage>
   );
 }

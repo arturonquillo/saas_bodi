@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { apiGet, apiSend, asPage, isApiError, type CatalogItemDto, type PedidoDto } from "../api";
 import { useCart } from "../cart";
@@ -134,11 +133,7 @@ export function CartScreen() {
             ) : null}
           </div>
 
-          {error ? (
-            <Alert>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          ) : null}
+          {error ? <p className="text-sm text-red-500">{error}</p> : null}
         </div>
       )}
     </StoreMain>

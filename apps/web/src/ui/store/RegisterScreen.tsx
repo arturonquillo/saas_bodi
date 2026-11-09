@@ -3,11 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { isValidCnpj, onlyDigits } from "@saas-frota/shared";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { apiSend, isApiError, type CadastroDto } from "../api";
 import { BrandMark } from "../BrandMark";
 import { COPY } from "../copy";
@@ -58,9 +57,9 @@ export function RegisterScreen() {
         </CardHeader>
         <CardContent>
           {ok ? (
-            <Alert className="border-[var(--color-success)]/30 bg-[var(--color-success)]/10">
-              <AlertDescription>{COPY.cadastro_ok}</AlertDescription>
-            </Alert>
+            <p className="rounded-md border border-[var(--color-success)]/30 bg-[var(--color-success)]/10 px-3 py-2 text-sm">
+              {COPY.cadastro_ok}
+            </p>
           ) : (
             <form className="space-y-4" onSubmit={onSubmit}>
               <CnpjField
@@ -71,8 +70,10 @@ export function RegisterScreen() {
                   setRegistroPendente(cnpj_registro_pendente);
                 }}
               />
-              <Field>
-                <FieldLabel htmlFor="razao_social">{COPY.razao_social}</FieldLabel>
+              <div>
+                <Label htmlFor="razao_social" className="mb-2">
+                  {COPY.razao_social}
+                </Label>
                 <Input
                   id="razao_social"
                   name="razao_social"
@@ -80,24 +81,32 @@ export function RegisterScreen() {
                   value={razao}
                   onChange={(e) => setRazao(e.target.value)}
                 />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="contato_nome">{COPY.contato}</FieldLabel>
+              </div>
+              <div>
+                <Label htmlFor="contato_nome" className="mb-2">
+                  {COPY.contato}
+                </Label>
                 <Input id="contato_nome" name="contato_nome" required />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="whatsapp">{COPY.whatsapp}</FieldLabel>
+              </div>
+              <div>
+                <Label htmlFor="whatsapp" className="mb-2">
+                  {COPY.whatsapp}
+                </Label>
                 <Input id="whatsapp" name="whatsapp" required />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="email">{COPY.email}</FieldLabel>
+              </div>
+              <div>
+                <Label htmlFor="email" className="mb-2">
+                  {COPY.email}
+                </Label>
                 <Input id="email" name="email" type="email" required />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="password">{COPY.password}</FieldLabel>
+              </div>
+              <div>
+                <Label htmlFor="password" className="mb-2">
+                  {COPY.password}
+                </Label>
                 <Input id="password" name="password" type="password" required />
-              </Field>
-              {error ? <FieldError>{error}</FieldError> : null}
+              </div>
+              {error ? <p className="text-sm text-red-500">{error}</p> : null}
               <Button type="submit" className="h-11 w-full" disabled={busy}>
                 {COPY.cadastro_submit}
               </Button>

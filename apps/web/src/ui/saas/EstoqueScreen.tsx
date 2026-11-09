@@ -4,41 +4,16 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { isAdmin } from "@saas-frota/shared";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
+import { Label } from "@/components/ui/label";
 import { apiGet, apiSend, asPage, isApiError, type EstoqueItemDto } from "../api";
 import { COPY } from "../copy";
 import { formatMoney } from "../format";
-import { DeskWrap, ListHeader, SaasMain } from "../layout";
+import { SaasPage } from "../layout";
 import { useSession } from "../session";
-import { EmptyState, ErrorState, FormSkeleton, TableSkeleton } from "../states";
+import { ErrorState, FormSkeleton, TableSkeleton } from "../states";
 
 export function EstoqueListScreen() {
   const { session } = useSession();
@@ -70,58 +45,59 @@ export function EstoqueListScreen() {
   }
 
   return (
-    <SaasMain>
-      <ListHeader title={COPY.estoque_title} />
+    <SaasPage title={COPY.estoque_title}>
       {status === "loading" ? (
         <TableSkeleton />
       ) : status === "error" ? (
         <ErrorState onRetry={() => void load()} />
-      ) : items.length === 0 ? (
-        <EmptyState title={COPY.estoque_empty} art="warehouse" />
       ) : (
-        <DeskWrap>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>SKU</TableHead>
-                <TableHead>Nome</TableHead>
-                <TableHead>{COPY.on_hand}</TableHead>
-                <TableHead>{COPY.reserved}</TableHead>
-                <TableHead>{COPY.available}</TableHead>
-                <TableHead>{COPY.price_atacado}</TableHead>
-                <TableHead>{COPY.visivel_loja}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>
-                    <Link href={`/saas/estoque/${item.id}`} className="font-medium text-primary hover:underline">
-                      {item.codigo}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="cursor-pointer" onClick={() => router.push(`/saas/estoque/${item.id}`)}>
-                    {item.nome}
-                  </TableCell>
-                  <TableCell>{item.on_hand}</TableCell>
-                  <TableCell>{item.reserved}</TableCell>
-                  <TableCell>{item.available}</TableCell>
-                  <TableCell>{formatMoney(item.preco_atacado_centavos)}</TableCell>
-                  <TableCell>
-                    <Switch
-                      checked={item.visivel_loja}
-                      disabled={!admin}
-                      onCheckedChange={(v) => void toggleVisibility(item, v)}
-                      aria-label={COPY.visivel_loja}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </DeskWrap>
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>{COPY.estoque_title}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {items.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <h3 className="mb-2 text-lg font-semibold text-gray-900">{COPY.estoque_empty}</h3>
+                <p className="max-w-sm text-sm text-gray-500">
+                  SKUs cadastrados no estoque aparecerão nesta lista.
+                </p>
+              </div>
+            ) : (
+              <ul className="space-y-4">
+                {items.map((item) => (
+                  <li key={item.id} className="flex items-center justify-between gap-4">
+                    <button
+                      type="button"
+                      className="min-w-0 flex-1 text-left"
+                      onClick={() => router.push(`/saas/estoque/${item.id}`)}
+                    >
+                      <p className="font-medium text-gray-900">{item.codigo}</p>
+                      <p className="text-sm text-gray-500">{item.nome}</p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        {COPY.on_hand}: {item.on_hand} · {COPY.reserved}: {item.reserved} · {COPY.available}:{" "}
+                        {item.available} · {formatMoney(item.preco_atacado_centavos)}
+                      </p>
+                    </button>
+                    <label className="inline-flex shrink-0 items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        className="size-4 rounded border-gray-200"
+                        checked={item.visivel_loja}
+                        disabled={!admin}
+                        onChange={(e) => void toggleVisibility(item, e.target.checked)}
+                        aria-label={COPY.visivel_loja}
+                      />
+                      <span className="text-gray-500">{COPY.visivel_loja}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
       )}
-    </SaasMain>
+    </SaasPage>
   );
 }
 
@@ -172,107 +148,120 @@ export function SkuDetailScreen() {
 
   if (status === "loading") {
     return (
-      <SaasMain>
+      <SaasPage title={COPY.estoque_title}>
         <FormSkeleton />
-      </SaasMain>
+      </SaasPage>
     );
   }
   if (status === "error" || !item) {
     return (
-      <SaasMain>
+      <SaasPage title={COPY.estoque_title}>
         <ErrorState message={COPY.not_found} onRetry={() => void load()} />
-      </SaasMain>
+      </SaasPage>
     );
   }
 
   return (
-    <SaasMain>
-      <Breadcrumb className="mb-3">
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link href="/saas/estoque">{COPY.estoque_title}</Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{item.codigo}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
+    <SaasPage
+      title={item.nome}
+      actions={
+        admin ? (
+          <Button
+            type="button"
+            className="bg-primary text-white hover:bg-primary/90"
+            onClick={() => setOpen((o) => !o)}
+          >
+            {COPY.adjust_qty}
+          </Button>
+        ) : null
+      }
+    >
+      <p className="mb-6 text-sm text-gray-500">
+        <Link href="/saas/estoque" className="hover:text-gray-900">
+          ← {COPY.estoque_title}
+        </Link>
+        <span className="mx-2">·</span>
+        <span className="text-gray-900">{item.codigo}</span>
+      </p>
 
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="font-display text-xl font-semibold">{item.nome}</h1>
-          <p className="text-sm text-muted-foreground">{item.codigo}</p>
-        </div>
-        {admin ? (
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button type="button">{COPY.adjust_qty}</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{COPY.adjust_qty}</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-3">
-                <Field>
-                  <FieldLabel htmlFor="delta">Delta</FieldLabel>
-                  <Input id="delta" type="number" value={delta} onChange={(e) => setDelta(e.target.value)} />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="motivo">{COPY.motivo}</FieldLabel>
-                  <Input id="motivo" value={motivo} onChange={(e) => setMotivo(e.target.value)} />
-                </Field>
-                {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {open ? (
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>{COPY.adjust_qty}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form
+              className="space-y-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void adjust();
+              }}
+            >
+              <div>
+                <Label htmlFor="delta" className="mb-2">
+                  Delta
+                </Label>
+                <Input id="delta" type="number" value={delta} onChange={(e) => setDelta(e.target.value)} />
               </div>
-              <DialogFooter>
+              <div>
+                <Label htmlFor="motivo" className="mb-2">
+                  {COPY.motivo}
+                </Label>
+                <Input id="motivo" value={motivo} onChange={(e) => setMotivo(e.target.value)} />
+              </div>
+              {error ? <p className="text-sm text-red-500">{error}</p> : null}
+              <div className="flex flex-wrap gap-2">
                 <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                   {COPY.actions.cancelar}
                 </Button>
-                <Button type="button" disabled={busy} onClick={() => void adjust()}>
+                <Button type="submit" className="bg-primary text-white hover:bg-primary/90" disabled={busy}>
                   {COPY.actions.confirmar}
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        ) : null}
-      </div>
-
-      <DeskWrap className="grid gap-3 p-4 text-sm sm:grid-cols-3">
-        <div>
-          <p className="text-muted-foreground">{COPY.on_hand}</p>
-          <p className="text-lg font-semibold tabular-nums">{item.on_hand}</p>
-        </div>
-        <div>
-          <p className="text-muted-foreground">{COPY.reserved}</p>
-          <p className="text-lg font-semibold tabular-nums">{item.reserved}</p>
-        </div>
-        <div>
-          <p className="text-muted-foreground">{COPY.available}</p>
-          <p className="text-lg font-semibold tabular-nums text-primary">{item.available}</p>
-        </div>
-      </DeskWrap>
-
-      <DeskWrap className="mt-4 space-y-2 p-4 text-sm">
-        <p>
-          <span className="text-muted-foreground">{COPY.price_atacado}: </span>
-          {formatMoney(item.preco_atacado_centavos)}
-        </p>
-        <p>
-          <span className="text-muted-foreground">{COPY.moq(item.qtd_min_atacado)}</span>
-        </p>
-        <p>
-          <span className="text-muted-foreground">{COPY.visivel_loja}: </span>
-          {item.visivel_loja ? "Sim" : "Não"}
-        </p>
-      </DeskWrap>
-
-      {!admin ? (
-        <Alert className="mt-4">
-          <AlertDescription>Somente leitura para vendedor.</AlertDescription>
-        </Alert>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       ) : null}
-    </SaasMain>
+
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>Quantidades</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="space-y-4">
+            <li className="flex items-center justify-between">
+              <p className="text-sm text-gray-500">{COPY.on_hand}</p>
+              <p className="text-lg font-semibold tabular-nums text-gray-900">{item.on_hand}</p>
+            </li>
+            <li className="flex items-center justify-between">
+              <p className="text-sm text-gray-500">{COPY.reserved}</p>
+              <p className="text-lg font-semibold tabular-nums text-gray-900">{item.reserved}</p>
+            </li>
+            <li className="flex items-center justify-between">
+              <p className="text-sm text-gray-500">{COPY.available}</p>
+              <p className="text-lg font-semibold tabular-nums text-primary">{item.available}</p>
+            </li>
+          </ul>
+        </CardContent>
+      </Card>
+
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>Detalhes</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          <p>
+            <span className="text-gray-500">{COPY.price_atacado}: </span>
+            <span className="text-gray-900">{formatMoney(item.preco_atacado_centavos)}</span>
+          </p>
+          <p className="text-gray-500">{COPY.moq(item.qtd_min_atacado)}</p>
+          <p>
+            <span className="text-gray-500">{COPY.visivel_loja}: </span>
+            <span className="text-gray-900">{item.visivel_loja ? "Sim" : "Não"}</span>
+          </p>
+          {!admin ? <p className="text-gray-500">Somente leitura para vendedor.</p> : null}
+        </CardContent>
+      </Card>
+    </SaasPage>
   );
 }

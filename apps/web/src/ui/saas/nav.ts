@@ -21,6 +21,10 @@ export type NavItem = {
   adminOnly?: boolean;
 };
 
+/**
+ * IA mirrors saas-starter dashboard nav rhythm:
+ * primary work surfaces first (Team-like), then activity, then settings.
+ */
 const ALL_NAV: NavItem[] = [
   { href: "/saas/inbox", label: COPY.nav.inbox, icon: "inbox" },
   { href: "/saas/cadastros", label: COPY.nav.cadastros, icon: "cadastros" },
@@ -28,10 +32,10 @@ const ALL_NAV: NavItem[] = [
   { href: "/saas/pedidos", label: COPY.nav.pedidos, icon: "pedidos" },
   { href: "/saas/vendas", label: COPY.nav.vendas, icon: "vendas" },
   { href: "/saas/estoque", label: COPY.nav.estoque, icon: "estoque" },
-  { href: "/saas/usuarios", label: COPY.nav.usuarios, icon: "usuarios", adminOnly: true },
-  { href: "/saas/tema", label: COPY.nav.tema, icon: "tema", adminOnly: true },
-  { href: "/saas/configuracao", label: COPY.nav.configuracao, icon: "config", adminOnly: true },
   { href: "/saas/avisos", label: COPY.nav.avisos, icon: "avisos" },
+  { href: "/saas/usuarios", label: COPY.nav.usuarios, icon: "usuarios", adminOnly: true },
+  { href: "/saas/configuracao", label: COPY.nav.configuracao, icon: "config", adminOnly: true },
+  { href: "/saas/tema", label: COPY.nav.tema, icon: "tema", adminOnly: true },
 ];
 
 export function saasNav(role: SaasRole | null | undefined): NavItem[] {

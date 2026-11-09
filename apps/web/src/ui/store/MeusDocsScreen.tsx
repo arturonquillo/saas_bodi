@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiGet, asPage, docTotal, type OrcamentoDto, type PedidoDto } from "../api";
 import { COPY } from "../copy";
 import { formatDate, formatMoney } from "../format";
@@ -19,6 +18,7 @@ export function MeusDocsScreen() {
   const [orcamentos, setOrcamentos] = useState<OrcamentoDto[]>([]);
   const [pedidos, setPedidos] = useState<PedidoDto[]>([]);
   const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
+  const [tab, setTab] = useState<"orcamentos" | "pedidos">("orcamentos");
 
   const load = useCallback(async () => {
     setStatus("loading");
@@ -75,56 +75,71 @@ export function MeusDocsScreen() {
           }
         />
       ) : (
-        <Tabs defaultValue="orcamentos">
-          <TabsList>
-            <TabsTrigger value="orcamentos">{COPY.tab_orcamentos}</TabsTrigger>
-            <TabsTrigger value="pedidos">{COPY.tab_pedidos}</TabsTrigger>
-          </TabsList>
-          <TabsContent value="orcamentos" className="mt-4 space-y-2">
-            {orcamentos.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{COPY.orcamentos_empty}</p>
-            ) : (
-              orcamentos.map((o) => (
-                <Link
-                  key={o.id}
-                  href={`/loja/orcamentos/${o.id}`}
-                  className="flex items-center justify-between gap-3 border-b border-border py-3 hover:bg-muted/40"
-                >
-                  <div>
-                    <p className="font-medium">{o.id}</p>
-                    <p className="text-xs text-muted-foreground">{formatDate(o.updated_at)}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm tabular-nums">{formatMoney(docTotal(o.linhas))}</span>
-                    <OrcamentoStatusBadge status={o.status} />
-                  </div>
-                </Link>
-              ))
-            )}
-          </TabsContent>
-          <TabsContent value="pedidos" className="mt-4 space-y-2">
-            {pedidos.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{COPY.pedidos_empty}</p>
-            ) : (
-              pedidos.map((p) => (
-                <Link
-                  key={p.id}
-                  href={`/loja/pedidos/${p.id}`}
-                  className="flex items-center justify-between gap-3 border-b border-border py-3 hover:bg-muted/40"
-                >
-                  <div>
-                    <p className="font-medium">{p.id}</p>
-                    <p className="text-xs text-muted-foreground">{formatDate(p.updated_at)}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm tabular-nums">{formatMoney(docTotal(p.linhas))}</span>
-                    <PedidoStatusBadge status={p.status} />
-                  </div>
-                </Link>
-              ))
-            )}
-          </TabsContent>
-        </Tabs>
+        <div>
+          <div className="mb-4 flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant={tab === "orcamentos" ? "secondary" : "ghost"}
+              onClick={() => setTab("orcamentos")}
+            >
+              {COPY.tab_orcamentos}
+            </Button>
+            <Button
+              type="button"
+              variant={tab === "pedidos" ? "secondary" : "ghost"}
+              onClick={() => setTab("pedidos")}
+            >
+              {COPY.tab_pedidos}
+            </Button>
+          </div>
+          {tab === "orcamentos" ? (
+            <div className="space-y-2">
+              {orcamentos.length === 0 ? (
+                <p className="text-sm text-muted-foreground">{COPY.orcamentos_empty}</p>
+              ) : (
+                orcamentos.map((o) => (
+                  <Link
+                    key={o.id}
+                    href={`/loja/orcamentos/${o.id}`}
+                    className="flex items-center justify-between gap-3 border-b border-border py-3 hover:bg-muted/40"
+                  >
+                    <div>
+                      <p className="font-medium">{o.id}</p>
+                      <p className="text-xs text-muted-foreground">{formatDate(o.updated_at)}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm tabular-nums">{formatMoney(docTotal(o.linhas))}</span>
+                      <OrcamentoStatusBadge status={o.status} />
+                    </div>
+                  </Link>
+                ))
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {pedidos.length === 0 ? (
+                <p className="text-sm text-muted-foreground">{COPY.pedidos_empty}</p>
+              ) : (
+                pedidos.map((p) => (
+                  <Link
+                    key={p.id}
+                    href={`/loja/pedidos/${p.id}`}
+                    className="flex items-center justify-between gap-3 border-b border-border py-3 hover:bg-muted/40"
+                  >
+                    <div>
+                      <p className="font-medium">{p.id}</p>
+                      <p className="text-xs text-muted-foreground">{formatDate(p.updated_at)}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm tabular-nums">{formatMoney(docTotal(p.linhas))}</span>
+                      <PedidoStatusBadge status={p.status} />
+                    </div>
+                  </Link>
+                ))
+              )}
+            </div>
+          )}
+        </div>
       )}
     </StoreMain>
   );

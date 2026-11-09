@@ -13,7 +13,9 @@ import { channelSimulateInboundPort, stubChannelSendPort } from "../ports/channe
 import { appendDomainEvent } from "./events";
 import { conversationDto, messageDto } from "./dto";
 import { assertConversationVisible, conversationVisibilityFilter } from "./visibility";
-import { ensureJobWorkerStarted } from "../ports/jobs";
+import { ensureJobWorkerStarted, jobEnqueuePort } from "../ports/jobs";
+
+const MENTION_RE = /@\[user_id:([^\]]+)\]/g;
 
 async function loadConversation(tenantId: string, id: string) {
   return db.conversation.findFirst({
@@ -203,8 +205,28 @@ export async function patchConversa(
       aggregateType: "conversation",
       aggregateId: id,
       actorUserId: session.userId,
-      payload: { conversation_id: id, from: row.status, to: input.status },
+      payload: {
+        conversation_id: id,
+        inbox_id: row.inboxId,
+        from: row.status,
+        to: input.status,
+      },
     });
+    if (input.status === "resolved") {
+      const inbox = await db.inbox.findFirst({
+        where: { id: row.inboxId, tenantId: session.tenantId },
+      });
+      if (inbox?.csatEnabled) {
+        await jobEnqueuePort.enqueue({
+          tenantId: session.tenantId,
+          kind: "csat.deliver",
+          payload: {
+            tenant_id: session.tenantId,
+            conversation_id: id,
+          },
+        });
+      }
+    }
   }
   if (assignedChanged) {
     await appendDomainEvent(db, {
@@ -317,6 +339,14 @@ export async function postMensagem(
   const messageId = newId("msg");
   let deliveryStatus: "queued" | "sent" | "failed" = "queued";
 
+  let content = input.content.trim();
+  if (!isPrivate && session.userId && session.userId !== "system") {
+    const sender = await db.user.findUnique({ where: { id: session.userId } });
+    if (sender?.signature?.trim()) {
+      content = `${content}\n\n${sender.signature.trim()}`;
+    }
+  }
+
   if (!isPrivate) {
     const contact = row.contact;
     const to = contact.phoneE164;
@@ -327,7 +357,7 @@ export async function postMensagem(
         conversationId,
         messageId,
         toE164: to,
-        body: input.content.trim(),
+        body: content,
       });
       deliveryStatus = send.deliveryStatus;
     } else {
@@ -344,27 +374,82 @@ export async function postMensagem(
       conversationId,
       messageType: "outgoing",
       private: isPrivate,
-      content: input.content.trim(),
+      content,
       contentType: input.content_type ?? "text",
-      senderUserId: session.userId,
+      senderUserId: session.userId === "system" ? null : session.userId,
       deliveryStatus,
       simulated: true,
     },
   });
-  await db.conversation.update({
-    where: { id: conversationId },
-    data: { lastActivityAt: new Date() },
-  });
+
+  // Mentions → AgentNotification type=mention
+  const mentioned = new Set<string>();
+  for (const m of content.matchAll(MENTION_RE)) {
+    if (m[1]) mentioned.add(m[1]);
+  }
+  for (const userId of mentioned) {
+    const mem = await db.membership.findFirst({
+      where: { tenantId: session.tenantId, userId, saasRole: { not: null } },
+    });
+    if (!mem) continue;
+    await db.agentNotification.create({
+      data: {
+        id: newId("ntf"),
+        tenantId: session.tenantId,
+        userId,
+        type: "mention",
+        title: "Você foi mencionado",
+        body: `Menção na conversa ${conversationId}`,
+        conversationId,
+      },
+    });
+    await appendDomainEvent(db, {
+      tenantId: session.tenantId,
+      type: "mention.created",
+      aggregateType: "message",
+      aggregateId: messageId,
+      actorUserId: session.userId === "system" ? null : session.userId,
+      payload: { conversation_id: conversationId, message_id: messageId, user_id: userId },
+    });
+  }
+
+  // Agent reply while bot-owned → handoff to open
+  if (!isPrivate && row.botAgentBotId) {
+    await db.conversation.update({
+      where: { id: conversationId },
+      data: {
+        botAgentBotId: null,
+        status: "open",
+        lastActivityAt: new Date(),
+      },
+    });
+    await appendDomainEvent(db, {
+      tenantId: session.tenantId,
+      type: "bot.handed_off",
+      aggregateType: "conversation",
+      aggregateId: conversationId,
+      actorUserId: session.userId === "system" ? null : session.userId,
+      payload: { conversation_id: conversationId, reason: "agent_reply" },
+    });
+  } else {
+    await db.conversation.update({
+      where: { id: conversationId },
+      data: { lastActivityAt: new Date() },
+    });
+  }
+
   await appendDomainEvent(db, {
     tenantId: session.tenantId,
     type: "message.created",
     aggregateType: "message",
     aggregateId: messageId,
-    actorUserId: session.userId,
+    actorUserId: session.userId === "system" ? null : session.userId,
     payload: {
       conversation_id: conversationId,
+      inbox_id: row.inboxId,
       message_id: messageId,
       private: isPrivate,
+      message_type: "outgoing",
     },
   });
 

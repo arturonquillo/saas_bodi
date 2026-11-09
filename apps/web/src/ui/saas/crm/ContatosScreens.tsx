@@ -30,9 +30,15 @@ import {
 import { apiGet, apiSend, asPage, isApiError } from "../../api";
 import { COPY } from "../../copy";
 import { displayLabelTitle } from "../../crm/labels";
-import type { CrmContactDto, CrmConversationDto, CrmInboxDto } from "../../crm/types";
+import type {
+  CrmAttributeDto,
+  CrmContactDto,
+  CrmConversationDto,
+  CrmInboxDto,
+} from "../../crm/types";
 import { SaasPage } from "../../layout";
 import { ErrorState, TableSkeleton } from "../../states";
+import { ContatoMergeDialog } from "./ContatosImportMergeScreens";
 
 function initials(nome: string) {
   return nome
@@ -88,9 +94,14 @@ export function ContatosListScreen() {
     <SaasPage
       title={COPY.crm.contatos_title}
       actions={
-        <Button type="button" onClick={() => setCreateOpen(true)}>
-          {COPY.crm.contato_novo}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" asChild>
+            <Link href="/saas/contatos/importar">{COPY.crm.contatos_import}</Link>
+          </Button>
+          <Button type="button" onClick={() => setCreateOpen(true)}>
+            {COPY.crm.contato_novo}
+          </Button>
+        </div>
       }
     >
       <div className="mb-4">
@@ -191,9 +202,12 @@ export function ContatoDetailScreen() {
   const [item, setItem] = useState<CrmContactDto | null>(null);
   const [threads, setThreads] = useState<CrmConversationDto[]>([]);
   const [inboxes, setInboxes] = useState<CrmInboxDto[]>([]);
+  const [attrDefs, setAttrDefs] = useState<CrmAttributeDto[]>([]);
+  const [attrValues, setAttrValues] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
   const [note, setNote] = useState("");
   const [convOpen, setConvOpen] = useState(false);
+  const [mergeOpen, setMergeOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -201,6 +215,10 @@ export function ContatoDetailScreen() {
     try {
       const contact = await apiGet<CrmContactDto>(`/api/saas/crm/contatos/${id}`);
       setItem(contact);
+      const attrs = contact.custom_attributes ?? {};
+      setAttrValues(
+        Object.fromEntries(Object.entries(attrs).map(([k, v]) => [k, v == null ? "" : String(v)])),
+      );
       const convs = await apiGet(`/api/saas/crm/conversas?contact_id=${encodeURIComponent(id)}`)
         .then((d) => asPage<CrmConversationDto>(d).items)
         .catch(() => [] as CrmConversationDto[]);
@@ -208,6 +226,11 @@ export function ContatoDetailScreen() {
       setInboxes(
         await apiGet("/api/saas/crm/inboxes")
           .then((d) => asPage<CrmInboxDto>(d).items)
+          .catch(() => []),
+      );
+      setAttrDefs(
+        await apiGet("/api/saas/crm/atributos?model=contact")
+          .then((d) => asPage<CrmAttributeDto>(d).items)
           .catch(() => []),
       );
       setStatus("ok");
@@ -255,6 +278,22 @@ export function ContatoDetailScreen() {
     }
   }
 
+  async function saveAttributes(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await apiSend(`/api/saas/crm/contatos/${id}/atributos`, "PATCH", {
+        attributes: attrValues,
+      });
+      toast.success(COPY.actions.salvar);
+      void load();
+    } catch (err) {
+      toast.error(isApiError(err) ? err.message : COPY.save_fail);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (status === "loading") {
     return (
       <SaasPage title={COPY.crm.contatos_title}>
@@ -274,9 +313,14 @@ export function ContatoDetailScreen() {
     <SaasPage
       title={item.nome}
       actions={
-        <Button type="button" onClick={() => setConvOpen(true)}>
-          {COPY.crm.contato_nova_conversa}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" onClick={() => setMergeOpen(true)}>
+            {COPY.crm.contatos_merge}
+          </Button>
+          <Button type="button" onClick={() => setConvOpen(true)}>
+            {COPY.crm.contato_nova_conversa}
+          </Button>
+        </div>
       }
     >
       <Breadcrumb className="mb-4">
@@ -367,7 +411,49 @@ export function ContatoDetailScreen() {
             </form>
           </CardContent>
         </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>{COPY.crm.atributos_title}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {attrDefs.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{COPY.crm.atributos_empty}</p>
+            ) : (
+              <form className="grid gap-3 sm:grid-cols-2" onSubmit={saveAttributes}>
+                {attrDefs.map((def) => (
+                  <div key={def.id}>
+                    <Label htmlFor={`attr-${def.attribute_key}`}>{def.attribute_display_name}</Label>
+                    <Input
+                      id={`attr-${def.attribute_key}`}
+                      className="mt-1"
+                      value={attrValues[def.attribute_key] ?? ""}
+                      onChange={(e) =>
+                        setAttrValues((prev) => ({
+                          ...prev,
+                          [def.attribute_key]: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                ))}
+                <div className="sm:col-span-2">
+                  <Button type="submit" disabled={busy}>
+                    {COPY.actions.salvar}
+                  </Button>
+                </div>
+              </form>
+            )}
+          </CardContent>
+        </Card>
       </div>
+
+      <ContatoMergeDialog
+        open={mergeOpen}
+        onOpenChange={setMergeOpen}
+        survivorId={item.id}
+        survivorNome={item.nome}
+      />
 
       <Dialog open={convOpen} onOpenChange={setConvOpen}>
         <DialogContent>

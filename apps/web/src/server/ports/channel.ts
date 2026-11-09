@@ -7,8 +7,9 @@ import type {
 } from "@saas-frota/shared";
 import { db } from "../db";
 import { appendDomainEvent } from "../crm/events";
+import { inboxIsOpen } from "../crm/hours";
 import { newId } from "../ids";
-import { ensureJobWorkerStarted } from "./jobs";
+import { ensureJobWorkerStarted, jobEnqueuePort } from "./jobs";
 
 const INTENT_TO_LABEL: Record<WhatsappIntent, SystemIntentLabel> = {
   cadastro: "intent:cadastro",
@@ -37,7 +38,7 @@ export const channelSimulateInboundPort: ChannelSimulateInboundPort = {
     }
 
     let contact = await db.contact.findFirst({
-      where: { tenantId: input.tenantId, phoneE164: input.phoneE164 },
+      where: { tenantId: input.tenantId, phoneE164: input.phoneE164, mergedIntoId: null },
     });
     if (!contact) {
       contact = await db.contact.create({
@@ -47,6 +48,13 @@ export const channelSimulateInboundPort: ChannelSimulateInboundPort = {
           nome: input.phoneE164,
           phoneE164: input.phoneE164,
         },
+      });
+      await appendDomainEvent(db, {
+        tenantId: input.tenantId,
+        type: "contact.updated",
+        aggregateType: "contact",
+        aggregateId: contact.id,
+        payload: { contact_id: contact.id, created: true },
       });
     }
 
@@ -81,6 +89,13 @@ export const channelSimulateInboundPort: ChannelSimulateInboundPort = {
 
     const now = new Date();
     let created = false;
+
+    const botLink = await db.agentBotInbox.findFirst({
+      where: { tenantId: input.tenantId, inboxId: inbox.id },
+      include: { agentBot: true },
+    });
+    const activeBot = botLink?.agentBot?.active ? botLink.agentBot : null;
+
     if (!conversation) {
       conversation = await db.conversation.create({
         data: {
@@ -88,7 +103,8 @@ export const channelSimulateInboundPort: ChannelSimulateInboundPort = {
           tenantId: input.tenantId,
           inboxId: inbox.id,
           contactId: contact.id,
-          status: "open",
+          status: activeBot ? "pending" : "open",
+          botAgentBotId: activeBot?.id ?? null,
           lastActivityAt: now,
         },
       });
@@ -96,8 +112,19 @@ export const channelSimulateInboundPort: ChannelSimulateInboundPort = {
     } else {
       await db.conversation.update({
         where: { id: conversation.id },
-        data: { lastActivityAt: now, status: conversation.status === "resolved" ? "open" : undefined },
+        data: {
+          lastActivityAt: now,
+          status: conversation.status === "resolved" ? "open" : undefined,
+          ...(activeBot && !conversation.botAgentBotId && conversation.status !== "open"
+            ? {}
+            : activeBot && conversation.status === "pending"
+              ? { botAgentBotId: activeBot.id }
+              : {}),
+        },
       });
+      if (activeBot && conversation.status === "pending") {
+        conversation = { ...conversation, botAgentBotId: activeBot.id };
+      }
     }
 
     if (input.intentLabel) {
@@ -138,22 +165,85 @@ export const channelSimulateInboundPort: ChannelSimulateInboundPort = {
       },
     });
 
+    // Greeting (new) / OOOH (outside hours) auto-replies
+    const openNow = await inboxIsOpen(input.tenantId, inbox.id, now);
+    const autoBody = !openNow
+      ? inbox.oooMessage
+      : created
+        ? inbox.greeting
+        : null;
+    if (autoBody?.trim()) {
+      await db.message.create({
+        data: {
+          id: newId("msg"),
+          tenantId: input.tenantId,
+          conversationId: conversation.id,
+          messageType: "outgoing",
+          private: false,
+          content: autoBody.trim(),
+          contentType: "text",
+          deliveryStatus: "sent",
+          simulated: true,
+        },
+      });
+    }
+
     if (created) {
       await appendDomainEvent(db, {
         tenantId: input.tenantId,
         type: "conversation.created",
         aggregateType: "conversation",
         aggregateId: conversation.id,
-        payload: { conversation_id: conversation.id, inbox_id: inbox.id },
+        payload: {
+          conversation_id: conversation.id,
+          inbox_id: inbox.id,
+          bot_agent_bot_id: activeBot?.id ?? null,
+        },
       });
+      if (inbox.allowAutoAssign) {
+        await jobEnqueuePort.enqueue({
+          tenantId: input.tenantId,
+          kind: "assignment.round_robin",
+          payload: {
+            tenant_id: input.tenantId,
+            conversation_id: conversation.id,
+            inbox_id: inbox.id,
+          },
+        });
+      }
     }
     await appendDomainEvent(db, {
       tenantId: input.tenantId,
       type: "message.created",
       aggregateType: "message",
       aggregateId: messageId,
-      payload: { conversation_id: conversation.id, message_id: messageId, message_type: "incoming" },
+      payload: {
+        conversation_id: conversation.id,
+        inbox_id: inbox.id,
+        message_id: messageId,
+        message_type: "incoming",
+      },
     });
+
+    if (activeBot && (created || conversation.botAgentBotId === activeBot.id)) {
+      if (!conversation.botAgentBotId) {
+        await db.conversation.update({
+          where: { id: conversation.id },
+          data: { botAgentBotId: activeBot.id, status: "pending" },
+        });
+      }
+      await jobEnqueuePort.enqueue({
+        tenantId: input.tenantId,
+        kind: "bot.deliver",
+        payload: {
+          tenant_id: input.tenantId,
+          conversation_id: conversation.id,
+          message_id: messageId,
+          event: "message_created",
+          payload: { content: input.body },
+        },
+      });
+    }
 
     return {
       conversationId: conversation.id,

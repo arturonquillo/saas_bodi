@@ -19,7 +19,16 @@ export type NavIconName =
   | "equipes"
   | "respostas"
   | "caixas"
-  | "relatorios";
+  | "relatorios"
+  | "automacoes"
+  | "macros"
+  | "atributos"
+  | "bots"
+  | "webhooks"
+  | "horarios"
+  | "atribuicao"
+  | "csat"
+  | "filtros";
 
 export type NavItem = {
   href: string;
@@ -61,6 +70,39 @@ const CRM_CONFIG_NAV: NavItem[] = [
     icon: "respostas",
     crmConfig: true,
   },
+  { href: "/saas/crm/macros", label: COPY.crm.nav_macros, icon: "macros", crmConfig: true },
+  { href: "/saas/crm/atributos", label: COPY.crm.nav_atributos, icon: "atributos", crmConfig: true },
+  { href: "/saas/crm/filtros", label: COPY.crm.nav_filtros, icon: "filtros", crmConfig: true },
+  {
+    href: "/saas/crm/automacoes",
+    label: COPY.crm.nav_automacoes,
+    icon: "automacoes",
+    adminOnly: true,
+    crmConfig: true,
+  },
+  { href: "/saas/crm/bots", label: COPY.crm.nav_bots, icon: "bots", adminOnly: true, crmConfig: true },
+  {
+    href: "/saas/crm/webhooks",
+    label: COPY.crm.nav_webhooks,
+    icon: "webhooks",
+    adminOnly: true,
+    crmConfig: true,
+  },
+  {
+    href: "/saas/crm/horarios",
+    label: COPY.crm.nav_horarios,
+    icon: "horarios",
+    adminOnly: true,
+    crmConfig: true,
+  },
+  {
+    href: "/saas/crm/atribuicao",
+    label: COPY.crm.nav_atribuicao,
+    icon: "atribuicao",
+    adminOnly: true,
+    crmConfig: true,
+  },
+  { href: "/saas/crm/csat", label: COPY.crm.nav_csat, icon: "csat", adminOnly: true, crmConfig: true },
   {
     href: "/saas/crm/relatorios",
     label: COPY.crm.nav_relatorios,
@@ -113,6 +155,29 @@ export function roleHome(_role?: SaasRole | null) {
   return "/saas/conversas";
 }
 
+const BOTH_CRM_PATHS = [
+  "/saas/crm/labels",
+  "/saas/crm/respostas-rapidas",
+  "/saas/crm/macros",
+  "/saas/crm/atributos",
+  "/saas/crm/filtros",
+  "/saas/crm/notificacoes",
+  "/saas/crm/perfil",
+  "/saas/contatos/importar",
+];
+
+const ADMIN_CRM_PATHS = [
+  "/saas/crm/caixas",
+  "/saas/crm/equipes",
+  "/saas/crm/relatorios",
+  "/saas/crm/automacoes",
+  "/saas/crm/bots",
+  "/saas/crm/webhooks",
+  "/saas/crm/horarios",
+  "/saas/crm/atribuicao",
+  "/saas/crm/csat",
+];
+
 export function canOpen(role: SaasRole | null | undefined, path: string) {
   if (!role) return path.startsWith("/saas/entrar");
   if (path.startsWith("/saas/entrar")) return true;
@@ -129,16 +194,12 @@ export function canOpen(role: SaasRole | null | undefined, path: string) {
   if (normalized.startsWith("/saas/vendas")) return true;
   if (normalized.startsWith("/saas/estoque")) return true;
   if (normalized.startsWith("/saas/avisos")) return true;
-  if (normalized.startsWith("/saas/crm/labels")) return true;
-  if (normalized.startsWith("/saas/crm/respostas-rapidas")) return true;
-  if (normalized.startsWith("/saas/crm/notificacoes")) return true;
-  if (normalized.startsWith("/saas/crm/perfil")) return true;
 
-  if (
-    normalized.startsWith("/saas/crm/caixas") ||
-    normalized.startsWith("/saas/crm/equipes") ||
-    normalized.startsWith("/saas/crm/relatorios")
-  ) {
+  if (BOTH_CRM_PATHS.some((p) => normalized === p || normalized.startsWith(`${p}/`))) {
+    return true;
+  }
+
+  if (ADMIN_CRM_PATHS.some((p) => normalized === p || normalized.startsWith(`${p}/`))) {
     return isAdmin(role);
   }
 
@@ -166,6 +227,7 @@ export function currentPageLabel(pathname: string, role: SaasRole | null | undef
   if (pathname.startsWith("/saas/conversas") || pathname.startsWith("/saas/inbox")) {
     return COPY.crm.nav_conversas;
   }
+  if (pathname.startsWith("/saas/contatos/importar")) return COPY.crm.nav_importar_contatos;
   if (pathname.startsWith("/saas/contatos")) return COPY.crm.nav_contatos;
   if (pathname.startsWith("/saas/empresas")) return COPY.crm.nav_empresas;
   if (pathname.startsWith("/saas/crm/labels")) return COPY.crm.nav_labels;
@@ -175,6 +237,15 @@ export function currentPageLabel(pathname: string, role: SaasRole | null | undef
   if (pathname.startsWith("/saas/crm/notificacoes")) return COPY.crm.nav_notificacoes;
   if (pathname.startsWith("/saas/crm/perfil")) return COPY.crm.nav_perfil_crm;
   if (pathname.startsWith("/saas/crm/relatorios")) return COPY.crm.nav_relatorios;
+  if (pathname.startsWith("/saas/crm/automacoes")) return COPY.crm.nav_automacoes;
+  if (pathname.startsWith("/saas/crm/macros")) return COPY.crm.nav_macros;
+  if (pathname.startsWith("/saas/crm/atributos")) return COPY.crm.nav_atributos;
+  if (pathname.startsWith("/saas/crm/bots")) return COPY.crm.nav_bots;
+  if (pathname.startsWith("/saas/crm/webhooks")) return COPY.crm.nav_webhooks;
+  if (pathname.startsWith("/saas/crm/horarios")) return COPY.crm.nav_horarios;
+  if (pathname.startsWith("/saas/crm/atribuicao")) return COPY.crm.nav_atribuicao;
+  if (pathname.startsWith("/saas/crm/csat")) return COPY.crm.nav_csat;
+  if (pathname.startsWith("/saas/crm/filtros")) return COPY.crm.nav_filtros;
   if (pathname.startsWith("/saas/cadastros")) return COPY.nav.cadastros;
   if (pathname.startsWith("/saas/orcamentos")) return COPY.nav.orcamentos;
   if (pathname.startsWith("/saas/pedidos")) return COPY.nav.pedidos;

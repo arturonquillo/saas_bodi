@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { isAdmin } from "@saas-frota/shared";
 import { Filter, MoreHorizontal, PanelRight, Send } from "lucide-react";
 import { toast } from "sonner";
@@ -61,11 +61,14 @@ import {
   substituteCanned,
 } from "../crm/labels";
 import type {
+  CrmAttributeDto,
   CrmCannedDto,
   CrmConversationDetailDto,
   CrmConversationDto,
+  CrmFilterDto,
   CrmInboxDto,
   CrmLabelDto,
+  CrmMacroDto,
   CrmMessageDto,
   CrmTeamDto,
   ConversationStatus,
@@ -81,6 +84,19 @@ type DeskFilter = {
   label?: string;
   team_id?: string;
 };
+
+function filterFromSearch(sp: URLSearchParams | null): DeskFilter {
+  if (!sp) return { status: "open" };
+  const status = (sp.get("status") as ConversationStatus | null) || "";
+  const assignee = (sp.get("assignee") as DeskFilter["assignee"]) || "";
+  return {
+    status: status || (assignee ? "" : "open"),
+    assignee: assignee === "me" || assignee === "unassigned" ? assignee : "",
+    inbox_id: sp.get("inbox_id") || "",
+    label: sp.get("label") || "",
+    team_id: sp.get("team_id") || "",
+  };
+}
 
 function buildListQuery(f: DeskFilter, updatedSince?: string) {
   const q = new URLSearchParams();
@@ -121,6 +137,8 @@ function FilterStrip({
   labels,
   teams,
   counts,
+  savedFilters,
+  onSaveFilter,
 }: {
   filter: DeskFilter;
   setFilter: (f: DeskFilter) => void;
@@ -128,6 +146,8 @@ function FilterStrip({
   labels: CrmLabelDto[];
   teams: CrmTeamDto[];
   counts: Record<string, number | undefined>;
+  savedFilters: CrmFilterDto[];
+  onSaveFilter: () => void;
 }) {
   const chip = (
     key: string,
@@ -262,10 +282,39 @@ function FilterStrip({
           </>
         ) : null}
 
+        {savedFilters.filter((f) => f.filter_type !== "contact").length ? (
+          <>
+            <Separator className="my-2" />
+            <p className="px-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+              {COPY.crm.filtros_title}
+            </p>
+            {savedFilters
+              .filter((f) => f.filter_type !== "contact")
+              .map((f) =>
+                chip(`saved-${f.id}`, f.name, false, () => {
+                  const q = f.query ?? {};
+                  setFilter({
+                    status: (typeof q.status === "string" ? q.status : "") as ConversationStatus | "",
+                    assignee:
+                      q.assignee === "me" || q.assignee === "unassigned"
+                        ? q.assignee
+                        : "",
+                    inbox_id: typeof q.inbox_id === "string" ? q.inbox_id : "",
+                    label: typeof q.label === "string" ? q.label : "",
+                    team_id: typeof q.team_id === "string" ? q.team_id : "",
+                  });
+                }),
+              )}
+          </>
+        ) : null}
+
         <Separator className="my-2" />
+        <Button type="button" variant="outline" size="sm" className="w-full" onClick={onSaveFilter}>
+          {COPY.crm.filtro_create}
+        </Button>
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="sm"
           className="w-full"
           onClick={() => setFilter({})}
@@ -277,7 +326,23 @@ function FilterStrip({
   );
 }
 
-function ContextRail({ detail }: { detail: CrmConversationDetailDto | null }) {
+function ContextRail({
+  detail,
+  attrDefs,
+  attrValues,
+  setAttrValues,
+  onSaveAttrs,
+  attrBusy,
+  onHandoff,
+}: {
+  detail: CrmConversationDetailDto | null;
+  attrDefs: CrmAttributeDto[];
+  attrValues: Record<string, string>;
+  setAttrValues: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  onSaveAttrs: () => void;
+  attrBusy: boolean;
+  onHandoff: () => void;
+}) {
   if (!detail) {
     return (
       <div className="p-4 text-sm text-muted-foreground">{COPY.crm.conversas_select}</div>
@@ -336,6 +401,41 @@ function ContextRail({ detail }: { detail: CrmConversationDetailDto | null }) {
           <p className="text-sm text-muted-foreground">
             {COPY.crm.team}: {detail.team_nome ?? detail.team_id ?? "—"}
           </p>
+          {detail.bot_agent_bot_id ? (
+            <Button type="button" size="sm" variant="outline" className="mt-2" onClick={onHandoff}>
+              {COPY.crm.bot_handoff}
+            </Button>
+          ) : null}
+        </div>
+        <Separator />
+        <div className="space-y-2">
+          <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+            {COPY.crm.atributos_title}
+          </p>
+          {attrDefs.length === 0 ? (
+            <p className="text-sm text-muted-foreground">—</p>
+          ) : (
+            <>
+              {attrDefs.map((def) => (
+                <div key={def.id}>
+                  <Label className="text-xs">{def.attribute_display_name}</Label>
+                  <Input
+                    className="mt-1 h-8"
+                    value={attrValues[def.attribute_key] ?? ""}
+                    onChange={(e) =>
+                      setAttrValues((prev) => ({
+                        ...prev,
+                        [def.attribute_key]: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+              ))}
+              <Button type="button" size="sm" disabled={attrBusy} onClick={onSaveAttrs}>
+                {COPY.actions.salvar}
+              </Button>
+            </>
+          )}
         </div>
         <Separator />
         <div className="space-y-2">
@@ -369,11 +469,12 @@ function ContextRail({ detail }: { detail: CrmConversationDetailDto | null }) {
 export function ConversasScreen() {
   const params = useParams<{ id?: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { session } = useSession();
   const admin = isAdmin(session?.saas_role);
   const selectedId = params.id;
 
-  const [filter, setFilter] = useState<DeskFilter>({ status: "open" });
+  const [filter, setFilter] = useState<DeskFilter>(() => filterFromSearch(searchParams));
   const [rows, setRows] = useState<CrmConversationDto[]>([]);
   const [detail, setDetail] = useState<CrmConversationDetailDto | null>(null);
   const [listStatus, setListStatus] = useState<"loading" | "ok" | "error">("loading");
@@ -382,6 +483,11 @@ export function ConversasScreen() {
   const [labels, setLabels] = useState<CrmLabelDto[]>([]);
   const [teams, setTeams] = useState<CrmTeamDto[]>([]);
   const [canned, setCanned] = useState<CrmCannedDto[]>([]);
+  const [macros, setMacros] = useState<CrmMacroDto[]>([]);
+  const [savedFilters, setSavedFilters] = useState<CrmFilterDto[]>([]);
+  const [attrDefs, setAttrDefs] = useState<CrmAttributeDto[]>([]);
+  const [attrValues, setAttrValues] = useState<Record<string, string>>({});
+  const [attrBusy, setAttrBusy] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [composer, setComposer] = useState("");
   const [privateNote, setPrivateNote] = useState(false);
@@ -397,18 +503,37 @@ export function ConversasScreen() {
   usePresenceHeartbeat(selectedId);
 
   const loadMeta = useCallback(async () => {
-    const [inboxPage, labelPage, teamPage, cannedPage] = await Promise.all([
-      apiGet("/api/saas/crm/inboxes").then((d) => asPage<CrmInboxDto>(d)).catch(() => ({ items: [] as CrmInboxDto[] })),
-      apiGet("/api/saas/crm/labels").then((d) => asPage<CrmLabelDto>(d)).catch(() => ({ items: [] as CrmLabelDto[] })),
-      apiGet("/api/saas/crm/teams").then((d) => asPage<CrmTeamDto>(d)).catch(() => ({ items: [] as CrmTeamDto[] })),
-      apiGet("/api/saas/crm/respostas-rapidas")
-        .then((d) => asPage<CrmCannedDto>(d))
-        .catch(() => ({ items: [] as CrmCannedDto[] })),
-    ]);
+    const [inboxPage, labelPage, teamPage, cannedPage, macroPage, filterPage, attrPage] =
+      await Promise.all([
+        apiGet("/api/saas/crm/inboxes")
+          .then((d) => asPage<CrmInboxDto>(d))
+          .catch(() => ({ items: [] as CrmInboxDto[] })),
+        apiGet("/api/saas/crm/labels")
+          .then((d) => asPage<CrmLabelDto>(d))
+          .catch(() => ({ items: [] as CrmLabelDto[] })),
+        apiGet("/api/saas/crm/teams")
+          .then((d) => asPage<CrmTeamDto>(d))
+          .catch(() => ({ items: [] as CrmTeamDto[] })),
+        apiGet("/api/saas/crm/respostas-rapidas")
+          .then((d) => asPage<CrmCannedDto>(d))
+          .catch(() => ({ items: [] as CrmCannedDto[] })),
+        apiGet("/api/saas/crm/macros")
+          .then((d) => asPage<CrmMacroDto>(d))
+          .catch(() => ({ items: [] as CrmMacroDto[] })),
+        apiGet("/api/saas/crm/filtros")
+          .then((d) => asPage<CrmFilterDto>(d))
+          .catch(() => ({ items: [] as CrmFilterDto[] })),
+        apiGet("/api/saas/crm/atributos?model=conversation")
+          .then((d) => asPage<CrmAttributeDto>(d))
+          .catch(() => ({ items: [] as CrmAttributeDto[] })),
+      ]);
     setInboxes(inboxPage.items);
     setLabels(labelPage.items);
     setTeams(teamPage.items);
     setCanned(cannedPage.items);
+    setMacros(macroPage.items);
+    setSavedFilters(filterPage.items);
+    setAttrDefs(attrPage.items);
   }, []);
 
   const loadList = useCallback(
@@ -444,6 +569,10 @@ export function ConversasScreen() {
       }
       setDetail({ ...data, messages });
       setComposer(data.draft ?? "");
+      const attrs = data.custom_attributes ?? {};
+      setAttrValues(
+        Object.fromEntries(Object.entries(attrs).map(([k, v]) => [k, v == null ? "" : String(v)])),
+      );
       setDetailStatus("ok");
     } catch (err) {
       setDetail(null);
@@ -622,6 +751,72 @@ export function ConversasScreen() {
     }
   }
 
+  async function runMacro(macroId: string, conversationIds: string[]) {
+    if (!conversationIds.length) return;
+    try {
+      await apiSend(`/api/saas/crm/macros/${macroId}/executar`, "POST", {
+        conversation_ids: conversationIds,
+      });
+      toast.success(COPY.crm.macro_execute);
+      setSelected(new Set());
+      void loadList({ soft: true });
+      if (selectedId && conversationIds.includes(selectedId)) void loadDetail(selectedId, true);
+    } catch (err) {
+      toast.error(isApiError(err) ? err.message : COPY.save_fail);
+    }
+  }
+
+  async function saveConversationAttrs() {
+    if (!selectedId) return;
+    setAttrBusy(true);
+    try {
+      await apiSend(`/api/saas/crm/conversas/${selectedId}/atributos`, "PATCH", {
+        attributes: attrValues,
+      });
+      toast.success(COPY.actions.salvar);
+      void loadDetail(selectedId, true);
+    } catch (err) {
+      toast.error(isApiError(err) ? err.message : COPY.save_fail);
+    } finally {
+      setAttrBusy(false);
+    }
+  }
+
+  async function handoffBot() {
+    if (!selectedId) return;
+    try {
+      await apiSend(`/api/saas/crm/conversas/${selectedId}/bot/handoff`, "POST");
+      toast.success(COPY.crm.bot_handoff);
+      void loadDetail(selectedId, true);
+      void loadList({ soft: true });
+    } catch (err) {
+      toast.error(isApiError(err) ? err.message : COPY.save_fail);
+    }
+  }
+
+  async function saveCurrentFilter() {
+    const name = window.prompt("Nome do filtro");
+    if (!name?.trim()) return;
+    try {
+      await apiSend("/api/saas/crm/filtros", "POST", {
+        name: name.trim(),
+        filter_type: "conversation",
+        query: {
+          status: filter.status || undefined,
+          assignee: filter.assignee || undefined,
+          inbox_id: filter.inbox_id || undefined,
+          label: filter.label || undefined,
+          team_id: filter.team_id || undefined,
+        },
+      });
+      toast.success(COPY.crm.filtro_create);
+      const page = asPage<CrmFilterDto>(await apiGet("/api/saas/crm/filtros").catch(() => ({ items: [] })));
+      setSavedFilters(page.items);
+    } catch (err) {
+      toast.error(isApiError(err) ? err.message : COPY.save_fail);
+    }
+  }
+
   function insertCanned(item: CrmCannedDto) {
     const vars: Record<string, string> = {
       "contact.name": detail?.contact?.nome ?? "",
@@ -648,6 +843,20 @@ export function ConversasScreen() {
       labels={labels}
       teams={teams}
       counts={counts}
+      savedFilters={savedFilters}
+      onSaveFilter={() => void saveCurrentFilter()}
+    />
+  );
+
+  const contextRail = (
+    <ContextRail
+      detail={detail}
+      attrDefs={attrDefs}
+      attrValues={attrValues}
+      setAttrValues={setAttrValues}
+      onSaveAttrs={() => void saveConversationAttrs()}
+      attrBusy={attrBusy}
+      onHandoff={() => void handoffBot()}
     />
   );
 
@@ -688,6 +897,14 @@ export function ConversasScreen() {
                 {COPY.crm.status_resolved}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => void bulk("mute")}>{COPY.crm.mute}</DropdownMenuItem>
+              {macros.map((m) => (
+                <DropdownMenuItem
+                  key={m.id}
+                  onClick={() => void runMacro(m.id, Array.from(selected))}
+                >
+                  {COPY.crm.macro_execute}: {m.name}
+                </DropdownMenuItem>
+              ))}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -915,6 +1132,14 @@ export function ConversasScreen() {
                   >
                     {COPY.crm.snooze}
                   </DropdownMenuItem>
+                  {macros.map((m) => (
+                    <DropdownMenuItem
+                      key={m.id}
+                      onClick={() => void runMacro(m.id, [detail.id])}
+                    >
+                      {COPY.crm.macro_execute}: {m.name}
+                    </DropdownMenuItem>
+                  ))}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -1054,7 +1279,7 @@ export function ConversasScreen() {
       </div>
 
       <aside className="hidden w-[280px] shrink-0 border-l border-[#E5E9EC] bg-card xl:block">
-        <ContextRail detail={detail} />
+        {contextRail}
       </aside>
 
       <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
@@ -1071,7 +1296,7 @@ export function ConversasScreen() {
           <SheetHeader className="border-b px-4 py-3">
             <SheetTitle>{COPY.crm.conversas_details}</SheetTitle>
           </SheetHeader>
-          <ContextRail detail={detail} />
+          {contextRail}
         </SheetContent>
       </Sheet>
 

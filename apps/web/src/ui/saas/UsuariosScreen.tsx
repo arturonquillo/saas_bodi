@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { SaasRole, UserDto } from "@saas-frota/shared";
+import type { SaasRole } from "@saas-frota/shared";
+import type { UserDto } from "../api";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -77,7 +78,7 @@ export function UsuariosScreen() {
         email: fd.get("email"),
         nome: fd.get("nome"),
         saas_role: fd.get("saas_role"),
-        password: fd.get("password"),
+        senha: fd.get("password"),
       });
       setOpen(false);
       await load();

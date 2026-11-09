@@ -28,6 +28,7 @@ export function useSession() {
 
 /** MVP: no subscription entitlement gate. */
 export function writesOpen(_session: SessionDto | null) {
+  void _session;
   return true;
 }
 

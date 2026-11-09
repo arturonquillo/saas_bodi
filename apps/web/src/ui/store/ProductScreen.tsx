@@ -1,8 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import type { CatalogItemDto } from "@saas-frota/shared";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -11,130 +14,101 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Button } from "@/components/ui/button";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { apiGet, isApiError } from "../api";
+import { apiGet, type CatalogItemDto } from "../api";
 import { useCart } from "../cart";
 import { COPY } from "../copy";
-import { QtyStepper, StoreMain } from "../layout";
-import { ChannelChip } from "../order-ui";
-import { PlaceholderMedia } from "../PlaceholderMedia";
-import { useSession } from "../session";
-import { CardSkeleton, EmptyState, ErrorState } from "../states";
 import { formatMoney } from "../format";
+import { QtyStepper, StoreMain } from "../layout";
+import { PlaceholderMedia } from "../PlaceholderMedia";
+import { CardSkeleton, ErrorState } from "../states";
 
-export function ProductScreen({ id }: { id: string }) {
-  const { session } = useSession();
-  const list = session?.document_type === "cnpj" ? "atacado" : "varejo";
+export function ProductScreen() {
+  const { id } = useParams<{ id: string }>();
   const { add } = useCart();
   const [item, setItem] = useState<CatalogItemDto | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [missing, setMissing] = useState(false);
+  const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
   const [qty, setQty] = useState(1);
-  const [added, setAdded] = useState(false);
 
   const load = useCallback(async () => {
-    setError(null);
-    setMissing(false);
+    setStatus("loading");
     try {
-      const data = await apiGet<CatalogItemDto>(`/api/loja/produtos/${id}?tenant=demo`);
+      const data = await apiGet<CatalogItemDto>(`/api/loja/produtos/${id}?tenant=casa-dos-frios`);
       setItem(data);
-      const min = session?.document_type === "cnpj" ? Math.max(1, data.qtd_min_atacado) : 1;
-      setQty(min);
-    } catch (err) {
-      setItem(null);
-      if (isApiError(err) && (err.status === 404 || err.code === "nao_encontrado")) setMissing(true);
-      else setError(isApiError(err) ? err.message : COPY.store.load_error);
+      setQty(data.qtd_min_atacado || 1);
+      setStatus("ok");
+    } catch {
+      setStatus("error");
     }
-  }, [id, session?.document_type]);
+  }, [id]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const min = list === "atacado" && item ? item.qtd_min_atacado : 1;
-  const blocked = !item || item.sem_estoque || item.available <= 0;
-  const cents = item ? (list === "atacado" ? item.preco_atacado_centavos : item.preco_varejo_centavos) : 0;
-  const moqFail = item && list === "atacado" && qty < item.qtd_min_atacado;
+  if (status === "loading") {
+    return (
+      <StoreMain>
+        <CardSkeleton />
+      </StoreMain>
+    );
+  }
+  if (status === "error" || !item) {
+    return (
+      <StoreMain>
+        <ErrorState message={COPY.not_found} onRetry={() => void load()} />
+      </StoreMain>
+    );
+  }
 
   return (
     <StoreMain>
-      {item === null && !error && !missing ? <CardSkeleton /> : null}
-      {missing ? (
-        <EmptyState
-          title={COPY.store.pdp_unavailable}
-          art="catalog"
-          action={
-            <Button variant="link" asChild>
-              <Link href="/loja">{COPY.store.ver_catalogo}</Link>
-            </Button>
-          }
-        />
-      ) : null}
-      {error ? <ErrorState message={error} onRetry={() => void load()} /> : null}
-      {item ? (
-        <>
-          <Breadcrumb className="mb-4">
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink asChild>
-                  <Link href="/loja">{COPY.store.breadcrumb_inicio}</Link>
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbLink asChild>
-                  <Link href="/loja">{COPY.store.nav_catalogo}</Link>
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>{item.nome}</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-          <div className="grid items-start gap-6 md:grid-cols-[minmax(0,48%)_minmax(0,1fr)] md:gap-8">
-            <PlaceholderMedia nome={item.nome} variant="pdp" dimmed={blocked} />
-            <div className="space-y-3">
-              <h1 className="m-0 text-[26px] font-semibold leading-tight">{item.nome}</h1>
-              <p className="m-0 text-[13px] text-muted-foreground">SKU · {item.sku}</p>
-              <p className="m-0 flex flex-wrap items-center gap-2">
-                <strong className="text-2xl font-semibold tabular-nums text-primary">{formatMoney(cents)}</strong>
-                <ChannelChip list={list} moq={list === "atacado" ? item.qtd_min_atacado : undefined} />
-              </p>
-              <p className="m-0">{blocked ? COPY.stock.sem_estoque : `${COPY.stock.available} ${item.available}`}</p>
-              <Field>
-                <FieldLabel htmlFor="qty">{COPY.store.qty}</FieldLabel>
-                <QtyStepper
-                  id="qty"
-                  value={qty}
-                  min={min}
-                  max={item.available || undefined}
-                  onChange={setQty}
-                  surface="store"
-                />
-                {moqFail ? <FieldError>{COPY.store.moq_error(item.qtd_min_atacado)}</FieldError> : null}
-              </Field>
-              <Button
-                type="button"
-                className="h-11"
-                disabled={blocked || !!moqFail}
-                onClick={() => {
-                  add(item.id, qty);
-                  setAdded(true);
-                }}
-              >
-                {blocked ? COPY.stock.sem_estoque : COPY.store.add}
-              </Button>
-              {added ? (
-                <p className="m-0 text-[13px] text-[var(--color-success)]" role="status" aria-live="polite">
-                  {COPY.store.added}
-                </p>
-              ) : null}
-            </div>
+      <Breadcrumb className="mb-4">
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/loja">{COPY.nav_catalogo}</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>{item.nome}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
+      <div className="grid gap-8 md:grid-cols-2">
+        <PlaceholderMedia nome={item.nome} variant="pdp" dimmed={item.sem_estoque} />
+        <div>
+          <h1 className="font-display text-3xl font-semibold">{item.nome}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{item.sku}</p>
+          <p className="mt-4 text-2xl font-semibold text-primary">{formatMoney(item.preco_atacado_centavos)}</p>
+          <p className="text-sm text-muted-foreground">{COPY.price_atacado}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {item.qtd_min_atacado > 1 ? <Badge variant="secondary">{COPY.moq(item.qtd_min_atacado)}</Badge> : null}
+            {item.sem_estoque ? <Badge variant="outline">{COPY.sem_estoque}</Badge> : null}
           </div>
-        </>
-      ) : null}
+          <div className="mt-6 space-y-3">
+            <p className="text-sm font-medium">{COPY.qty}</p>
+            <QtyStepper
+              surface="store"
+              value={qty}
+              min={item.qtd_min_atacado || 1}
+              max={item.available > 0 ? item.available : undefined}
+              onChange={setQty}
+            />
+            <Button
+              className="h-11 w-full sm:w-auto"
+              disabled={item.sem_estoque}
+              onClick={() => {
+                add(item.id, qty);
+                toast.success(COPY.added_to_cart);
+              }}
+            >
+              {COPY.add_to_cart}
+            </Button>
+          </div>
+        </div>
+      </div>
     </StoreMain>
   );
 }

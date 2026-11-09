@@ -1,4 +1,4 @@
-import { formatCnpjInput as sharedFormatCnpj, maskCnpj, onlyDigits } from "@saas-frota/shared";
+import { maskCnpj, onlyDigits } from "@saas-frota/shared";
 
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const dateTime = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });
@@ -23,7 +23,13 @@ export function formatDateOnly(value?: string | null) {
 }
 
 export function formatCnpjInput(digits: string) {
-  return sharedFormatCnpj(digits);
+  const d = onlyDigits(digits).slice(0, 14);
+  const p = [d.slice(0, 2), d.slice(2, 5), d.slice(5, 8), d.slice(8, 12), d.slice(12, 14)];
+  if (d.length <= 2) return p[0];
+  if (d.length <= 5) return `${p[0]}.${p[1]}`;
+  if (d.length <= 8) return `${p[0]}.${p[1]}.${p[2]}`;
+  if (d.length <= 12) return `${p[0]}.${p[1]}.${p[2]}/${p[3]}`;
+  return `${p[0]}.${p[1]}.${p[2]}/${p[3]}-${p[4]}`;
 }
 
 export function maskTaxId(value?: string) {

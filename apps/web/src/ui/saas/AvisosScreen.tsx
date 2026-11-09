@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { OutboxDto } from "@saas-frota/shared";
+import type { OutboxDto } from "../api";
 import {
   Table,
   TableBody,
@@ -58,17 +58,19 @@ export function AvisosScreen() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {items.map((o) => (
-                <TableRow key={o.id}>
-                  <TableCell>{formatDate(o.created_at)}</TableCell>
-                  <TableCell>{o.channel === "email" ? COPY.outbox.email : COPY.outbox.whatsapp}</TableCell>
-                  <TableCell>{maskRecipient(o.recipient)}</TableCell>
-                  <TableCell>{o.template_key}</TableCell>
+              {items.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell>{formatDate(row.created_at)}</TableCell>
                   <TableCell>
-                    <OutboxBadge status={o.status} />
+                    {row.channel === "email" ? COPY.outbox.email : COPY.outbox.whatsapp}
+                  </TableCell>
+                  <TableCell>{maskRecipient(row.recipient)}</TableCell>
+                  <TableCell>{row.template_key}</TableCell>
+                  <TableCell>
+                    <OutboxBadge status={row.status} />
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
-                    {o.pedido_id ?? o.orcamento_id ?? o.venda_id ?? o.cadastro_request_id ?? "—"}
+                    {row.pedido_id ?? row.orcamento_id ?? row.venda_id ?? row.cadastro_request_id ?? "—"}
                   </TableCell>
                 </TableRow>
               ))}

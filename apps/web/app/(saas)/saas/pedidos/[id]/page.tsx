@@ -1,6 +1,5 @@
-import { PedidoDetailScreen } from "@/ui/saas/PedidoDetailScreen";
+import { PedidoDetailScreen } from "@/ui/saas/PedidosScreen";
 
-export default async function SaasPedidoPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  return <PedidoDetailScreen id={id} />;
+export default function Page() {
+  return <PedidoDetailScreen />;
 }

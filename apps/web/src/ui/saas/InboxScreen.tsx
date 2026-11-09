@@ -31,6 +31,7 @@ import {
   apiSend,
   asPage,
   isApiError,
+  threadPreview,
   type InboxThreadDetailDto,
   type InboxThreadDto,
 } from "../api";
@@ -52,7 +53,6 @@ export function InboxScreen() {
   const [simOpen, setSimOpen] = useState(false);
   const [simBusy, setSimBusy] = useState(false);
   const [simError, setSimError] = useState<string | null>(null);
-  const [reply, setReply] = useState("");
   const [note, setNote] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -68,9 +68,7 @@ export function InboxScreen() {
 
   const loadDetail = useCallback(async (id: string) => {
     try {
-      const data = await apiGet<InboxThreadDetailDto>(`/api/saas/inbox/${id}`);
-      setDetail(data);
-      setThreads((prev) => prev.map((t) => (t.id === id ? { ...t, unread: false } : t)));
+      setDetail(await apiGet<InboxThreadDetailDto>(`/api/saas/inbox/${id}`));
     } catch {
       setDetail(null);
     }
@@ -110,18 +108,11 @@ export function InboxScreen() {
   async function patchIntent(intent: WhatsappIntent | "none") {
     if (!detail) return;
     const next = intent === "none" ? null : intent;
-    const updated = await apiSend<InboxThreadDetailDto>(`/api/saas/inbox/${detail.id}`, "PATCH", { intent: next });
-    setDetail(updated);
-    setThreads((prev) => prev.map((t) => (t.id === updated.id ? { ...t, intent: updated.intent } : t)));
-  }
-
-  async function sendReply() {
-    if (!detail || !reply.trim()) return;
     const updated = await apiSend<InboxThreadDetailDto>(`/api/saas/inbox/${detail.id}`, "PATCH", {
-      reply: reply.trim(),
+      intent: next,
     });
     setDetail(updated);
-    setReply("");
+    setThreads((prev) => prev.map((t) => (t.id === updated.id ? { ...t, intent: updated.intent } : t)));
     setNote(COPY.outbox_stub_note);
   }
 
@@ -222,16 +213,13 @@ export function InboxScreen() {
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">
-                            {t.unread ? <span className="mr-1 inline-block size-2 rounded-full bg-primary" /> : null}
-                            {t.phone_e164}
-                          </p>
-                          <p className="truncate text-xs text-muted-foreground">{t.preview}</p>
+                          <p className="truncate text-sm font-medium">{t.phone_e164}</p>
+                          <p className="truncate text-xs text-muted-foreground">{threadPreview(t) || "—"}</p>
                         </div>
                         <div className="shrink-0 text-right">
                           <p className="text-[11px] text-muted-foreground">{formatDate(t.updated_at)}</p>
                           <div className="mt-1">
-                            <IntentBadge intent={t.intent} />
+                            <IntentBadge intent={t.intent as WhatsappIntent | null} />
                           </div>
                         </div>
                       </div>
@@ -261,19 +249,19 @@ export function InboxScreen() {
                     <p className="font-medium">{detail.phone_e164}</p>
                     <div className="mt-1 flex flex-wrap gap-2">
                       {detail.cadastro_request_id ? (
-                        <Badge variant="outline" asChild>
-                          <Link href={`/saas/cadastros/${detail.cadastro_request_id}`}>Cadastro</Link>
-                        </Badge>
+                        <Link href={`/saas/cadastros/${detail.cadastro_request_id}`}>
+                          <Badge variant="outline">Cadastro</Badge>
+                        </Link>
                       ) : null}
                       {detail.orcamento_id ? (
-                        <Badge variant="outline" asChild>
-                          <Link href={`/saas/orcamentos/${detail.orcamento_id}`}>Orçamento</Link>
-                        </Badge>
+                        <Link href={`/saas/orcamentos/${detail.orcamento_id}`}>
+                          <Badge variant="outline">Orçamento</Badge>
+                        </Link>
                       ) : null}
                     </div>
                   </div>
                   <Select
-                    value={detail.intent ?? "none"}
+                    value={(detail.intent as string) ?? "none"}
                     onValueChange={(v) => void patchIntent(v as WhatsappIntent | "none")}
                   >
                     <SelectTrigger className="w-[180px]">
@@ -295,9 +283,7 @@ export function InboxScreen() {
                         key={m.id}
                         className={cn(
                           "max-w-[85%] rounded-md px-3 py-2 text-sm",
-                          m.direction === "inbound"
-                            ? "self-start bg-muted"
-                            : "self-end bg-primary/10 text-foreground",
+                          m.direction === "inbound" ? "self-start bg-muted" : "self-end bg-primary/10",
                         )}
                       >
                         <p>{m.body}</p>
@@ -309,20 +295,6 @@ export function InboxScreen() {
                     ))}
                   </div>
                 </ScrollArea>
-                <div className="border-t border-border p-4">
-                  <div className="mx-auto flex max-w-2xl gap-2">
-                    <Textarea
-                      value={reply}
-                      onChange={(e) => setReply(e.target.value)}
-                      placeholder={COPY.reply}
-                      rows={2}
-                      className="min-h-[44px]"
-                    />
-                    <Button type="button" onClick={() => void sendReply()} disabled={!reply.trim()}>
-                      Enviar
-                    </Button>
-                  </div>
-                </div>
               </>
             )}
           </div>

@@ -8,7 +8,11 @@ import type {
   VendaStatus,
   WhatsappIntent,
 } from "@saas-frota/shared";
-import { LEGAL_ORCAMENTO, LEGAL_PEDIDO, LEGAL_VENDA } from "@saas-frota/shared";
+import {
+  LEGAL_ORCAMENTO_TRANSITIONS,
+  LEGAL_PEDIDO_TRANSITIONS,
+  LEGAL_VENDA_TRANSITIONS,
+} from "@saas-frota/shared";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
@@ -16,15 +20,15 @@ import { COPY } from "./copy";
 import { formatMoney } from "./format";
 
 export function legalOrcamentoTargets(status: OrcamentoStatus): OrcamentoStatus[] {
-  return [...LEGAL_ORCAMENTO[status]];
+  return [...(LEGAL_ORCAMENTO_TRANSITIONS[status] ?? [])];
 }
 
 export function legalPedidoTargets(status: PedidoStatus): PedidoStatus[] {
-  return [...LEGAL_PEDIDO[status]];
+  return [...(LEGAL_PEDIDO_TRANSITIONS[status] ?? [])];
 }
 
 export function legalVendaTargets(status: VendaStatus): VendaStatus[] {
-  return [...LEGAL_VENDA[status]];
+  return [...(LEGAL_VENDA_TRANSITIONS[status] ?? [])];
 }
 
 export function orcamentoTransitionLabel(to: OrcamentoStatus) {

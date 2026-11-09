@@ -221,4 +221,9 @@ export const COPY = {
   kpi_unread: "Conversas não lidas",
   kpi_pendentes: "Cadastros pendentes",
   kpi_enviados: "Orçamentos enviados",
+
+  color_mode: "Aparência",
+  color_mode_light: "Claro",
+  color_mode_dark: "Escuro",
+  color_mode_system: "Sistema",
 } as const;

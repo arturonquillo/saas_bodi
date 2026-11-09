@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { CanalAviso, LojaModo, SaasConfigDto, UserDto } from "@saas-frota/shared";
+import type { CanalAviso, LojaModo } from "@saas-frota/shared";
+import type { SaasConfigDto, UserDto } from "../api";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -13,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { apiGet, apiSend, asPage, isApiError } from "../api";
+import { apiGet, apiSend, asPage, isApiError, maskFromLast4 } from "../api";
 import { COPY } from "../copy";
 import { ListHeader, SaasMain } from "../layout";
 import { ErrorState, FormSkeleton } from "../states";
@@ -29,12 +30,12 @@ export function ConfigScreen() {
   const load = useCallback(async () => {
     setStatus("loading");
     try {
-      const [cfg, us] = await Promise.all([
+      const [cfg, page] = await Promise.all([
         apiGet<SaasConfigDto>("/api/saas/config"),
-        apiGet("/api/saas/usuarios").then((d) => asPage<UserDto>(d).items).catch(() => [] as UserDto[]),
+        apiGet("/api/saas/usuarios").then((d) => asPage<UserDto>(d)),
       ]);
       setConfig(cfg);
-      setUsers(us);
+      setUsers(page.items.filter((u) => u.ativo));
       setStatus("ok");
     } catch {
       setStatus("error");
@@ -99,7 +100,7 @@ export function ConfigScreen() {
         </Field>
         <Field>
           <FieldLabel>{COPY.cnpj}</FieldLabel>
-          <Input value={config.cnpj_masked} disabled readOnly />
+          <Input value={maskFromLast4(config.cnpj_last4)} disabled readOnly />
         </Field>
         <Field>
           <FieldLabel htmlFor="wa">{COPY.whatsapp_comercial}</FieldLabel>
@@ -153,13 +154,11 @@ export function ConfigScreen() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">—</SelectItem>
-              {users
-                .filter((u) => u.ativo)
-                .map((u) => (
-                  <SelectItem key={u.id} value={u.id}>
-                    {u.nome}
-                  </SelectItem>
-                ))}
+              {users.map((u) => (
+                <SelectItem key={u.id} value={u.id}>
+                  {u.nome}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </Field>

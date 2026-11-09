@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { formatCnpjInput, isValidCnpj, onlyDigits } from "@saas-frota/shared";
+import { isValidCnpj, onlyDigits } from "@saas-frota/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { apiSend, isApiError } from "./api";
 import { COPY } from "./copy";
+import { formatCnpjInput } from "./format";
 
 export function CnpjField({
   value,

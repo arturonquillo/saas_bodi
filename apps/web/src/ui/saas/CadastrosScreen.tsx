@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import type { CadastroDto, CadastroStatus } from "@saas-frota/shared";
+import type { CadastroStatus } from "@saas-frota/shared";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,12 +36,12 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { apiGet, apiSend, asPage, isApiError } from "../api";
+import { apiGet, apiSend, asPage, isApiError, maskFromLast4, type CadastroDto } from "../api";
 import { COPY } from "../copy";
 import { formatDate } from "../format";
 import { DeskWrap, ListHeader, SaasMain } from "../layout";
 import { CadastroStatusBadge, NotifyAlert } from "../order-ui";
-import { EmptyState, ErrorState, FormSkeleton, GateBanner, TableSkeleton } from "../states";
+import { EmptyState, ErrorState, FormSkeleton, TableSkeleton } from "../states";
 
 export function CadastrosListScreen() {
   const [items, setItems] = useState<CadastroDto[]>([]);
@@ -91,7 +91,7 @@ export function CadastrosListScreen() {
                   onClick={() => router.push(`/saas/cadastros/${c.id}`)}
                 >
                   <TableCell className="font-medium">{c.razao_social}</TableCell>
-                  <TableCell>{c.cnpj_masked}</TableCell>
+                  <TableCell>{maskFromLast4(c.cnpj_last4)}</TableCell>
                   <TableCell>
                     <CadastroStatusBadge status={c.status} />
                   </TableCell>
@@ -181,7 +181,7 @@ export function CadastroDetailScreen() {
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="font-display text-xl font-semibold">{item.razao_social}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{item.cnpj_masked}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{maskFromLast4(item.cnpj_last4)}</p>
         </div>
         <CadastroStatusBadge status={item.status} />
       </div>
@@ -241,10 +241,7 @@ export function CadastroDetailScreen() {
               </Field>
               <AlertDialogFooter>
                 <AlertDialogCancel>{COPY.actions.cancelar}</AlertDialogCancel>
-                <AlertDialogAction
-                  disabled={!motivo.trim()}
-                  onClick={() => void transition("recusado")}
-                >
+                <AlertDialogAction disabled={!motivo.trim()} onClick={() => void transition("recusado")}>
                   {COPY.refuse}
                 </AlertDialogAction>
               </AlertDialogFooter>

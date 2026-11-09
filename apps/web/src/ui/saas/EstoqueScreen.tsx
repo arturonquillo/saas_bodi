@@ -97,7 +97,7 @@ export function EstoqueListScreen() {
                 <TableRow key={item.id}>
                   <TableCell>
                     <Link href={`/saas/estoque/${item.id}`} className="font-medium text-primary hover:underline">
-                      {item.sku}
+                      {item.codigo}
                     </Link>
                   </TableCell>
                   <TableCell className="cursor-pointer" onClick={() => router.push(`/saas/estoque/${item.id}`)}>
@@ -196,7 +196,7 @@ export function SkuDetailScreen() {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage>{item.sku}</BreadcrumbPage>
+            <BreadcrumbPage>{item.codigo}</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
@@ -204,7 +204,7 @@ export function SkuDetailScreen() {
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="font-display text-xl font-semibold">{item.nome}</h1>
-          <p className="text-sm text-muted-foreground">{item.sku}</p>
+          <p className="text-sm text-muted-foreground">{item.codigo}</p>
         </div>
         {admin ? (
           <Dialog open={open} onOpenChange={setOpen}>

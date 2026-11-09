@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import type { OrcamentoDto, OrcamentoStatus } from "@saas-frota/shared";
+import type { OrcamentoStatus } from "@saas-frota/shared";
+import type { OrcamentoDto } from "../api";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,8 +36,12 @@ import {
   apiGet,
   apiSend,
   asPage,
+  buildClienteOptions,
+  clienteDisplay,
+  docTotal,
   isApiError,
-  type CustomerPickDto,
+  type CadastroDto,
+  type ClienteOption,
   type EstoqueItemDto,
 } from "../api";
 import { COPY } from "../copy";
@@ -98,7 +103,7 @@ export function OrcamentosListScreen() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Número</TableHead>
+                <TableHead>ID</TableHead>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Total</TableHead>
@@ -112,13 +117,13 @@ export function OrcamentosListScreen() {
                   className="cursor-pointer"
                   onClick={() => router.push(`/saas/orcamentos/${o.id}`)}
                 >
-                  <TableCell className="font-medium">{o.numero ?? o.id}</TableCell>
-                  <TableCell>{o.cliente?.razao_social ?? o.prospect_phone ?? "—"}</TableCell>
+                  <TableCell className="font-medium">{o.id}</TableCell>
+                  <TableCell>{clienteDisplay(o)}</TableCell>
                   <TableCell>
                     <OrcamentoStatusBadge status={o.status} />
                   </TableCell>
                   <TableCell>
-                    <MoneyCell centavos={o.total_centavos} />
+                    <MoneyCell centavos={docTotal(o.linhas ?? [])} />
                   </TableCell>
                   <TableCell>{formatDate(o.updated_at)}</TableCell>
                 </TableRow>
@@ -189,6 +194,8 @@ export function OrcamentoDetailScreen() {
   }
 
   const targets = legalOrcamentoTargets(item.status);
+  const linhas = item.linhas ?? [];
+  const historico = item.historico ?? [];
 
   return (
     <SaasMain>
@@ -201,13 +208,13 @@ export function OrcamentoDetailScreen() {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage>{item.numero ?? item.id}</BreadcrumbPage>
+            <BreadcrumbPage>{item.id}</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
 
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-        <h1 className="font-display text-xl font-semibold">{item.numero ?? item.id}</h1>
+        <h1 className="font-display text-xl font-semibold">{item.id}</h1>
         <OrcamentoStatusBadge status={item.status} large />
       </div>
 
@@ -247,14 +254,8 @@ export function OrcamentoDetailScreen() {
       <DeskWrap className="mb-4 space-y-1 p-4 text-sm">
         <p>
           <span className="text-muted-foreground">{COPY.customer}: </span>
-          {item.cliente?.razao_social ?? item.prospect_phone ?? "—"}
+          {clienteDisplay(item)}
         </p>
-        {item.cliente ? (
-          <p>
-            <span className="text-muted-foreground">{COPY.cnpj}: </span>
-            {item.cliente.cnpj_masked}
-          </p>
-        ) : null}
         <p>
           <span className="text-muted-foreground">{COPY.valido_ate}: </span>
           {formatDateOnly(item.valido_ate)}
@@ -273,10 +274,10 @@ export function OrcamentoDetailScreen() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {item.linhas.map((l) => (
+            {linhas.map((l) => (
               <TableRow key={l.id}>
-                <TableCell>{l.codigo_snapshot}</TableCell>
-                <TableCell>{l.nome_snapshot}</TableCell>
+                <TableCell>{l.codigo}</TableCell>
+                <TableCell>{l.nome}</TableCell>
                 <TableCell>{l.qty}</TableCell>
                 <TableCell>{formatMoney(l.unit_price_centavos)}</TableCell>
               </TableRow>
@@ -285,14 +286,14 @@ export function OrcamentoDetailScreen() {
         </Table>
       </DeskWrap>
       <p className="mb-4 text-sm font-semibold">
-        Total: <MoneyCell centavos={item.total_centavos} />
+        Total: <MoneyCell centavos={docTotal(linhas)} />
       </p>
 
       <h2 className="mb-2 text-sm font-semibold">{COPY.history}</h2>
       <ul className="space-y-1 text-sm text-muted-foreground">
-        {item.history.map((h, i) => (
-          <li key={`${h.to_status}-${i}`}>
-            {h.from_status ?? "—"} → {h.to_status} · {formatDate(h.created_at)}
+        {historico.map((h, i) => (
+          <li key={`${h.to}-${i}`}>
+            {h.from ?? "—"} → {h.to} · {formatDate(h.created_at)}
           </li>
         ))}
       </ul>
@@ -302,10 +303,9 @@ export function OrcamentoDetailScreen() {
 
 export function NovoOrcamentoScreen() {
   const router = useRouter();
-  const [clientes, setClientes] = useState<CustomerPickDto[]>([]);
+  const [clientes, setClientes] = useState<ClienteOption[]>([]);
   const [skus, setSkus] = useState<EstoqueItemDto[]>([]);
   const [clienteId, setClienteId] = useState("");
-  const [prospectPhone, setProspectPhone] = useState("");
   const [validoAte, setValidoAte] = useState("");
   const [skuId, setSkuId] = useState("");
   const [qty, setQty] = useState(1);
@@ -316,10 +316,17 @@ export function NovoOrcamentoScreen() {
   useEffect(() => {
     void (async () => {
       try {
-        setClientes(asPage<CustomerPickDto>(await apiGet("/api/saas/clientes")).items);
-        setSkus(asPage<EstoqueItemDto>(await apiGet("/api/saas/estoque")).items);
+        const [orcamentos, estoque, cadastros] = await Promise.all([
+          apiGet("/api/saas/orcamentos").then((d) => asPage<OrcamentoDto>(d)),
+          apiGet("/api/saas/estoque").then((d) => asPage<EstoqueItemDto>(d)),
+          apiGet("/api/saas/cadastros").then((d) => asPage<CadastroDto>(d)),
+        ]);
+        setClientes(
+          buildClienteOptions({ orcamentos: orcamentos.items, cadastros: cadastros.items }),
+        );
+        setSkus(estoque.items);
       } catch {
-        /* ignore */
+        setClientes(buildClienteOptions({}));
       }
     })();
   }, []);
@@ -327,7 +334,10 @@ export function NovoOrcamentoScreen() {
   function addLine() {
     const sku = skus.find((s) => s.id === skuId);
     if (!sku) return;
-    setLinhas((prev) => [...prev, { sku_id: sku.id, qty: Math.max(sku.qtd_min_atacado, qty), label: `${sku.sku} · ${sku.nome}` }]);
+    setLinhas((prev) => [
+      ...prev,
+      { sku_id: sku.id, qty: Math.max(sku.qtd_min_atacado, qty), label: `${sku.codigo} · ${sku.nome}` },
+    ]);
     setSkuId("");
     setQty(1);
   }
@@ -343,7 +353,6 @@ export function NovoOrcamentoScreen() {
     try {
       const orc = await apiSend<OrcamentoDto>("/api/saas/orcamentos", "POST", {
         cliente_id: clienteId || undefined,
-        prospect_phone: prospectPhone || undefined,
         valido_ate: validoAte || undefined,
         linhas: linhas.map(({ sku_id, qty: q }) => ({ sku_id, qty: q })),
       });
@@ -368,18 +377,12 @@ export function NovoOrcamentoScreen() {
               <SelectItem value="none">Prospecto (sem cliente)</SelectItem>
               {clientes.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
-                  {c.razao_social}
+                  {c.label}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </Field>
-        {!clienteId ? (
-          <Field>
-            <FieldLabel htmlFor="prospect">{COPY.phone}</FieldLabel>
-            <Input id="prospect" value={prospectPhone} onChange={(e) => setProspectPhone(e.target.value)} />
-          </Field>
-        ) : null}
         <Field>
           <FieldLabel htmlFor="valido">{COPY.valido_ate}</FieldLabel>
           <Input id="valido" type="date" value={validoAte} onChange={(e) => setValidoAte(e.target.value)} />
@@ -395,7 +398,7 @@ export function NovoOrcamentoScreen() {
                 <SelectItem value="none">—</SelectItem>
                 {skus.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
-                    {s.sku} · {s.nome}
+                    {s.codigo} · {s.nome}
                   </SelectItem>
                 ))}
               </SelectContent>

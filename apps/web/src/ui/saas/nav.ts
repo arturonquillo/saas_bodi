@@ -48,6 +48,7 @@ export function saasNavSections(role: SaasRole | null | undefined) {
 }
 
 export function roleHome(_role?: SaasRole | null) {
+  void _role;
   return "/saas/inbox";
 }
 

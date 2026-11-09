@@ -10,7 +10,6 @@ import {
   BreadcrumbItem,
   BreadcrumbList,
   BreadcrumbPage,
-  BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";

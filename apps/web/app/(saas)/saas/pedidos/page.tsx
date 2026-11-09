@@ -1,5 +1,5 @@
-import { PedidosScreen } from "@/ui/saas/PedidosScreen";
+import { PedidosListScreen } from "@/ui/saas/PedidosScreen";
 
-export default function SaasPedidosPage() {
-  return <PedidosScreen />;
+export default function Page() {
+  return <PedidosListScreen />;
 }

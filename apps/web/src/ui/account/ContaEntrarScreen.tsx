@@ -1,23 +1,16 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
-import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
-import { COPY } from "../copy";
-import { AUTH_CARD, AuthStage } from "../layout";
-import { LoginForm } from "../LoginForm";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
+/** Account out of MVP. */
 export function ContaEntrarScreen() {
-  const params = useSearchParams();
-  const redirectTo = params.get("return") || "/conta";
   return (
-    <AuthStage>
-      <Card className={AUTH_CARD}>
-        <CardContent className="space-y-4 p-0">
-          <CardDescription className="text-[13px]">{COPY.account.auth_kicker}</CardDescription>
-          <CardTitle className="text-[22px] font-semibold">{COPY.actions.entrar}</CardTitle>
-          <LoginForm surface="conta" redirectTo={redirectTo} />
-        </CardContent>
-      </Card>
-    </AuthStage>
+    <main className="mx-auto max-w-md px-4 py-16 text-center">
+      <h1 className="font-display text-2xl font-semibold">Conta fora do MVP</h1>
+      <Button asChild className="mt-6">
+        <Link href="/">Voltar</Link>
+      </Button>
+    </main>
   );
 }

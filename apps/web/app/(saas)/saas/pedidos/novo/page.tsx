@@ -1,5 +1,5 @@
-import { NovoPedidoScreen } from "@/ui/saas/NovoPedidoScreen";
+import { NovoPedidoScreen } from "@/ui/saas/PedidosScreen";
 
-export default function NovoPedidoPage() {
+export default function Page() {
   return <NovoPedidoScreen />;
 }

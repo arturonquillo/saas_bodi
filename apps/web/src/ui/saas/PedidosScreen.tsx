@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import type { PedidoDto, PedidoStatus } from "@saas-frota/shared";
+import type { PedidoStatus } from "@saas-frota/shared";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,9 +45,11 @@ import {
   apiGet,
   apiSend,
   asPage,
+  docTotal,
   isApiError,
-  type CustomerPickDto,
+  type CadastroDto,
   type EstoqueItemDto,
+  type PedidoDto,
   type VendaDto,
 } from "../api";
 import { COPY } from "../copy";
@@ -110,7 +112,7 @@ export function PedidosListScreen() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Número</TableHead>
+                <TableHead>ID</TableHead>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Total</TableHead>
@@ -120,13 +122,13 @@ export function PedidosListScreen() {
             <TableBody>
               {items.map((p) => (
                 <TableRow key={p.id} className="cursor-pointer" onClick={() => router.push(`/saas/pedidos/${p.id}`)}>
-                  <TableCell className="font-medium">{p.numero ?? p.id}</TableCell>
-                  <TableCell>{p.cliente.razao_social}</TableCell>
+                  <TableCell className="font-medium">{p.id}</TableCell>
+                  <TableCell>{p.cliente_id}</TableCell>
                   <TableCell>
                     <PedidoStatusBadge status={p.status} />
                   </TableCell>
                   <TableCell>
-                    <MoneyCell centavos={p.total_centavos} />
+                    <MoneyCell centavos={docTotal(p.linhas)} />
                   </TableCell>
                   <TableCell>{formatDate(p.updated_at)}</TableCell>
                 </TableRow>
@@ -225,13 +227,13 @@ export function PedidoDetailScreen() {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage>{item.numero ?? item.id}</BreadcrumbPage>
+            <BreadcrumbPage>{item.id}</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
 
       <div className="mb-2 flex flex-wrap items-start justify-between gap-3">
-        <h1 className="font-display text-xl font-semibold">{item.numero ?? item.id}</h1>
+        <h1 className="font-display text-xl font-semibold">{item.id}</h1>
         <PedidoStatusBadge status={item.status} large />
       </div>
       <div className="mb-4">
@@ -250,14 +252,9 @@ export function PedidoDetailScreen() {
             {pedidoTransitionLabel(to)}
           </Button>
         ))}
-        {item.status !== "cancelado" && !item.venda_id ? (
+        {item.status !== "cancelado" ? (
           <Button type="button" variant="outline" disabled={busy} onClick={() => void faturar()}>
             {COPY.faturar}
-          </Button>
-        ) : null}
-        {item.venda_id ? (
-          <Button variant="outline" asChild>
-            <Link href={`/saas/vendas/${item.venda_id}`}>Ver venda</Link>
           </Button>
         ) : null}
       </div>
@@ -267,20 +264,20 @@ export function PedidoDetailScreen() {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
-      {notified ? <div className="mb-3"><NotifyAlert canais="whatsapp" /></div> : null}
+      {notified ? (
+        <div className="mb-3">
+          <NotifyAlert canais="whatsapp" />
+        </div>
+      ) : null}
 
       <DeskWrap className="mb-4 space-y-1 p-4 text-sm">
         <p>
           <span className="text-muted-foreground">{COPY.customer}: </span>
-          {item.cliente.razao_social}
+          {item.cliente_id}
         </p>
         <p>
-          <span className="text-muted-foreground">{COPY.cnpj}: </span>
-          {item.cliente.cnpj_masked}
-        </p>
-        <p>
-          <span className="text-muted-foreground">{COPY.whatsapp}: </span>
-          {item.cliente.whatsapp ?? "—"}
+          <span className="text-muted-foreground">Canal: </span>
+          {item.channel}
         </p>
       </DeskWrap>
 
@@ -298,8 +295,8 @@ export function PedidoDetailScreen() {
           <TableBody>
             {item.linhas.map((l) => (
               <TableRow key={l.id}>
-                <TableCell>{l.codigo_snapshot}</TableCell>
-                <TableCell>{l.nome_snapshot}</TableCell>
+                <TableCell>{l.codigo}</TableCell>
+                <TableCell>{l.nome}</TableCell>
                 <TableCell>{l.qty}</TableCell>
                 <TableCell>{formatMoney(l.unit_price_centavos)}</TableCell>
               </TableRow>
@@ -308,14 +305,14 @@ export function PedidoDetailScreen() {
         </Table>
       </DeskWrap>
       <p className="mb-4 text-sm font-semibold">
-        Total: <MoneyCell centavos={item.total_centavos} />
+        Total: <MoneyCell centavos={docTotal(item.linhas)} />
       </p>
 
       <h2 className="mb-2 text-sm font-semibold">{COPY.history}</h2>
       <ul className="space-y-1 text-sm text-muted-foreground">
-        {item.history.map((h, i) => (
-          <li key={`${h.to_status}-${i}`}>
-            {h.from_status ?? "—"} → {h.to_status} · {formatDate(h.created_at)}
+        {item.historico.map((h, i) => (
+          <li key={`${h.to}-${i}`}>
+            {h.from ?? "—"} → {h.to} · {formatDate(h.created_at)}
           </li>
         ))}
       </ul>
@@ -323,9 +320,7 @@ export function PedidoDetailScreen() {
       <AlertDialog open={!!confirmTo} onOpenChange={(o) => !o && setConfirmTo(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {confirmTo === "despachado" ? COPY.to_despachado : COPY.cancel_pedido}
-            </AlertDialogTitle>
+            <AlertDialogTitle>{confirmTo === "despachado" ? COPY.to_despachado : COPY.cancel_pedido}</AlertDialogTitle>
             <AlertDialogDescription>
               {confirmTo === "despachado" ? COPY.confirm_dispatch : COPY.cancel_confirm}
             </AlertDialogDescription>
@@ -344,7 +339,7 @@ export function PedidoDetailScreen() {
 
 export function NovoPedidoScreen() {
   const router = useRouter();
-  const [clientes, setClientes] = useState<CustomerPickDto[]>([]);
+  const [clientes, setClientes] = useState<CadastroDto[]>([]);
   const [skus, setSkus] = useState<EstoqueItemDto[]>([]);
   const [clienteId, setClienteId] = useState("");
   const [skuId, setSkuId] = useState("");
@@ -357,7 +352,11 @@ export function NovoPedidoScreen() {
   useEffect(() => {
     void (async () => {
       try {
-        setClientes(asPage<CustomerPickDto>(await apiGet("/api/saas/clientes")).items);
+        setClientes(
+          asPage<CadastroDto>(await apiGet("/api/saas/cadastros")).items.filter(
+            (c) => c.status === "aprovado" && c.cliente_id,
+          ),
+        );
         setSkus(asPage<EstoqueItemDto>(await apiGet("/api/saas/estoque")).items);
       } catch {
         /* ignore */
@@ -368,7 +367,10 @@ export function NovoPedidoScreen() {
   function addLine() {
     const sku = skus.find((s) => s.id === skuId);
     if (!sku) return;
-    setLinhas((prev) => [...prev, { sku_id: sku.id, qty: Math.max(sku.qtd_min_atacado, qty), label: `${sku.sku} · ${sku.nome}` }]);
+    setLinhas((prev) => [
+      ...prev,
+      { sku_id: sku.id, qty: Math.max(sku.qtd_min_atacado, qty), label: `${sku.codigo} · ${sku.nome}` },
+    ]);
     setSkuId("");
     setQty(1);
   }
@@ -408,7 +410,7 @@ export function NovoPedidoScreen() {
             <SelectContent>
               <SelectItem value="none">—</SelectItem>
               {clientes.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
+                <SelectItem key={c.cliente_id!} value={c.cliente_id!}>
                   {c.razao_social}
                 </SelectItem>
               ))}
@@ -426,7 +428,7 @@ export function NovoPedidoScreen() {
                 <SelectItem value="none">—</SelectItem>
                 {skus.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
-                    {s.sku} · {s.nome}
+                    {s.codigo} · {s.nome}
                   </SelectItem>
                 ))}
               </SelectContent>

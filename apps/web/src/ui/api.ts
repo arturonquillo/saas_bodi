@@ -1,21 +1,17 @@
 import type {
   ApiErr,
-  CadastroDto,
+  CadastroStatus,
   CanalAviso,
   CatalogItemDto,
-  EstoqueItemDto,
-  InboxThreadDetailDto,
-  InboxThreadDto,
-  LojaConfigDto,
+  LojaModo,
   MovementType,
-  OrcamentoDto,
-  OutboxDto,
-  PedidoDto,
-  SaasConfigDto,
+  OrcamentoStatus,
+  PedidoStatus,
+  SaasRole,
   SessionDto,
   ThemeTokens,
-  UserDto,
-  VendaDto,
+  VendaStatus,
+  WhatsappIntent,
 } from "@saas-frota/shared";
 
 export class ApiClientError extends Error {
@@ -90,6 +86,170 @@ export function asPage<T>(data: unknown): PageDto<T> {
   return { items: [], next_cursor: null };
 }
 
+/** Frontend DTOs matching apps/web/src/server response shapes. */
+
+export type LojaConfigDto = {
+  loja_modo: LojaModo;
+  whatsapp_comercial: string | null;
+  nome_fantasia: string;
+};
+
+export function whatsappLink(phone: string | null | undefined, text?: string) {
+  if (!phone) return null;
+  const digits = phone.replace(/\D/g, "");
+  if (!digits) return null;
+  const q = text ? `?text=${encodeURIComponent(text)}` : "";
+  return `https://wa.me/${digits}${q}`;
+}
+
+export function maskFromLast4(last4?: string | null) {
+  if (!last4) return "—";
+  const tail = last4.slice(-2).padStart(2, "*");
+  return `**.***.***/****-${tail}`;
+}
+
+export type DocLineDto = {
+  id: string;
+  sku_id: string;
+  codigo: string;
+  nome: string;
+  qty: number;
+  unit_price_centavos: number;
+  notas?: string | null;
+};
+
+export type StatusHistoryDto = {
+  from: string | null;
+  to: string;
+  actor_user_id?: string | null;
+  created_at: string;
+};
+
+export type CadastroDto = {
+  id: string;
+  status: CadastroStatus | string;
+  cnpj_last4: string;
+  cnpj_registro_pendente: boolean;
+  razao_social: string;
+  contato_nome: string;
+  email: string;
+  whatsapp: string;
+  source: string;
+  motivo_recusa?: string | null;
+  cliente_id?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type OrcamentoDto = {
+  id: string;
+  status: OrcamentoStatus;
+  valido_ate: string | null;
+  channel?: string;
+  cliente_id?: string | null;
+  cadastro_request_id?: string | null;
+  vendedor_user_id?: string;
+  linhas: DocLineDto[];
+  historico: StatusHistoryDto[];
+  pedido_id?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PedidoDto = {
+  id: string;
+  status: PedidoStatus;
+  channel: string;
+  cliente_id: string;
+  vendedor_user_id?: string;
+  orcamento_id?: string | null;
+  linhas: DocLineDto[];
+  historico: StatusHistoryDto[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type VendaDto = {
+  id: string;
+  status: VendaStatus;
+  pedido_id: string;
+  created_by_user_id?: string;
+  created_at: string;
+  updated_at: string;
+  historico: StatusHistoryDto[];
+};
+
+export type InboxThreadDto = {
+  id: string;
+  phone_e164: string;
+  intent: WhatsappIntent | string | null;
+  cliente_id?: string | null;
+  cadastro_request_id?: string | null;
+  orcamento_id?: string | null;
+  status?: string;
+  created_at: string;
+  updated_at: string;
+  messages?: InboxMessageDto[];
+};
+
+export type InboxMessageDto = {
+  id: string;
+  direction: string;
+  body: string;
+  simulated: boolean;
+  created_at: string;
+};
+
+export type InboxThreadDetailDto = InboxThreadDto & {
+  messages: InboxMessageDto[];
+};
+
+export type EstoqueItemDto = {
+  id: string;
+  codigo: string;
+  nome: string;
+  on_hand: number;
+  reserved: number;
+  available: number;
+  visivel_loja: boolean;
+  preco_atacado_centavos: number;
+  qtd_min_atacado: number;
+};
+
+export type UserDto = {
+  id: string;
+  email: string;
+  nome: string;
+  whatsapp?: string | null;
+  saas_role: SaasRole | null;
+  ativo: boolean;
+  is_customer?: boolean;
+};
+
+export type SaasConfigDto = {
+  razao_social: string;
+  nome_fantasia: string;
+  cnpj_last4: string;
+  whatsapp_comercial: string | null;
+  canais_aviso: CanalAviso;
+  loja_modo: LojaModo;
+  default_vendedor_user_id: string | null;
+};
+
+export type OutboxDto = {
+  id: string;
+  created_at: string;
+  channel: "email" | "whatsapp" | string;
+  recipient_role: string;
+  recipient: string;
+  template_key: string;
+  status: "pendente" | "enviado" | "falha" | string;
+  orcamento_id?: string | null;
+  pedido_id?: string | null;
+  venda_id?: string | null;
+  cadastro_request_id?: string | null;
+};
+
 export type MovementDto = {
   id: string;
   type: MovementType | string;
@@ -99,28 +259,65 @@ export type MovementDto = {
   created_at?: string;
 };
 
-export type CustomerPickDto = {
-  id: string;
-  razao_social: string;
-  cnpj_masked: string;
-  whatsapp?: string | null;
-  status?: string;
+export function docTotal(linhas: DocLineDto[]) {
+  return linhas.reduce((sum, l) => sum + l.qty * l.unit_price_centavos, 0);
+}
+
+/** Alias used by screens; mirrors maskFromLast4. */
+export function maskCnpjLast4(last4?: string | null) {
+  return maskFromLast4(last4);
+}
+
+export function threadPreview(thread: InboxThreadDto) {
+  const msgs = thread.messages;
+  if (!msgs?.length) return "";
+  const last = msgs[msgs.length - 1] ?? msgs[0];
+  return last?.body?.slice(0, 80) ?? "";
+}
+
+export type ClienteOption = { id: string; label: string };
+
+export const SEED_CLIENTE_OPTION: ClienteOption = {
+  id: "cli_mercado",
+  label: "Mercado Exemplo LTDA",
 };
 
+/** No /api/saas/clientes — derive options from docs + approved cadastros. */
+export function buildClienteOptions(input: {
+  pedidos?: Array<{ cliente_id: string }>;
+  orcamentos?: Array<{ cliente_id?: string | null }>;
+  cadastros?: CadastroDto[];
+}): ClienteOption[] {
+  const map = new Map<string, string>();
+  map.set(SEED_CLIENTE_OPTION.id, SEED_CLIENTE_OPTION.label);
+
+  for (const p of input.pedidos ?? []) {
+    if (p.cliente_id) map.set(p.cliente_id, map.get(p.cliente_id) ?? p.cliente_id);
+  }
+  for (const o of input.orcamentos ?? []) {
+    if (o.cliente_id) map.set(o.cliente_id, map.get(o.cliente_id) ?? o.cliente_id);
+  }
+  for (const c of input.cadastros ?? []) {
+    if (String(c.status) === "aprovado" && c.cliente_id) {
+      map.set(c.cliente_id, c.razao_social);
+    }
+  }
+
+  return Array.from(map, ([id, label]) => ({ id, label }));
+}
+
+export function clienteDisplay(doc: { cliente_id?: string | null }) {
+  return doc.cliente_id ?? "—";
+}
+
 export type {
-  CadastroDto,
-  CanalAviso,
   CatalogItemDto,
-  EstoqueItemDto,
-  InboxThreadDetailDto,
-  InboxThreadDto,
-  LojaConfigDto,
-  OrcamentoDto,
-  OutboxDto,
-  PedidoDto,
-  SaasConfigDto,
   SessionDto,
   ThemeTokens,
-  UserDto,
-  VendaDto,
+  CanalAviso,
+  CadastroStatus,
+  OrcamentoStatus,
+  PedidoStatus,
+  VendaStatus,
+  WhatsappIntent,
 };

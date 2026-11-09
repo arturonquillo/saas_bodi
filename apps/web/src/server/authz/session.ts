@@ -79,7 +79,7 @@ async function resolveClienteContext(userId: string, tenantId: string) {
   }
   const user = await db.user.findUnique({ where: { id: userId } });
   if (!user) {
-    return { clienteStatus: null as const };
+    return { clienteStatus: null };
   }
   const cadastro = await db.cadastroRequest.findFirst({
     where: { tenantId, email: user.email, status: "pendente" },
@@ -92,7 +92,7 @@ async function resolveClienteContext(userId: string, tenantId: string) {
       cadastroRequestId: cadastro.id,
     };
   }
-  return { clienteStatus: null as const };
+  return { clienteStatus: null };
 }
 
 export async function readSession(surface: Surface): Promise<SessionContext | null> {

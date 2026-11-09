@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import type { VendaDto, VendaStatus } from "@saas-frota/shared";
+import type { VendaStatus } from "@saas-frota/shared";
+import type { VendaDto } from "../api";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -63,7 +64,6 @@ export function VendasListScreen() {
             <TableHeader>
               <TableRow>
                 <TableHead>ID</TableHead>
-                <TableHead>Cliente</TableHead>
                 <TableHead>Pedido</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Atualizado</TableHead>
@@ -73,7 +73,6 @@ export function VendasListScreen() {
               {items.map((v) => (
                 <TableRow key={v.id} className="cursor-pointer" onClick={() => router.push(`/saas/vendas/${v.id}`)}>
                   <TableCell className="font-medium">{v.id}</TableCell>
-                  <TableCell>{v.cliente?.razao_social ?? "—"}</TableCell>
                   <TableCell>{v.pedido_id}</TableCell>
                   <TableCell>
                     <VendaStatusBadge status={v.status} />
@@ -193,10 +192,6 @@ export function VendaDetailScreen() {
 
       <DeskWrap className="mb-4 space-y-1 p-4 text-sm">
         <p>
-          <span className="text-muted-foreground">{COPY.customer}: </span>
-          {item.cliente?.razao_social ?? "—"}
-        </p>
-        <p>
           <span className="text-muted-foreground">Pedido: </span>
           {item.pedido_id}
         </p>
@@ -204,9 +199,9 @@ export function VendaDetailScreen() {
 
       <h2 className="mb-2 text-sm font-semibold">{COPY.history}</h2>
       <ul className="space-y-1 text-sm text-muted-foreground">
-        {item.history.map((h, i) => (
-          <li key={`${h.to_status}-${i}`}>
-            {h.from_status ?? "—"} → {h.to_status} · {formatDate(h.created_at)}
+        {item.historico.map((h, i) => (
+          <li key={`${h.to}-${i}`}>
+            {h.from ?? "—"} → {h.to} · {formatDate(h.created_at)}
           </li>
         ))}
       </ul>

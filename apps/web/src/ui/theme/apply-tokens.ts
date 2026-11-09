@@ -52,6 +52,7 @@ function mix(hex: string, toward: string, t: number) {
 }
 
 export function textOnPrimary(_bg: string) {
+  void _bg;
   return ON_PRIMARY;
 }
 

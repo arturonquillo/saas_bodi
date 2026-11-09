@@ -33,11 +33,20 @@
   },
   "include": [
     "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "src/ui/**/*.ts",
+    "src/ui/**/*.tsx",
+    "src/components/**/*.ts",
+    "src/components/**/*.tsx",
+    "src/lib/**/*.ts",
+    "src/lib/**/*.tsx",
+    "src/mocks/**/*.ts",
+    "src/mocks/**/*.tsx",
     ".next/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "src/server"
   ]
 }

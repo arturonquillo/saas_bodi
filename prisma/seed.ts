@@ -50,6 +50,15 @@ const ids = {
   pedido: "ped_separacao",
   inboxWa: "inx_wa_default",
   channelWa: "chw_wa_default",
+  inboxWidget: "inx_widget_loja",
+  channelWidget: "cww_widget_loja",
+  inboxEmail: "inx_email_stub",
+  channelEmail: "cem_email_stub",
+  inboxApi: "inx_api_stub",
+  channelApi: "cap_api_stub",
+  inboxIg: "inx_ig_stub",
+  channelIg: "cso_ig_stub",
+  emailTemplate: "etpl_padrao",
   teamVendas: "team_vendas",
   companyMercado: "co_mercado",
   contactProspecto: "ct_prospecto",
@@ -89,6 +98,14 @@ async function main() {
   await prisma.backgroundJob.deleteMany();
   await prisma.conversation.deleteMany();
   await prisma.contactInbox.deleteMany();
+  await prisma.widgetSession.deleteMany();
+  await prisma.pushSubscription.deleteMany();
+  await prisma.channelWebsiteWidget.deleteMany();
+  await prisma.channelEmail.deleteMany();
+  await prisma.channelSocial.deleteMany();
+  await prisma.channelSms.deleteMany();
+  await prisma.channelApi.deleteMany();
+  await prisma.emailTemplate.deleteMany();
   await prisma.channelWhatsapp.deleteMany();
   await prisma.inboxMember.deleteMany();
   await prisma.inbox.deleteMany();
@@ -775,7 +792,7 @@ async function main() {
     data: {
       id: "cmp_ongoing_draft",
       tenantId: TENANT,
-      title: "Banner loja (aguardando widget)",
+      title: "Banner loja (widget)",
       kind: "ongoing",
       status: "draft",
       channel: "whatsapp",
@@ -783,6 +800,7 @@ async function main() {
       message: "Confira nossas ofertas no atacado.",
       displayStatus: "awaiting_widget",
       createdByUserId: ids.admin,
+      // inbox linked after Phase D widget inbox is created below
     },
   });
 
@@ -842,7 +860,153 @@ async function main() {
     ],
   });
 
-  console.log("Seed OK — tenant casa-dos-frios CRM Phase C (password Demo@1234)");
+  // Phase D — Loja widget + stub channels + email template
+  const widgetToken = "wt_casa_dos_frios_demo";
+  const widgetHmac = sealSecrets({ hmac_secret: "seed-widget-hmac-not-for-production" });
+  await prisma.inbox.create({
+    data: {
+      id: ids.inboxWidget,
+      tenantId: TENANT,
+      name: "Loja — chat",
+      channelType: "web_widget",
+      greeting: "Olá! Como podemos ajudar?",
+      oooMessage: "Fora do horário — deixe sua mensagem.",
+      lockToSingleConversation: true,
+      timezone: "America/Sao_Paulo",
+    },
+  });
+  await prisma.channelWebsiteWidget.create({
+    data: {
+      id: ids.channelWidget,
+      tenantId: TENANT,
+      inboxId: ids.inboxWidget,
+      websiteToken: widgetToken,
+      hmacSecretCiphertext: widgetHmac,
+      allowedOriginsJson: JSON.stringify([
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+      ]),
+      preChatFieldsJson: JSON.stringify([
+        { name: "nome", type: "text", label_pt: "Nome", required: true },
+        { name: "email", type: "email", label_pt: "E-mail", required: false },
+        { name: "empresa", type: "text", label_pt: "Empresa", required: false },
+      ]),
+      welcomeTitle: "Casa dos Frios",
+      widgetColor: "#7A1F1F",
+      continuity: "session",
+      connectionStatus: "ready_stub",
+    },
+  });
+  await prisma.inboxMember.createMany({
+    data: [
+      { id: "inm_widget_admin", tenantId: TENANT, inboxId: ids.inboxWidget, userId: ids.admin },
+      {
+        id: "inm_widget_vendedor",
+        tenantId: TENANT,
+        inboxId: ids.inboxWidget,
+        userId: ids.vendedor,
+      },
+    ],
+  });
+
+  await prisma.emailTemplate.create({
+    data: {
+      id: ids.emailTemplate,
+      tenantId: TENANT,
+      name: "Resposta padrão",
+      slug: "resposta-padrao",
+      subjectTemplate: "Re: {{contact.nome}} — Casa dos Frios",
+      bodyHtmlTemplate:
+        "<p>Olá {{contact.nome}},</p><p>{{message}}</p><p>Atenciosamente,<br/>Casa dos Frios</p>",
+    },
+  });
+
+  await prisma.inbox.create({
+    data: {
+      id: ids.inboxEmail,
+      tenantId: TENANT,
+      name: "E-mail (stub)",
+      channelType: "email",
+    },
+  });
+  await prisma.channelEmail.create({
+    data: {
+      id: ids.channelEmail,
+      tenantId: TENANT,
+      inboxId: ids.inboxEmail,
+      provider: "smtp_imap",
+      fromEmailDisplay: "atendimento@casadosfrios.local",
+      emailTemplateId: ids.emailTemplate,
+      connectionStatus: "not_configured",
+    },
+  });
+  await prisma.inboxMember.create({
+    data: {
+      id: "inm_email_admin",
+      tenantId: TENANT,
+      inboxId: ids.inboxEmail,
+      userId: ids.admin,
+    },
+  });
+
+  await prisma.inbox.create({
+    data: {
+      id: ids.inboxApi,
+      tenantId: TENANT,
+      name: "API client (stub)",
+      channelType: "api",
+    },
+  });
+  await prisma.channelApi.create({
+    data: {
+      id: ids.channelApi,
+      tenantId: TENANT,
+      inboxId: ids.inboxApi,
+      connectionStatus: "not_configured",
+    },
+  });
+  await prisma.inboxMember.create({
+    data: {
+      id: "inm_api_admin",
+      tenantId: TENANT,
+      inboxId: ids.inboxApi,
+      userId: ids.admin,
+    },
+  });
+
+  await prisma.inbox.create({
+    data: {
+      id: ids.inboxIg,
+      tenantId: TENANT,
+      name: "Instagram (stub)",
+      channelType: "instagram",
+    },
+  });
+  await prisma.channelSocial.create({
+    data: {
+      id: ids.channelIg,
+      tenantId: TENANT,
+      inboxId: ids.inboxIg,
+      provider: "instagram",
+      connectionStatus: "not_configured",
+    },
+  });
+  await prisma.inboxMember.create({
+    data: {
+      id: "inm_ig_admin",
+      tenantId: TENANT,
+      inboxId: ids.inboxIg,
+      userId: ids.admin,
+    },
+  });
+
+  await prisma.campaign.update({
+    where: { id: "cmp_ongoing_draft" },
+    data: { inboxId: ids.inboxWidget },
+  });
+
+  console.log("Seed OK — tenant casa-dos-frios CRM Phase D (password Demo@1234)");
+  console.log(`Widget website_token (demo): ${widgetToken}`);
 }
 
 main()

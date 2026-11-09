@@ -16,7 +16,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
 const postSchema = z.object({
   content: z.string().min(1),
   private: z.boolean().optional(),
-  content_type: z.enum(["text", "attachment"]).optional(),
+  content_type: z.enum(["text", "attachment", "input_select", "cards", "form"]).optional(),
 });
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {

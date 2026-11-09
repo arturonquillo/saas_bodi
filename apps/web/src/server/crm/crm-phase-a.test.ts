@@ -137,7 +137,8 @@ describe("CRM Phase A core flows", () => {
     const live = await catchApi(() =>
       putChannel(admin, world.inboxId, { connection_status: "live" }),
     );
-    expect(live?.code).toBe("validacao");
+    // Phase D lock: live → 501 nao_implementado for all channel types
+    expect(live?.code).toBe("nao_implementado");
 
     const row = await db.channelWhatsapp.findFirstOrThrow({
       where: { inboxId: world.inboxId },

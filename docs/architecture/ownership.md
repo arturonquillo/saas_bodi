@@ -28,7 +28,7 @@ Legacy `(conta)` / Account paths are **not** owned for MVP — do not extend the
 - **Theme** — one `themes` row per tenant. Loja and SaaS GET the same tokens.
 - **Cadastro gate** — Pedido / Venda / Orçamento→Pedido only when Cliente (or linked cadastro) is `aprovado`. Enforced in domain, not only UI.
 - **Sales docs** — three document types (Orçamento, Pedido, Venda), not a single legacy `Order` status machine.
-- **WhatsApp / CRM** — one desk under Conversation APIs; inbound via simulate port; agent send via stub channel port; commerce outbound via outbox stub. No Meta SDK until product unlock. Channel secrets encrypted. Architecture owns CRM contracts in [crm-chatwoot-parity.md](./crm-chatwoot-parity.md).
+- **WhatsApp / CRM** — one desk under Conversation APIs; inbound via simulate port; agent send via stub channel port; commerce outbound via outbox stub. No Meta SDK until product unlock. Channel secrets encrypted. Phase B automations/bots/webhooks = queued jobs + SSRF guard only. Architecture owns CRM contracts in [crm-chatwoot-parity.md](./crm-chatwoot-parity.md).
 - **Account / entitlement** — absent. No `subscription_status` write path; seed tenant is always operational.
 
 If a screen needs data that is not in [api.md](./api.md), add the endpoint in architecture first — do not grow an ad-hoc BFF in a Server Component.

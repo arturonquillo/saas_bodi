@@ -52,11 +52,29 @@ MVP threat notes. Blockers if a PR ships the failure mode.
 
 **Rule:** Encrypt at rest (AES-256-GCM). GET returns masked placeholders + `secrets_present`. Never put secrets in `domain_events` or notifications. Rotate `CREDENTIALS_ENCRYPTION_KEY` only via controlled re-encrypt job.
 
-## Webhook / bot SSRF (Phase B — contract now)
+## Webhook / bot SSRF (Phase B)
 
 **Risk:** Automation or AgentBot posts to `http://169.254.169.254/` or internal admin URLs.
 
-**Rule:** Jobs only (not request path). `UrlEgressGuardPort` https + DNS + private-IP deny + redirect re-check. See [jobs-realtime.md](./jobs-realtime.md).
+**Rule:** Jobs only (not request path). Validate URL on **admin save** and again on **deliver**. `UrlEgressGuardPort` https + DNS + private-IP deny + redirect re-check. See [jobs-realtime.md](./jobs-realtime.md). Tests must include metadata-IP and RFC1918 fixtures.
+
+## CSAT token abuse (Phase B)
+
+**Risk:** Brute-force public survey tokens; spam ratings; scrape conversation metadata.
+
+**Rule:** High-entropy token; rate-limit `GET/POST /api/public/csat/:token` per IP; one-shot consume; public GET returns minimal brand + inbox name — **no** contact PII, CNPJ, or message history.
+
+## Automation privilege escalation (Phase B)
+
+**Risk:** Vendedor crafts macro/automation to assign across inboxes or fire webhooks.
+
+**Rule:** Automation/webhook/bot CRUD = **admin**. Macro execute still runs `assertConversationVisible` per id. `send_webhook` action only on AutomationRule (admin), not macros.
+
+## Bot token leakage (Phase B)
+
+**Risk:** Bot bearer token in GET lists, SSE, or logs.
+
+**Rule:** Return full token **once** on create; thereafter masked. Never put token in `domain_events` or job `last_error`.
 
 ## Campaign / outbox confusion (Phase C)
 

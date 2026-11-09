@@ -172,11 +172,98 @@ Conversation status body values: `open` \| `pending` \| `snoozed` \| `resolved`.
 | POST | `/api/saas/crm/presence` | admin, vendedor — see [jobs-realtime.md](./jobs-realtime.md) |
 | GET | `/api/saas/crm/events/stream` | admin, vendedor — SSE |
 
-### Phase B–E API (names reserved — implement later)
+### Phase B — operator power
+
+All under `/api/saas/crm/*` unless noted. Authz detail: [authz.md](./authz.md). Execution: [jobs-realtime.md](./jobs-realtime.md). Product: Phase B rows in `docs/product/chatwoot-parity.md`.
+
+#### Automações
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| GET/POST | `/api/saas/crm/automacoes` | **admin** | list / create rule |
+| GET/PATCH/DELETE | `/api/saas/crm/automacoes/:id` | **admin** | |
+| POST | `/api/saas/crm/automacoes/:id/clonar` | **admin** | optional convenience |
+| POST | `/api/saas/crm/automacoes/:id/testar` | **admin** | dry-run conditions against sample payload; **no** side effects / no egress |
+
+Body create/patch: `{ name, description?, event_name, conditions, actions, active }`.
+
+#### Macros
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| GET | `/api/saas/crm/macros` | admin, vendedor | public + own private |
+| POST | `/api/saas/crm/macros` | admin (public); admin\|vendedor (private own) | |
+| GET/PATCH/DELETE | `/api/saas/crm/macros/:id` | owner or admin; public mutate = **admin** | |
+| POST | `/api/saas/crm/macros/:id/executar` | admin, vendedor (visible macro) | `{ conversation_ids: string[] }` → enqueue/apply actions |
+
+#### Atributos customizados
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| GET/POST | `/api/saas/crm/atributos` | GET both; POST **admin** | `?model=contact\|conversation` |
+| GET/PATCH/DELETE | `/api/saas/crm/atributos/:id` | PATCH/DELETE **admin** | |
+| PATCH | `/api/saas/crm/conversas/:id/atributos` | admin, visible vendedor | `{ attributes: Record<string, unknown> }` merge keys |
+| PATCH | `/api/saas/crm/contatos/:id/atributos` | admin, vendedor | same |
+
+#### Bots
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| GET/POST | `/api/saas/crm/bots` | **admin** | `outgoing_url` validated (egress assert on write) |
+| GET/PATCH/DELETE | `/api/saas/crm/bots/:id` | **admin** | token returned once on create; GET masked |
+| GET/PUT | `/api/saas/crm/bots/:id/inboxes` | **admin** | `{ inbox_ids: string[] }` — B: max one bot per inbox |
+| POST | `/api/saas/crm/conversas/:id/bot/handoff` | admin, visible vendedor | clear bot lock; status → `open` |
+
+#### Webhooks
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| GET/POST | `/api/saas/crm/webhooks` | **admin** | account or `{ inbox_id }` |
+| GET/PATCH/DELETE | `/api/saas/crm/webhooks/:id` | **admin** | |
+| POST | `/api/saas/crm/webhooks/:id/testar` | **admin** | enqueue `webhook.deliver` sample; SSRF guard |
+| POST | `/api/saas/crm/webhooks/segredo/rotacionar` | **admin** | rotate tenant signing secret; returns secret once |
+
+#### Horários comerciais
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| GET/PUT | `/api/saas/crm/inboxes/:id/horarios` | GET admin+member; PUT **admin** | replace week array + `timezone` |
+| GET | `/api/saas/crm/inboxes/:id/horarios/estado` | admin, member | `{ open_now: boolean, next_open_at? }` |
+
+#### Políticas de atribuição
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| GET/PUT | `/api/saas/crm/inboxes/:id/politica-atribuicao` | GET admin+member; PUT **admin** | `{ kind: "round_robin", enabled }` |
+
+#### CSAT
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| GET | `/api/saas/crm/csat` | **admin** | list responses; filters `inbox_id`, `rating`, cursor |
+| GET | `/api/saas/crm/csat/:id` | **admin** | |
+| PATCH | `/api/saas/crm/inboxes/:id` | **admin** | already A — includes `csat_enabled` |
+| GET | `/api/public/csat/:token` | public | survey page payload (tenant brand minimal); rate-limit |
+| POST | `/api/public/csat/:token` | public | `{ rating, feedback_message? }` → `CsatResponse`; one-shot |
+
+#### Filtros salvos, merge, CSV, menções, assinatura
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| GET/POST | `/api/saas/crm/filtros` | admin, vendedor | personal saved filters |
+| PATCH/DELETE | `/api/saas/crm/filtros/:id` | owner | |
+| POST | `/api/saas/crm/contatos/mesclar` | admin, vendedor | `{ survivor_id, loser_id }` |
+| POST | `/api/saas/crm/contatos/importar` | admin, vendedor | multipart CSV → job; returns `batch_id` |
+| GET | `/api/saas/crm/contatos/importar/:batch_id` | admin, vendedor | progress/stats |
+| POST | `/api/saas/crm/contatos/importar/preview` | admin, vendedor | dry-run parse first N rows |
+| PATCH | `/api/saas/crm/perfil` | self | A + `signature` text applied to outgoing non-private messages when set |
+
+Mentions: no extra route — included in `POST .../mensagens` content; notifications via existing `/notificacoes`.
+
+### Phase C–E API (names reserved)
 
 | Phase | Prefix / resources |
 |---|---|
-| **B** | `/automacoes`, `/macros`, `/atributos`, `/bots`, `/webhooks`, `/horarios`, `/politicas-atribuicao`, `/csat` |
 | **C** | `/campanhas`, `/central-ajuda/*`, `/relatorios/*` |
 | **D** | channel types beyond WA; `/api/loja/widget/*` client messaging |
 | **E** | `/sla`, `/auditoria`, `/integracoes`, Captain |

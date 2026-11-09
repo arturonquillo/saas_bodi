@@ -100,6 +100,25 @@ After Phase A migration, seed **must** realize:
 
 Until Phase A ships, legacy seed “one thread per intent” remains acceptable; migration must map them as above.
 
+## CRM desk (Phase B — when that phase seeds)
+
+Additive on top of Phase A seed (do not remove A objects):
+
+| Object | Contract |
+|---|---|
+| Inbox `timezone` | `America/Sao_Paulo`; WorkingHour Mon–Fri open 08:00–18:00; Sat/Sun `closed_all_day` |
+| `csat_enabled` | true on default WA inbox |
+| CustomAttributeDefinition | ≥1 conversation + ≥1 contact attribute (e.g. list/text) |
+| AutomationRule | ≥1 inactive **or** active demo rule (prefer inactive in seed to avoid surprise jobs); event `message_created` |
+| Macro | ≥1 `public` (admin-owned actions: add_label or resolve) + optional private for vendedor |
+| AssignmentPolicy | default inbox `round_robin` **disabled** until demo wants it |
+| AgentBot | optional; if present `active=false` and URL `https://example.com/bot` (deliver still guarded; do not call in seed tick) |
+| Webhook | optional inactive; tenant `webhook_signing_secret` always generated |
+| CsatResponse | optional one row on a resolved conversation for Relatórios later |
+| CustomFilter | optional personal filter for admin |
+
+Seed must **not** enqueue live egress to example.com on boot. Job kinds idle until operators enable rules/bots.
+
 ## Sales documents
 
 | Doc | Status | Notes |

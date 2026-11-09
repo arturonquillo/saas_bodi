@@ -60,7 +60,8 @@ Chatwoot Administrator → `admin`; Agent → `vendedor`. Custom roles = Phase E
 | Simulate inbound | yes | no |
 | Agent notifications + prefs + presence | self | self |
 | SSE event stream | yes (tenant) | yes (filtered) |
-| Automations, bots, webhooks, campaigns, reports, help center publish | Phase B/C — **admin** only when shipped | — |
+| Automations, bots, webhooks | Phase B — **admin** | — |
+| Campaigns, reports, help center publish | Phase C — **admin** | — |
 
 ### CRM desk matrix (Phase B additions)
 
@@ -85,6 +86,17 @@ Chatwoot Administrator → `admin`; Agent → `vendedor`. Custom roles = Phase E
 | Agent signature on self profile | self | self |
 
 Invisible conversation on macro execute / attribute patch / handoff → **404**. Webhook/bot URL that fails egress → **422** `validacao` (or `egress_bloqueado` if shared adds the code — prefer `validacao` with details).
+
+### CRM desk matrix (Phase C additions)
+
+| Action | admin | vendedor |
+|---|---|---|
+| Campaigns CRUD / send / cancel / recipients | yes | no |
+| Help Center portal / categories / articles CRUD + publish | yes | no |
+| Public Help Center read (published) | n/a (public) | n/a |
+| Reports all series (`/relatorios/*`) | yes | no |
+
+Vendedor on Phase C admin routes → **403** `forbidden`. Public article draft/archived → **404** (do not leak titles via 403). Campaign send does not grant vendedor outbox category bypass — commerce avisos stay `commerce`-filtered for both roles.
 
 ### Conversation visibility helper
 

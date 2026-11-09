@@ -260,13 +260,69 @@ Body create/patch: `{ name, description?, event_name, conditions, actions, activ
 
 Mentions: no extra route — included in `POST .../mensagens` content; notifications via existing `/notificacoes`.
 
-### Phase C–E API (names reserved)
+### Phase C — Campanhas, Central de Ajuda, Relatórios
+
+All SaaS CRM paths below are under `/api/saas/crm` unless noted. **No Meta / SMS provider HTTP.** See [crm-chatwoot-parity.md](./crm-chatwoot-parity.md) Phase C locks.
+
+#### Campanhas
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| GET | `/api/saas/crm/campanhas` | **admin** | list; filters `kind`, `status`, cursor |
+| POST | `/api/saas/crm/campanhas` | **admin** | create `draft`; body: `title`, `kind` (`one_off`\|`ongoing`), `inbox_id?`, `channel` (`whatsapp`\|`sms`), `audience_label_ids`, `template_key?`, `message?`, `scheduled_at?`, ongoing display fields |
+| GET | `/api/saas/crm/campanhas/:id` | **admin** | includes recipient stats when sent |
+| PATCH | `/api/saas/crm/campanhas/:id` | **admin** | editable while `draft`\|`scheduled`; audience locked after `active` |
+| DELETE | `/api/saas/crm/campanhas/:id` | **admin** | only `draft`\|`cancelled`; else **409** |
+| POST | `/api/saas/crm/campanhas/:id/enviar` | **admin** | one_off: enqueue `campaign.send_batch`; ongoing: set `active` + `display_status=awaiting_widget` (no blast) |
+| POST | `/api/saas/crm/campanhas/:id/cancelar` | **admin** | `scheduled`\|`active` → `cancelled`; stops further batch pages |
+| GET | `/api/saas/crm/campanhas/:id/destinatarios` | **admin** | CampaignRecipient page; status `pendente`\|`enviado`\|`falha`\|`omitido` |
+
+`enviar` on one_off without resolvable audience or missing stub template → **422** `validacao`. SMS channel still stub-outbox only.
+
+#### Central de Ajuda (SaaS authoring)
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| GET/PUT | `/api/saas/crm/central-ajuda/portal` | **admin** | singleton portal for tenant; `slug`, `name`, `header_text?`, `enabled`, locale fixed `pt-BR` |
+| GET/POST | `/api/saas/crm/central-ajuda/categorias` | **admin** | list/create; `name`, `slug`, `position`, `description?` |
+| GET/PATCH/DELETE | `/api/saas/crm/central-ajuda/categorias/:id` | **admin** | delete only if no published articles (or cascade archive — **lock:** refuse with **409** if published children) |
+| GET/POST | `/api/saas/crm/central-ajuda/artigos` | **admin** | list/create; filters `status`, `category_id` |
+| GET/PATCH/DELETE | `/api/saas/crm/central-ajuda/artigos/:id` | **admin** | body: `title`, `slug`, `category_id`, `content_md`, `status` |
+| POST | `/api/saas/crm/central-ajuda/artigos/:id/publicar` | **admin** | → `published`; sets `published_at` |
+| POST | `/api/saas/crm/central-ajuda/artigos/:id/despublicar` | **admin** | → `draft` (or `archived` via PATCH) |
+
+#### Central de Ajuda (public)
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| GET | `/api/public/central-ajuda/:portalSlug` | public | portal metadata if `enabled`; else 404 |
+| GET | `/api/public/central-ajuda/:portalSlug/categorias` | public | categories with published article counts |
+| GET | `/api/public/central-ajuda/:portalSlug/artigos` | public | **published** only; optional `category_slug`, search `q` |
+| GET | `/api/public/central-ajuda/:portalSlug/artigos/:articleSlug` | public | published article body; draft → **404** |
+
+Rate-limit public HC reads lightly per IP. No contact PII in payloads. Custom domain routing = Phase E (not these paths).
+
+#### Relatórios
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| GET | `/api/saas/crm/relatorios/visao-geral` | **admin** | overview totals + sparklines by day |
+| GET | `/api/saas/crm/relatorios/conversas` | **admin** | conversation series |
+| GET | `/api/saas/crm/relatorios/agentes` | **admin** | per-agent rows |
+| GET | `/api/saas/crm/relatorios/labels` | **admin** | per-label rows |
+| GET | `/api/saas/crm/relatorios/inboxes` | **admin** | per-inbox rows |
+| GET | `/api/saas/crm/relatorios/equipes` | **admin** | per-team rows |
+| GET | `/api/saas/crm/relatorios/csat` | **admin** | rating distribution + avg (from `CsatResponse`) |
+| GET | `/api/saas/crm/relatorios/bots` | **admin** | bot.messaged / handoff aggregates |
+
+Query params (all series): `from`, `to` (required ISO), `tz?` (default `America/Sao_Paulo`), `inbox_id?`, `team_id?` where applicable. Range > 90 days → **422**. Vendedor → **403**. SLA reports are **not** in C (omit routes or **501** until E).
+
+### Phase D–E API (names reserved)
 
 | Phase | Prefix / resources |
 |---|---|
-| **C** | `/campanhas`, `/central-ajuda/*`, `/relatorios/*` |
-| **D** | channel types beyond WA; `/api/loja/widget/*` client messaging |
-| **E** | `/sla`, `/auditoria`, `/integracoes`, Captain |
+| **D** | channel types beyond WA; `/api/loja/widget/*` client messaging; ongoing campaign display hook |
+| **E** | `/sla`, `/auditoria`, `/integracoes`, Captain; HC custom domain; CSAT review notes |
 
 Do not invent ad-hoc BFF routes outside this map — extend architecture first.
 

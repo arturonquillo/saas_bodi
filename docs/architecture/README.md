@@ -15,7 +15,7 @@ This set **supersedes** the former `saas_frota` dual-channel / Account / AI-impo
 | [seed.md](./seed.md) | Tenant `casa-dos-frios` exact contract |
 | [ports.md](./ports.md) | CNPJ registry, outbox stub, channel simulate/send, credential vault, jobs/egress |
 | [jobs-realtime.md](./jobs-realtime.md) | SSE realtime, domain events, background jobs, SSRF guard |
-| [crm-chatwoot-parity.md](./crm-chatwoot-parity.md) | Chatwoot-parity decisions, Phase A+B contracts, migration |
+| [crm-chatwoot-parity.md](./crm-chatwoot-parity.md) | Chatwoot-parity decisions, Phase A–C contracts, migration |
 | [ownership.md](./ownership.md) | Who may edit which folders |
 
 ## Module map
@@ -26,7 +26,7 @@ This set **supersedes** the former `saas_frota` dual-channel / Account / AI-impo
 | **Identity / Auth** | Users, memberships, password hash, sessions, cookies | SaaS + Loja |
 | **RBAC** | `admin` \| `vendedor` enforced in API | SaaS |
 | **Cadastro B2B** | Solicitação CNPJ → Cliente; approval gate; Contact/Company link | SaaS + Loja |
-| **CRM desk** | Conversation / Contact / Inbox + Phase B automations/macros/CSAT/bots/hours/webhooks | SaaS |
+| **CRM desk** | Conversation / Contact / Inbox + Phase B operator power + Phase C campaigns / help center / reports | SaaS |
 | **Sales pipeline** | Orçamento → Pedido de venda → Venda/Faturamento | SaaS + Loja (own docs) |
 | **Catalog / Stock** | One ledger (`on_hand`/`reserved`); Loja projection | SaaS + Loja |
 | **Notifications** | `notification_outbox` stub (email/WhatsApp); category discriminator | SaaS (read) |
@@ -48,6 +48,6 @@ This set **supersedes** the former `saas_frota` dual-channel / Account / AI-impo
 | Specialist | Uses |
 |---|---|
 | **design** | Surfaces + states from product + CRM desk IA; tokens in `docs/design/` |
-| **frontend** | [api.md](./api.md) + [authz.md](./authz.md) + CRM Phase A/B; saas-starter shell; no invented routes |
+| **frontend** | [api.md](./api.md) + [authz.md](./authz.md) + CRM Phase A–C; saas-starter shell; no invented routes |
 | **backend** | Full set + [seed.md](./seed.md) + [ports.md](./ports.md) + [jobs-realtime.md](./jobs-realtime.md); Prisma migrations |
-| **qa** | [seed.md](./seed.md) + `docs/product/mvp-acceptance.md` + Phase A/B acceptance in product parity brief |
+| **qa** | [seed.md](./seed.md) + `docs/product/mvp-acceptance.md` + Phase A–C acceptance in product parity brief |

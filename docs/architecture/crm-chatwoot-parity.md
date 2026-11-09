@@ -122,7 +122,7 @@ Add to outbox (migration before Phase C; may land empty in A):
 | Phase | Enough contract |
 |---|---|
 | **B** | Full contracts below — implement when Phase B starts |
-| **C** | Campaign + Portal/Article + report read-models; outbox `category=campaign` |
+| **C** | Full contracts in “Phase C — growth & insight” — Campaign + Portal/Article + reports; outbox `category=campaign` |
 | **D** | Channel polymorphism rows (`channel_type`); Loja widget client API |
 | **E** | SlaPolicy, Captain ports, SAML, audit_events, custom roles |
 
@@ -158,7 +158,7 @@ Companion detail: [data-model.md](./data-model.md) (entities), [api.md](./api.md
 
 | Deferred | Why |
 |---|---|
-| Campaigns / Help Center / Reports | Phase C |
+| Campaigns / Help Center / Reports | Phase C — full contracts below |
 | Non-WA channels / Loja widget | Phase D |
 | Captain, SLA, balanced capacity, SAML, audit, custom roles, required attributes on resolve | Phase E |
 | Live Meta / paid bot AI host | Product stub policy |
@@ -231,6 +231,118 @@ Conditions are AND within a rule; ordered actions; stop rule on first action har
 | **frontend** | Admin config screens + desk affordances against `/api/saas/crm/*` Phase B map |
 | **qa** | Phase B checklist; SSRF deny; no Meta; merge/import; CSAT stub path; RBAC admin vs vendedor |
 
+## Phase C — growth & insight (contracts)
+
+Product Phase C: **Campanhas**, **Central de Ajuda**, **Relatórios** (incl. CSAT aggregates). **No live Meta.** Campaign channel I/O = stub outbox only. Website **ongoing** campaigns are authorable in C but **display/send depends on Loja widget (Phase D)** — see locked decisions. Help Center custom domain = Phase E. SLA reports = Phase E. CSAT **review notes** = Phase E.
+
+Companion detail: [data-model.md](./data-model.md), [api.md](./api.md), [jobs-realtime.md](./jobs-realtime.md), [authz.md](./authz.md), [threats.md](./threats.md), [ports.md](./ports.md), [seed.md](./seed.md).
+
+### In scope
+
+1. **Campaign** — `one_off` (WhatsApp template → audience by contact labels; SMS-shaped stub optional) + `ongoing` (website config CRUD; no live display until D).
+2. **Campaign send** — `campaign.send_batch` job → `notification_outbox` rows with `category=campaign`, `campaign_id`, stub `template_key`; `StubOutboxTransport` marks `enviado`; **zero** Meta/Graph/SMS provider HTTP.
+3. **Help Center** — `Portal` (one active per tenant, pt-BR), `Category`, `Article` (draft/published/archived); SaaS authoring admin; public read for published.
+4. **Reports** — admin read models: overview, conversations, agents, labels, inbox, team, CSAT, bot; date-range + filters; live SQL aggregates (+ optional snapshot cache).
+5. Outbox `category` / `campaign_id` already contracted in Phase A blocker #5 — enforce in writers and commerce avisos filter.
+
+### Out of Phase C
+
+| Deferred | Why |
+|---|---|
+| Live Meta template sync / Graph send | Product stub policy |
+| Website widget runtime for ongoing campaigns | Phase D |
+| Help Center custom domain / multi-locale portal | Phase E (product) |
+| SLA report series | Phase E with SlaPolicy |
+| CSAT review notes UI/API | Phase E (product: notes can trail) |
+| Agent self-only metrics default | Product: admin default; optional later |
+| Non-WA live channels | Phase D |
+
+### Locked decisions (Phase C)
+
+| Topic | Decision |
+|---|---|
+| Campaign kinds | `one_off` \| `ongoing`. Phase C **executes** only `one_off` via stub outbox. `ongoing` is persisted + editable; `display_status=awaiting_widget` until Phase D widget; activating ongoing does **not** call external HTTP |
+| One-off channel | Default `whatsapp` on an existing WA inbox. Optional `sms` kind stores the same shape and writes outbox `channel=sms` stub — still `StubOutboxTransport`, no Twilio |
+| Audience | `audience_label_ids: string[]` — contacts that have **any** of those labels (OR). Empty labels → **422**. Cap 5k recipients per campaign (MVP); larger → reject with `validacao` |
+| Template | Must reference a key present in inbox channel `message_templates_json` stub cache (or campaign inline `message` for ongoing website copy). **No** Meta template submission / sync UI |
+| Campaign status | `draft` → `scheduled` \| `active` → `completed` \| `cancelled`. One-off: `POST .../enviar` or schedule → enqueue job; completion when batch finishes. Cannot edit audience after `active`/`completed` |
+| Outbox typing | Every campaign blast row: `category=campaign`, `campaign_id` set, `template_key` prefixed `campaign.` (e.g. `campaign.wa_one_off`). Commerce avisos list **excludes** non-`commerce` |
+| Help Center locale | **pt-BR only** in C. Portal `slug` unique per tenant; public URLs use slug |
+| Portal count | One **enabled** portal per tenant in C (`Portal.enabled`); soft-disable only — no multi-portal until E |
+| Article status | `draft` \| `published` \| `archived`. Public API returns **published** only. Publish/unpublish = **admin** |
+| Article content | Markdown source + rendered HTML stored or render-on-read; sanitize HTML on write (XSS). No arbitrary script embeds |
+| Public HC surface | `GET /api/public/central-ajuda/:portalSlug…` (tenant resolved by portal slug → tenant_id). Optional Loja pages consume same API — not Account |
+| Reports authz | **admin only** for all `/relatorios/*`. Vendedor → **403** |
+| Reports data source | Live aggregates from Conversation / Message / CsatResponse / AgentBot activity / Label joins; optional `report_snapshots` for expensive ranges. Prefer queries over a second event warehouse |
+| Report timezone | Tenant/inbox default `America/Sao_Paulo`; request may pass `tz` IANA |
+| Metrics window | Required `from` + `to` ISO (inclusive day bounds in `tz`); max range **90 days** per request |
+| Bot reports | Counts from `domain_events` types `bot.messaged` / `bot.handed_off` + conversations that were bot-pending — no external bot analytics |
+| SLA series | Routes may return **501** `nao_implementado` or omit until E — do **not** invent fake SLA numbers |
+| No Meta | Campaign send adapters forbidden from calling Graph; tests assert no Meta host egress |
+
+### Campaign send flow (one_off)
+
+```
+Admin POST /campanhas/:id/enviar (or scheduler tick for scheduled_at)
+  → validate draft|scheduled, audience non-empty, template exists on inbox channel
+  → status=active; enqueue background_jobs kind=campaign.send_batch
+Worker:
+  → resolve Contact ids by labels (tenant-scoped)
+  → for each contact (batched): insert notification_outbox
+       category=campaign, campaign_id, channel=whatsapp|sms,
+       template_key=campaign.*, payload redacted (no full CNPJ)
+  → StubOutboxTransport.markEnviado
+  → CampaignRecipient rows (optional) status enviado|falha
+  → when batch done: campaign.status=completed; emit campaign.completed
+```
+
+Idempotency: unique `(campaign_id, contact_id)` on recipients; retries skip already-sent.
+
+### Report series (C)
+
+| Series | Path suffix | Primary measures |
+|---|---|---|
+| Overview | `/relatorios/visao-geral` | open/pending/resolved counts, new conversations, messages in/out, avg first-response (agent), CSAT avg |
+| Conversations | `/relatorios/conversas` | volume by status/day, resolutions, reopen count |
+| Agents | `/relatorios/agentes` | assigned, resolved, messages sent, avg response (assignee_user_id) |
+| Labels | `/relatorios/labels` | conversations tagged, resolutions per label |
+| Inbox | `/relatorios/inboxes` | per-inbox volume + resolution |
+| Team | `/relatorios/equipes` | per-team volume + resolution |
+| CSAT | `/relatorios/csat` | rating distribution, avg, count; filter inbox |
+| Bot | `/relatorios/bots` | bot messages, handoffs, conversations touched |
+
+All accept `from`, `to`, optional `inbox_id` / `team_id` where applicable. Response shape: `{ series, totals, generated_at }` — exact DTO in `packages/shared` when backend lands.
+
+### Domain events added in C
+
+`campaign.created` · `campaign.updated` · `campaign.started` · `campaign.completed` · `campaign.cancelled` · `portal.updated` · `article.published` · `article.unpublished`
+
+Reports **read** existing A/B events; they do not require a separate projection consumer in C (live SQL OK). Optional later: materialize daily rollups via `report.rollup_daily` job.
+
+### Job kinds enabled in C
+
+| Kind | Trigger |
+|---|---|
+| `campaign.send_batch` | Admin send / schedule due |
+| `report.rollup_daily` | Optional nightly; not required for acceptance if live queries meet p95 |
+
+### Phase C acceptance (architecture)
+
+1. Admin CRUD campaigns; one-off send creates outbox rows `category=campaign` + `campaign_id`; StubOutbox marks enviado; **no** Meta HTTP in tests.
+2. Ongoing campaign can be saved/activated without widget; no external display calls; documented `awaiting_widget`.
+3. Admin publishes Help Center article; public GET by portal slug returns published only; draft 404 for public.
+4. Admin report endpoints return aggregates for seed date range; vendedor gets 403; SLA endpoint absent or 501.
+5. Commerce outbox/avisos UI still filters `commerce` only; cadastro/pipeline unchanged.
+
+### Handoff (Phase C)
+
+| Specialist | Task |
+|---|---|
+| **design** | SaaS nav: Campanhas, Relatórios, Central de Ajuda (admin); public HC portal pt-BR; empty/stub send states (“envio simulado”) |
+| **backend** | Prisma Campaign/Portal/Category/Article (+ recipient); `campaign.send_batch`; public HC routes; report queries |
+| **frontend** | Admin screens + public HC pages against Phase C map; no parallel kit |
+| **qa** | Phase C checklist; no Meta; outbox category isolation; HC public vs draft; reports RBAC |
+
 ## Channel polymorphism
 
 ```
@@ -269,19 +381,22 @@ Phase B+ consumers: automations, webhooks, bots, reports projections.
 
 | Specialist | Task |
 |---|---|
-| **design** | Phase A desk IA + Phase B config surfaces (see Phase B handoff) |
-| **backend** | Phase A foundation; Phase B tables + job consumers per this doc |
-| **frontend** | `/api/saas/crm/*` Phase A then B; no parallel CSS kit |
-| **qa** | Per-phase acceptance; no Meta HTTP; SSRF; cadastro/pipeline regression; tenant isolation |
+| **design** | Phase A desk IA + Phase B config + Phase C Campanhas / Relatórios / Central de Ajuda |
+| **backend** | Phase A→C tables + job consumers per this doc |
+| **frontend** | `/api/saas/crm/*` Phase A→C; public HC; no parallel CSS kit |
+| **qa** | Per-phase acceptance; no Meta HTTP; SSRF; campaign outbox isolation; cadastro/pipeline regression; tenant isolation |
 
 ## What must not happen
 
 - Second inbox product or parallel `whatsapp_threads` write path after migration.
-- Live Meta Graph / webhook verification.
+- Live Meta Graph / webhook verification / campaign template sync from Meta.
 - Merging Account billing into CRM nav.
 - Second stock ledger.
 - Trusting client for role, prices, stock, or `tenant_id`.
 - Returning WA secrets on GET.
 - Inline SSRF-prone HTTP from automation/bot/webhook on the request path.
 - Executing automation webhook actions without `UrlEgressGuardPort`.
-- CSAT or bot delivery calling Meta/SMTP — stub outbox / stub channel only.
+- CSAT, bot, or **campaign** delivery calling Meta/SMTP — stub outbox / stub channel only.
+- Mixing `category=campaign` rows into commerce avisos without an explicit filter.
+- Publishing Help Center drafts on public routes.
+- Inventing SLA report numbers before Phase E policies exist.

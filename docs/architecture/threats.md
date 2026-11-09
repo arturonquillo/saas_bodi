@@ -78,9 +78,21 @@ MVP threat notes. Blockers if a PR ships the failure mode.
 
 ## Campaign / outbox confusion (Phase C)
 
-**Risk:** Campaign blasts appear as commerce status notifications or reuse cadastro templates.
+**Risk:** Campaign blasts appear as commerce status notifications or reuse cadastro templates; or “finish” campaigns by wiring Meta/Twilio.
 
-**Rule:** `notification_outbox.category` discriminates; commerce avisos UI filters `commerce`. Campaign keys use `campaign.*` prefix.
+**Rule:** `notification_outbox.category` discriminates; commerce avisos UI filters `commerce`. Campaign keys use `campaign.*` prefix; `campaign_id` set. Send path = `campaign.send_batch` + `StubOutboxTransport` only — tests forbid Graph/Twilio hosts. Audience resolution always `tenant_id`-scoped.
+
+## Help Center public content abuse (Phase C)
+
+**Risk:** XSS via article HTML; draft leakage; scraping; open redirect via custom domain before E.
+
+**Rule:** Sanitize HTML on write; public GET returns **published** only (draft → 404); rate-limit public HC; ignore `custom_domain` until Phase E. No contact/conversation PII in HC payloads.
+
+## Reports data leak (Phase C)
+
+**Risk:** Vendedor reads tenant-wide agent metrics; cross-tenant id in filters.
+
+**Rule:** `/relatorios/*` = **admin** only. All aggregates `WHERE tenant_id = session.tenantId`. Do not return full message bodies or CNPJ in report DTOs — counts and durations only.
 
 ## CNPJ lookup abuse
 

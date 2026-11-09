@@ -1,14 +1,14 @@
 openapi: 3.1.0
 info:
   title: Casa dos Frios CRM + atacado API
-  version: 0.2.0
+  version: 0.3.0
   description: |
     Canonical HTTP shapes for Casa dos Frios. TypeScript unions in packages/shared win if
     this file lags. Money is integer centavos. Authenticated tenant comes from the session
-    cookie, not the body. No Account/billing routes. Chatwoot-parity CRM Phase A lives under
+    cookie, not the body. No Account/billing routes. Chatwoot-parity CRM Phase A+B under
     /api/saas/crm/* (see docs/architecture/api.md + crm-chatwoot-parity.md). Legacy
     /api/saas/inbox* is deprecated after Conversation migration. WhatsApp channel I/O is
-    stubbed; outbox is a transport stub.
+    stubbed; outbox is a transport stub. Phase B webhooks/bots use SSRF egress guard.
 servers:
   - url: http://localhost:3000
 paths:
@@ -371,6 +371,173 @@ paths:
           schema: { type: string }
       responses:
         "200": { description: Search hits }
+
+  /api/saas/crm/automacoes:
+    get:
+      summary: List automation rules (Phase B, admin)
+      responses:
+        "200": { description: AutomationRule list }
+    post:
+      summary: Create automation rule
+      responses:
+        "201": { description: Created }
+
+  /api/saas/crm/automacoes/{id}:
+    get:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: AutomationRule }
+    patch:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: Updated }
+    delete:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204": { description: Deleted }
+
+  /api/saas/crm/automacoes/{id}/testar:
+    post:
+      summary: Dry-run automation conditions (no egress)
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: Match result }
+
+  /api/saas/crm/macros:
+    get:
+      summary: List macros (public + own private)
+      responses:
+        "200": { description: Macro list }
+    post:
+      summary: Create macro
+      responses:
+        "201": { description: Created }
+
+  /api/saas/crm/macros/{id}/executar:
+    post:
+      summary: Execute macro on conversations
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: Applied }
+
+  /api/saas/crm/atributos:
+    get:
+      summary: Custom attribute definitions
+      responses:
+        "200": { description: Definitions }
+    post:
+      summary: Create definition (admin)
+      responses:
+        "201": { description: Created }
+
+  /api/saas/crm/bots:
+    get:
+      summary: Agent bots (admin)
+      responses:
+        "200": { description: Bot list }
+    post:
+      summary: Create bot; outgoing_url SSRF-checked
+      responses:
+        "201": { description: Created; token once }
+
+  /api/saas/crm/webhooks:
+    get:
+      summary: Account/inbox webhooks (admin)
+      responses:
+        "200": { description: Webhook list }
+    post:
+      summary: Create webhook; url SSRF-checked
+      responses:
+        "201": { description: Created }
+
+  /api/saas/crm/webhooks/{id}/testar:
+    post:
+      summary: Enqueue sample webhook.deliver
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "202": { description: Job enqueued }
+
+  /api/saas/crm/inboxes/{id}/horarios:
+    get:
+      summary: Working hours for inbox
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: Week + timezone }
+    put:
+      summary: Replace working hours (admin)
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: Saved }
+
+  /api/saas/crm/inboxes/{id}/politica-atribuicao:
+    get:
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: AssignmentPolicy }
+    put:
+      summary: Set round_robin policy (admin)
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: Saved }
+
+  /api/saas/crm/csat:
+    get:
+      summary: CSAT responses (admin)
+      responses:
+        "200": { description: CsatResponse list }
+
+  /api/public/csat/{token}:
+    get:
+      summary: Public CSAT survey payload
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Minimal survey }
+        "404": { description: Unknown/consumed }
+    post:
+      summary: Submit CSAT rating
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "201": { description: Recorded }
+        "409": { description: Already submitted }
+
+  /api/saas/crm/filtros:
+    get:
+      summary: Saved personal filters
+      responses:
+        "200": { description: CustomFilter list }
+    post:
+      responses:
+        "201": { description: Created }
+
+  /api/saas/crm/contatos/mesclar:
+    post:
+      summary: Merge two contacts
+      responses:
+        "200": { description: Survivor contact }
+
+  /api/saas/crm/contatos/importar:
+    post:
+      summary: CSV contact import job
+      responses:
+        "202": { description: Batch enqueued }
 
   /api/saas/cadastros:
     get:

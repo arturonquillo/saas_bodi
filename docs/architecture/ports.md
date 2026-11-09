@@ -112,9 +112,26 @@ interface UrlEgressGuardPort {
 }
 ```
 
-Required before Phase B webhook/bot actions. Phase A may ship no-op consumers.
+Required before Phase B webhook/bot actions. Phase A may ship no-op consumers; Phase B wires real deliver handlers.
 
-## Outbox category (Phase C ready)
+```ts
+interface WebhookSignerPort {
+  sign(secret: string, rawBody: string): string
+}
+
+interface AutomationActionPort {
+  apply(input: {
+    tenantId: string
+    conversationId: string
+    actions: Array<{ action_name: string; action_params: unknown }>
+    actorUserId?: string
+  }): Promise<{ applied: number; enqueuedJobs: string[] }>
+}
+```
+
+`AutomationActionPort` reuses assign/label/status/message domain services; egress actions only enqueue jobs.
+
+## Outbox category (Phase B CSAT + Phase C campaigns)
 
 `OutboxTransportPort` unchanged. Writers set `category`: `commerce` (default) \| `campaign` \| `crm_agent` \| `csat` \| `agent_email`. Campaign WA one-offs may enqueue outbox with `category=campaign` and stub templates — **no** Meta template submission API.
 

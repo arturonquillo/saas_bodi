@@ -62,6 +62,30 @@ Chatwoot Administrator → `admin`; Agent → `vendedor`. Custom roles = Phase E
 | SSE event stream | yes (tenant) | yes (filtered) |
 | Automations, bots, webhooks, campaigns, reports, help center publish | Phase B/C — **admin** only when shipped | — |
 
+### CRM desk matrix (Phase B additions)
+
+| Action | admin | vendedor |
+|---|---|---|
+| Automations CRUD / test (dry-run) | yes | no |
+| Macros public CRUD | yes | no |
+| Macros private CRUD | own | own |
+| Macros execute (public + own private) | yes | yes |
+| Custom attribute definitions CRUD | yes | no |
+| Set attribute values on visible conversation/contact | yes | yes |
+| Agent bots CRUD + inbox link | yes | no |
+| Bot handoff on visible conversation | yes | yes |
+| Webhooks CRUD / test / rotate signing secret | yes | no |
+| Working hours write | yes | no |
+| Working hours read / open-now | yes | member |
+| Assignment policy write | yes | no |
+| CSAT responses list/read | yes | no |
+| Public CSAT submit by token | n/a (public) | n/a |
+| Saved filters CRUD | own | own |
+| Contact merge / CSV import | yes | yes |
+| Agent signature on self profile | self | self |
+
+Invisible conversation on macro execute / attribute patch / handoff → **404**. Webhook/bot URL that fails egress → **422** `validacao` (or `egress_bloqueado` if shared adds the code — prefer `validacao` with details).
+
 ### Conversation visibility helper
 
 ```ts

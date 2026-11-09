@@ -118,9 +118,24 @@ interface JobWorkerPort {
 
 Phase A may only enqueue optional `notification.email_stub` for agent notification prefs; automations/webhooks/bots must not execute until Phase B UI exists — but the table + worker **must** exist so B does not redesign.
 
+### Phase B job consumers
+
+| Kind | Handler contract |
+|---|---|
+| `automation.run` | Load rule; evaluate `conditions_json` against event payload + reloaded conversation/contact; run ordered actions via domain services; `send_webhook` → enqueue `webhook.deliver`; emit `automation.executed` |
+| `webhook.deliver` | `UrlEgressGuardPort.assertSafeHttpsUrl`; POST JSON `{ event, payload }` with `X-Cdf-Signature: sha256=<hmac>`; timeouts 3s connect / 10s total; body cap 256 KiB; success → `webhook.delivered`, else retry then `webhook.failed` |
+| `bot.deliver` | Same egress rules; POST Chatwoot-shaped event (`message_created` / `conversation_status_changed`) + `Authorization: Bearer <bot.token>`; if conversation no longer bot-pending, no-op |
+| `csat.deliver` | Create opaque `csat_token` on conversation; insert `notification_outbox` `category=csat` (WA stub template + survey URL); mark `csat_sent_at`; emit `csat.requested` |
+| `contact.import_csv` | Parse rows; upsert Contact by phone/email; stats on batch; emit `contact.imported` |
+| `assignment.round_robin` | Pick next online inbox member after `last_assigned_user_id`; assign; update cursor |
+
+**Fan-in rule:** after CRM mutation commits and `domain_events` row exists, a small dispatcher (same tick or post-commit hook) enqueues `automation.run` for each **active** matching rule and `webhook.deliver` for matching subscriptions. Never call egress in the HTTP handler.
+
+**Idempotency:** job payload includes `domain_event_id` + `rule_id` / `webhook_id`; unique processing key or status check prevents double-apply on retry when actions are non-idempotent (prefer upsert-style actions).
+
 ### SSRF / egress (webhook & bot kinds)
 
-Before any outbound HTTP from a job:
+Before any outbound HTTP from a job **and** before persisting a new bot/webhook URL:
 
 1. Parse URL; scheme `https` only (http forbidden except loopback **test** harness with `EGRESS_ALLOW_HTTP_LOOPBACK=true` in test env only).
 2. Resolve DNS; reject if any address is loopback, link-local, RFC1918, `0.0.0.0`, multicast, or cloud metadata (`169.254.169.254`).
@@ -134,9 +149,19 @@ interface UrlEgressGuardPort {
 }
 ```
 
+Webhook HMAC:
+
+```ts
+interface WebhookSignerPort {
+  sign(secret: string, rawBody: string): string  // hex sha256 HMAC
+}
+```
+
 ## Outbox interaction
 
 Commerce `notification_outbox` stays synchronous mark-enviado via `StubOutboxTransport` after commit (existing MVP). Campaign/CSAT/agent-email stubs **may** enqueue a job that writes outbox rows then calls the same transport — still no Meta/SMTP.
+
+Phase B CSAT: `csat.deliver` → outbox `category=csat`, template key `crm.csat_survey`; recipient = contact WhatsApp/email per channel stub; **no** Meta template sync.
 
 ## Performance notes
 

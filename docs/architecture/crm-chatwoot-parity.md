@@ -121,7 +121,7 @@ Add to outbox (migration before Phase C; may land empty in A):
 
 | Phase | Enough contract |
 |---|---|
-| **B** | AutomationRule / Macro / CustomAttribute / AgentBot / Webhook / WorkingHour / AssignmentPolicy / CSAT tables sketched in data-model; job worker + SSRF guard required before enabling webhook actions |
+| **B** | Full contracts below — implement when Phase B starts |
 | **C** | Campaign + Portal/Article + report read-models; outbox `category=campaign` |
 | **D** | Channel polymorphism rows (`channel_type`); Loja widget client API |
 | **E** | SlaPolicy, Captain ports, SAML, audit_events, custom roles |
@@ -134,6 +134,102 @@ Add to outbox (migration before Phase C; may land empty in A):
 4. Point CadastroRequest.thread_id → conversation_id (rename column).
 5. Drop intent enum column after backfill; keep read fallback one release if needed.
 6. Update seed + acceptance to Conversation APIs.
+
+## Phase B — operator power (contracts)
+
+Product Phase B: automations, macros, custom attributes, CSAT, agent bots, business hours, assignment policies, custom filters, contact merge/CSV, mentions, agent signature. **No live Meta.** Webhook/bot HTTP uses Phase A `UrlEgressGuardPort` + queued jobs.
+
+Companion detail: [data-model.md](./data-model.md) (entities), [api.md](./api.md) (HTTP map), [jobs-realtime.md](./jobs-realtime.md) (execution), [authz.md](./authz.md), [threats.md](./threats.md), [ports.md](./ports.md).
+
+### In scope
+
+1. **AutomationRule** — event → conditions → actions; admin CRUD; execute via `automation.run` jobs.
+2. **Macro** — public/private action sequences; execute on conversation(s); public create = admin.
+3. **CustomAttributeDefinition** + values on Contact/Conversation; seed commerce-shaped attrs.
+4. **CSAT** — per-inbox toggle; survey on resolve; public token page; `csat.deliver` via stub outbox; responses CRUD/read for admin.
+5. **AgentBot** + **AgentBotInbox** — webhook URL (SSRF-guarded); pending handoff; `bot.deliver` jobs.
+6. **WorkingHour** per inbox + timezone; OOOH message already on Inbox; greeting/OOOH apply on simulate/inbound path.
+7. **Webhook** (account + inbox scoped) — subscriptions; `webhook.deliver` + HMAC; SSRF guard.
+8. **AssignmentPolicy** — round-robin OSS parity on inbox when `allow_auto_assign`.
+9. **CustomFilter** (saved folders) for conversations + contacts.
+10. **Contact merge** + **CSV import** job; **mentions** in messages/notes; agent **signature** on profile (Phase A column may already exist).
+
+### Out of Phase B
+
+| Deferred | Why |
+|---|---|
+| Campaigns / Help Center / Reports | Phase C |
+| Non-WA channels / Loja widget | Phase D |
+| Captain, SLA, balanced capacity, SAML, audit, custom roles, required attributes on resolve | Phase E |
+| Live Meta / paid bot AI host | Product stub policy |
+| Integrations marketplace (Slack, …) | Phase E — B ships **webhook hooks framework** only |
+
+### Locked decisions (Phase B)
+
+| Topic | Decision |
+|---|---|
+| Automation host | Always `background_jobs` after commit; never inline HTTP on the request path |
+| Condition evaluation | Synchronous in worker against frozen event payload + reloaded aggregate; fail-closed on unknown operators |
+| Action side effects | Same domain services as desk APIs (assign, label, status, message); webhook/bot actions enqueue nested jobs |
+| Macro visibility | `public` = tenant-wide, **admin** CRUD; `private` = `owner_user_id`, owner CRUD; both roles **execute** public + own private |
+| Custom attribute storage | Definitions table + `custom_attributes_json` jsonb/object on Contact and Conversation (keys = definition `attribute_key`) |
+| CSAT delivery | On `conversation.status_changed` → `resolved` when inbox.`csat_enabled`; enqueue `csat.deliver` → outbox `category=csat` (stub channel); public `GET/POST /api/public/csat/:token` |
+| Bot handoff | Conversation starts/stays `pending` while bot-owned; agent reply or action `handoff` → `open` + clear bot lock |
+| Business hours TZ | Inbox `timezone` IANA string (seed `America/Sao_Paulo`); WorkingHour rows per `day_of_week` 0–6 |
+| Webhook auth | HMAC-SHA256 of raw body with tenant `webhook_signing_secret` (generated once; rotate admin-only); header `X-Cdf-Signature` |
+| SSRF | Unchanged from Phase A sketch — https, DNS, deny private/metadata, redirect re-check ([jobs-realtime.md](./jobs-realtime.md)) |
+| Assignment | Round-robin among **online** inbox members only; skip `busy`/`offline`; no capacity weights until E |
+| Mentions | `@[user_id:…]` marker in message content → `AgentNotification` type `mention`; no separate ACL |
+| CSV import | Admin+vendedor; job `contact.import_csv`; max 5k rows/file; dry-run preview endpoint |
+
+### Automation vocabulary (parity subset for B)
+
+**Events** (`event_name`):
+
+`conversation_created` · `conversation_updated` · `conversation_status_changed` · `conversation_resolved` · `message_created` · `contact_created` · `contact_updated`
+
+Map from `domain_events.type` (dotted) → automation event (underscore) in the worker.
+
+**Condition operators:** `equal` · `not_equal` · `contains` · `does_not_contain` · `is_present` · `is_not_present` · `is_greater_than` · `is_less_than`.
+
+**Condition attributes (B):** `status`, `priority`, `inbox_id`, `team_id`, `assignee_id`, `message_type`, `content`, `contact_email`, `contact_phone`, `label_ids`, `custom_attribute.<key>`.
+
+**Actions (B):** `assign_agent` · `assign_team` · `add_label` · `remove_label` · `mute` · `snooze` · `resolve` · `change_status` · `change_priority` · `send_message` · `send_attachment_message` (metadata-only until D) · `send_webhook` · `add_private_note` · `set_custom_attribute`.
+
+Conditions are AND within a rule; ordered actions; stop rule on first action hard-failure (log + continue other rules). Max 20 active rules per tenant (MVP guard).
+
+### Job kinds enabled in B
+
+| Kind | Trigger |
+|---|---|
+| `automation.run` | Matching domain event |
+| `webhook.deliver` | Automation action, account/inbox webhook subscription, or manual test |
+| `bot.deliver` | Incoming message on bot-linked inbox while conversation bot-pending |
+| `csat.deliver` | Resolve + inbox CSAT on |
+| `contact.import_csv` | Admin/vendedor import |
+| `assignment.round_robin` | New conversation / unassign when policy enabled |
+| `notification.email_stub` | Mentions + prefs (A) |
+
+### Domain events added in B
+
+`automation.executed` · `macro.executed` · `csat.requested` · `csat.submitted` · `bot.messaged` · `bot.handed_off` · `webhook.delivered` · `webhook.failed` · `contact.merged` · `contact.imported` · `mention.created`
+
+### Phase B acceptance (architecture)
+
+1. Admin can CRUD automation/macro/attribute/bot/webhook/hours/assignment policy; vendedor executes macros + reads attributes/filters; no Meta HTTP.
+2. Resolve with CSAT on → outbox `category=csat` + public token submit creates `CsatResponse`.
+3. Bot URL and webhook URL rejected by egress guard in tests (SSRF fixtures).
+4. Round-robin assigns only among online inbox members when policy active.
+5. Cadastro/pipeline/commerce outbox regressions unchanged; Contact merge preserves Cliente link on surviving contact.
+
+### Handoff (Phase B)
+
+| Specialist | Task |
+|---|---|
+| **design** | Configurações CRM: Automações, Macros, Atributos, Bots, Webhooks, Horários, CSAT; macro picker on conversa; attribute sidebar |
+| **backend** | Prisma Phase B tables; job consumers; SSRF enforcement on deliver; public CSAT routes; CSV job |
+| **frontend** | Admin config screens + desk affordances against `/api/saas/crm/*` Phase B map |
+| **qa** | Phase B checklist; SSRF deny; no Meta; merge/import; CSAT stub path; RBAC admin vs vendedor |
 
 ## Channel polymorphism
 
@@ -173,10 +269,10 @@ Phase B+ consumers: automations, webhooks, bots, reports projections.
 
 | Specialist | Task |
 |---|---|
-| **design** | Conversas / Contatos / Configurações CRM IA in saas-starter; WA “Pronto para conectar” states |
-| **backend** | Prisma migration, ports, APIs, SSE, encryption, seed migration |
-| **frontend** | Evolve InboxScreen → Conversas against `/api/saas/crm/*`; no parallel CSS kit |
-| **qa** | Phase A acceptance + no Meta HTTP + cadastro/pipeline regression + tenant isolation on conversations |
+| **design** | Phase A desk IA + Phase B config surfaces (see Phase B handoff) |
+| **backend** | Phase A foundation; Phase B tables + job consumers per this doc |
+| **frontend** | `/api/saas/crm/*` Phase A then B; no parallel CSS kit |
+| **qa** | Per-phase acceptance; no Meta HTTP; SSRF; cadastro/pipeline regression; tenant isolation |
 
 ## What must not happen
 
@@ -186,4 +282,6 @@ Phase B+ consumers: automations, webhooks, bots, reports projections.
 - Second stock ledger.
 - Trusting client for role, prices, stock, or `tenant_id`.
 - Returning WA secrets on GET.
-- Inline SSRF-prone HTTP from automation on the request path.
+- Inline SSRF-prone HTTP from automation/bot/webhook on the request path.
+- Executing automation webhook actions without `UrlEgressGuardPort`.
+- CSAT or bot delivery calling Meta/SMTP — stub outbox / stub channel only.

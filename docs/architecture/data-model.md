@@ -36,7 +36,7 @@ Tenant 1──1 Theme
        1──* Session
 ```
 
-**Phase A CRM** replaces `WhatsappThread` / `WhatsappMessage` (migrate in place — see [crm-chatwoot-parity.md](./crm-chatwoot-parity.md)). Phase B+ tables (AutomationRule, Macro, CustomAttributeDefinition, AgentBot, Webhook, WorkingHour, AssignmentPolicy, CsatResponse) and Phase C (Campaign, Portal/Article, report rollups) are sketched at the end of this file — implement when that phase starts.
+**Phase A CRM** replaces `WhatsappThread` / `WhatsappMessage` (migrate in place — see [crm-chatwoot-parity.md](./crm-chatwoot-parity.md)). **Phase B** entities (AutomationRule, Macro, CustomAttributeDefinition, AgentBot, Webhook, WorkingHour, AssignmentPolicy, CsatResponse, CustomFilter) are fully contracted below — implement when that phase starts. Phase C+ remain sketched.
 
 No `InventoryImportBatch` in MVP. No Account / subscription tables required for ops.
 
@@ -429,16 +429,131 @@ Legacy `whatsapp_threads` / `whatsapp_messages` indexes are removed after Phase 
 
 List endpoints paginated (cursor + limit, default 20, max 100). Catalog: one join Sku↔Balance, no N+1.
 
-## Phase B–E entities (contract sketch — do not block A)
+## Phase B entities (operator power)
 
-Implement when the phase starts; columns may thicken without changing names.
+Implement in Phase B migrations. Vocabulary and execution: [crm-chatwoot-parity.md](./crm-chatwoot-parity.md) Phase B. All rows `tenant_id`-scoped unless noted.
+
+### Contact / Conversation — attribute bag (Phase B column)
+
+| Column | Notes |
+|---|---|
+| `custom_attributes_json` | object map `attribute_key → value`; validated against definitions on write |
+| Conversation also | `bot_agent_bot_id?` — set while bot owns (`pending`); cleared on handoff |
+| Conversation also | `csat_token?` / `csat_sent_at?` — opaque survey token once |
+
+### AutomationRule
+
+| Column | Notes |
+|---|---|
+| `tenant_id`, `name`, `description?` | |
+| `event_name` | see Phase B vocabulary |
+| `conditions_json` | `{ operator: "and", values: [{ attribute_key, filter_operator, values[] }] }` |
+| `actions_json` | ordered `{ action_name, action_params }[]` |
+| `active` | bool |
+| `created_by_user_id` | |
+| unique | none beyond id; soft cap 20 active in domain |
+
+### Macro
+
+| Column | Notes |
+|---|---|
+| `tenant_id`, `name`, `actions_json` | same action shape as automations (no `send_webhook` in macros for B — lock: webhook only via AutomationRule / Webhook entity) |
+| `visibility` | `public` \| `private` |
+| `owner_user_id` | required when `private`; null when public |
+
+### CustomAttributeDefinition
+
+| Column | Notes |
+|---|---|
+| `tenant_id` | |
+| `attribute_model` | `contact` \| `conversation` |
+| `attribute_display_type` | `text` \| `number` \| `link` \| `date` \| `list` \| `checkbox` |
+| `attribute_key` | slug; unique `(tenant_id, attribute_model, attribute_key)` |
+| `attribute_display_name` | pt-BR label |
+| `default_value_json?` | |
+| `attribute_values_json?` | list options when type=`list` |
+| seed keys (commerce) | e.g. `conversation.orcamento_id_ref` optional display; prefer existing FK columns for commerce — custom attrs for free-form ops fields |
+
+### AgentBot + AgentBotInbox
+
+| AgentBot | Notes |
+|---|---|
+| `tenant_id`, `name`, `description?` | |
+| `outgoing_url` | https webhook; validated by egress guard on save **and** deliver |
+| `token` | random; sent as bearer to bot; never logged full |
+| `active` | bool |
+
+| AgentBotInbox | Notes |
+|---|---|
+| `agent_bot_id`, `inbox_id` | unique `(inbox_id)` — one bot per inbox in B |
+| On incoming | if linked + active → keep/set conversation `pending`, set `bot_agent_bot_id`, enqueue `bot.deliver` |
+
+### Webhook
+
+| Column | Notes |
+|---|---|
+| `tenant_id`, `url` | https; egress guard |
+| `name?` | |
+| `subscriptions_json` | string[] of event names (same as automation events + `message_created`, …) |
+| `inbox_id?` | null = account-level; set = inbox-scoped |
+| `active` | bool |
+
+Tenant row gains `webhook_signing_secret` (or separate secrets table) — generated; admin rotate; used for HMAC.
+
+### WorkingHour
+
+| Column | Notes |
+|---|---|
+| `inbox_id`, `day_of_week` | 0=Sunday … 6=Saturday (Chatwoot parity) |
+| `closed_all_day` / `open_all_day` | bool |
+| `open_hour` / `open_minutes` / `close_hour` / `close_minutes` | ints when not all-day |
+| Inbox | `timezone` IANA; `ooo_message` / `greeting` already Phase A |
+
+### AssignmentPolicy
+
+| Column | Notes |
+|---|---|
+| `inbox_id` | 1:1 optional |
+| `kind` | `round_robin` only in B (`balanced` / capacity = E) |
+| `enabled` | bool |
+| `last_assigned_user_id?` | cursor for RR |
+
+### CsatResponse
+
+| Column | Notes |
+|---|---|
+| `tenant_id`, `conversation_id`, `inbox_id`, `contact_id?` | |
+| `rating` | int 1–5 |
+| `feedback_message?` | text |
+| `assigned_agent_id?` | snapshot at resolve |
+| `submitted_at` | |
+| unique | `(conversation_id)` — one CSAT per conversation in B |
+
+### CustomFilter
+
+| Column | Notes |
+|---|---|
+| `tenant_id`, `user_id`, `name` | |
+| `filter_type` | `conversation` \| `contact` |
+| `query_json` | saved filter AST (status, labels, assignee, attribute predicates) |
+| visibility | personal only in B (shared folders = E if needed) |
+
+### ContactMerge / import (ops, not long-lived tables required)
+
+- Merge: domain transaction — surviving `contact_id`, re-point conversations, contact_inboxes, labels, notes; loser soft-deleted or `merged_into_id`.
+- CSV import: ephemeral `background_jobs` payload + optional `contact_import_batches` (`id`, `status`, `stats_json`) for UI progress.
+
+### Mentions
+
+No new table required: parse message content for mention markers → insert `AgentNotification` (`type=mention`). Optional `message_mentions (message_id, user_id)` for query — nice-to-have in B.
+
+## Phase C–E entities (sketch)
 
 | Phase | Entities |
 |---|---|
-| **B** | `AutomationRule` (event, conditions_json, actions_json, active); `Macro` (visibility public\|private, actions_json, owner_user_id?); `CustomAttributeDefinition` (model contact\|conversation, attribute_display_type, key); values on contact/conversation JSON or side table; `AgentBot` + `AgentBotInbox` (webhook_url); `Webhook` (url, subscriptions_json); `WorkingHour`; `AssignmentPolicy`; `CsatResponse` (conversation_id, rating, feedback) |
 | **C** | `Campaign` (kind ongoing\|one_off, audience, template_ref, status); `Portal`, `Category`, `Article` (pt-BR); report rollup tables or materialized queries from `domain_events` |
 | **D** | Additional `channel_*` tables; `WidgetConfig`; client messaging API identities |
-| **E** | `SlaPolicy`; `AuditEvent`; Captain/AI ports; SAML config; custom role tables |
+| **E** | `SlaPolicy`; `AuditEvent`; Captain/AI ports; SAML config; custom role tables; balanced capacity |
 
 ## What must not exist (MVP + parity)
 
@@ -450,3 +565,4 @@ Implement when the phase starts; columns may thicken without changing names.
 - AI inventory import batches.
 - CPF / varejo price path as a sales channel.
 - Plaintext storage of WA access tokens / app secrets.
+- Storing bot/webhook response bodies with full PII in `last_error` / logs.

@@ -25,7 +25,7 @@ Companion docs: [data-model.md](./data-model.md), [api.md](./api.md), [authz.md]
 | **CustomAttribute / Filter / CSAT / Hours / AssignmentPolicy** | Operator power | B |
 | **Campaign / HelpCenter / Reports** | Growth & insight | C |
 | **Non-WA channels + Loja widget** | Omnichannel expand (stub providers + first-party widget) | D |
-| **Captain / SLA / SAML / Audit / Integrations** | Enterprise | E |
+| **Captain / SLA / Capacity / Audit / SAML·MFA / Integrations** | Enterprise & AI (full contracts below) | E |
 
 Commerce modules (Cadastro, Cliente, Orçamento, Pedido, Venda, Stock, Theme) stay authoritative. CRM **links** to them; it does not replace status machines or the stock ledger.
 
@@ -124,7 +124,7 @@ Add to outbox (migration before Phase C; may land empty in A):
 | **B** | Full contracts below — implement when Phase B starts |
 | **C** | Full contracts in “Phase C — growth & insight” — Campaign + Portal/Article + reports; outbox `category=campaign` |
 | **D** | Full contracts in “Phase D — omnichannel expand” — non-WA channel stubs + Loja widget + client API |
-| **E** | SlaPolicy, Captain ports, SAML, audit_events, custom roles |
+| **E** | Full contracts in “Phase E — enterprise & AI” — SLA, capacity, Captain stubs, audit, SAML/MFA, custom roles, integrations, voice stub, HC custom domain |
 
 ### Migration plan (threads → desk)
 
@@ -160,8 +160,8 @@ Companion detail: [data-model.md](./data-model.md) (entities), [api.md](./api.md
 |---|---|
 | Campaigns / Help Center / Reports | Phase C — full contracts below |
 | Non-WA channels / Loja widget | Phase D |
-| Captain, SLA, balanced capacity, SAML, audit, custom roles, required attributes on resolve | Phase E |
-| Live Meta / paid bot AI host | Product stub policy |
+| Captain, SLA, balanced capacity, SAML, audit, custom roles, required attributes on resolve | Phase E — full contracts below |
+| Live Meta / paid bot AI host | Product stub policy (Captain = stub port in E) |
 | Integrations marketplace (Slack, …) | Phase E — B ships **webhook hooks framework** only |
 
 ### Locked decisions (Phase B)
@@ -365,10 +365,10 @@ Companion detail: [data-model.md](./data-model.md), [api.md](./api.md), [jobs-re
 | Deferred | Why |
 |---|---|
 | Live Meta / FB / IG / TikTok / X / Telegram / LINE / Twilio / IMAP-SMTP | Product stub policy — configs only |
-| Voice / WhatsApp calling | Phase E |
+| Voice / WhatsApp calling | Phase E — stub channel only |
 | WebSocket media signaling | Text chat does not need WS; keep SSE + poll |
-| Captain, SLA, SAML, audit, custom roles, integrations marketplace | Phase E |
-| Help Center custom domain | Phase E |
+| Captain, SLA, SAML, audit, custom roles, integrations marketplace | Phase E — full contracts below |
+| Help Center custom domain | Phase E — full contracts below |
 | Replacing commerce WhatsApp CTA with widget-only | CTA stays; widget is additive |
 
 ### Locked decisions (Phase D)
@@ -461,6 +461,148 @@ No provider webhook receiver jobs (no Meta signature verify endpoints that call 
 | **frontend** | Canal settings + Loja widget embed against Phase D map; no parallel kit |
 | **qa** | Phase D checklist; no Meta/social/SMS/SMTP HTTP; widget tenancy; ready_stub ceiling; desk↔widget thread continuity |
 
+## Phase E — enterprise & AI (contracts)
+
+Product Phase E: **Captain AI stubs**, **SLA** (FRT/NRT/RT + reports + automation apply), **balanced / agent capacity** assignment, **audit log**, **SAML / MFA**, **custom roles**, **integrations marketplace** (stub connect), **dashboard apps**, **required attributes on resolve**, **CSAT review notes**, **Help Center custom domain** (+ optional second locale later), **voice / WhatsApp calling channel stub**. **No unpaid live Meta.** No live Slack / Linear / Notion / Shopify / Stripe / Dialogflow / Translate / Dyte / telephony / IdP SSO until product unlocks a paid provider — configs + stub ports only (same `ready_stub` / connect-stub pattern as D).
+
+Companion detail: [data-model.md](./data-model.md), [api.md](./api.md), [jobs-realtime.md](./jobs-realtime.md), [authz.md](./authz.md), [threats.md](./threats.md), [ports.md](./ports.md), [seed.md](./seed.md).
+
+### In scope
+
+1. **SlaPolicy** — first-response (FRT), next-response (NRT), resolution (RT) thresholds; apply to inbox/conversation via automation action + admin assign; `ConversationSla` timer rows; breach events; **SLA report series** (unlocks C’s 501).
+2. **Assignment capacity** — `AssignmentPolicy.kind` adds `balanced` + per-agent `AgentCapacity` (max open); assignment job respects capacity.
+3. **Required attributes on resolve** — inbox/tenant flag + definition keys; resolve blocked with **422** until set.
+4. **Captain AI** — assistants, copilot suggestions, monitors, triage helpers via `CaptainAiPort`; **default stub** (canned / echo); optional live model only when env provider key present **and** product unlock flag — Casa seed uses stub.
+5. **AuditEvent** — append-only enterprise activity log (config, authz, security, CRM admin mutations); admin list/filter; distinct from `domain_events`.
+6. **SAML SSO + MFA** — IdP metadata / ACS config shapes; MFA TOTP enrollment; seed tenant keeps email/password; live IdP HTTP optional behind unlock (stub verify in E).
+7. **CustomRole** + permission bits (incl. `report_manage`); membership may attach `custom_role_id`; seed still `admin` \| `vendedor` enums as base.
+8. **Integrations** — install rows for Slack, Linear, Notion, Shopify, Stripe, Dialogflow, Google Translate, Dyte; OAuth/credential shapes; connection ≤ `ready_stub` / `connected_stub`; deliver hooks reuse webhook job + egress guard — **no** live provider APIs unpaid.
+9. **DashboardApp** — embeddable iframe apps on conversation sidebar; URL SSRF-guarded.
+10. **CSAT review notes** — admin `review_note` on `CsatResponse`.
+11. **Help Center custom domain** — `Portal.custom_domain` + verification token stub; Host-header resolve; multi-locale portal optional (`pt-BR` required, second locale stub).
+12. **ChannelVoice** — voice / WA calling inbox type; credentials ≤ `ready_stub`; simulate only; **no** telephony provider HTTP.
+13. **Platform / super-admin multi-account APIs** — **out of Casa seed Phase E** (product: Account era). Document reserved; do not implement multi-tenant platform console here.
+
+### Out of Phase E
+
+| Deferred | Why |
+|---|---|
+| Live Meta / social / SMS / SMTP (still) | Product stub policy — unchanged |
+| Live Captain model billed calls | Needs paid provider + unlock flag; stub satisfies parity UI |
+| Live SAML IdP round-trip | Config + stub verify; real SSO when IdP contracted |
+| Live Slack/Linear/… OAuth token exchange | Connect-stub only |
+| Live Twilio Voice / SIP / WA calling | Voice channel config stub only |
+| Chatwoot CLI / coding agents | Product explicitly Phase later / n/a |
+| Super-admin platform APIs | Account era — single seed tenant |
+| Replacing email/password for seed admin | MFA optional; password remains |
+
+### Locked decisions (Phase E)
+
+| Topic | Decision |
+|---|---|
+| SLA metrics | **FRT** = time to first **outgoing non-private** agent message after create/open; **NRT** = time to next agent outgoing after contact incoming while open; **RT** = time to `resolved`. Thresholds in **seconds** on `SlaPolicy` |
+| SLA apply | Admin CRUD policies; link to inbox (default) and/or automation action `apply_sla` / `remove_sla`. Conversation stores `sla_policy_id?` + `ConversationSla` row with `frt_due_at`, `nrt_due_at`, `rt_due_at`, breach flags |
+| SLA worker | Job `sla.evaluate` on tick + on message/status events; emit `sla.threshold_warning` / `sla.breached`; **never** invent report numbers without policy + timer rows |
+| SLA reports | `GET /api/saas/crm/relatorios/sla` — admin; same `from`/`to`/tz rules as C; measures: applied count, FRT/NRT/RT hit rates, breach counts |
+| Capacity | `AgentCapacity` per `(tenant_id, user_id)`: `max_open_conversations` (int ≥ 1). Policy `kind=balanced` picks online inbox member with **fewest** open assigned under capacity; skip at-capacity. `round_robin` unchanged |
+| Required attrs | Inbox `required_attribute_keys_on_resolve: string[]` (custom attribute keys). `PATCH` status→`resolved` validates; missing → **422** `validacao` with keys |
+| Captain modes | `copilot` (suggest reply), `triage` (suggest labels/priority/team), `monitor` (flag conversation), `assistant` (named bot-like Q&A over Help Center articles — retrieval stub). All go through `CaptainAiPort` |
+| Captain apply | Suggestions are **proposals** (`CaptainSuggestion`); agent must confirm via existing desk PATCH/POST. No silent auto-resolve/auto-send in E without explicit automation action `captain.apply_suggestion` gated admin |
+| Captain egress | Stub adapter returns deterministic fixtures. Live adapter (OpenAI-shaped or similar) **forbidden** unless `CAPTAIN_PROVIDER_ENABLED=true` **and** key present; tests default stub; **never** Meta |
+| Audit vs domain_events | `AuditEvent` = who changed **security/config/admin** state (roles, SAML, integrations, SLA policies, channel credentials touch, user deactivate). `domain_events` stay operational CRM stream. Retention: audit ≥ 90 days contract |
+| Audit PII | No full CNPJ, no secrets, no raw SAML assertions, no MFA secrets in `payload_json` |
+| SAML | `SamConfig` (or `SamlConfig`) per tenant: IdP entity id, SSO URL, certificate PEM sealed, ACS URL derived. Login path stub: `POST /api/saas/auth/saml/acs` accepts fixture in test; production live parse behind unlock. JIT user provision = **admin-only toggle**, default off |
+| MFA | TOTP (`MfaDevice`): enroll → show secret once → confirm code; login second step. Recovery codes hashed. Admin may require MFA via tenant flag `mfa_required`. Seed admin works without MFA until enrolled |
+| Custom roles | `CustomRole` + `permissions_json` string[] bits. Built-in bits include Chatwoot-shaped: `conversation_manage`, `contact_manage`, `report_manage`, `knowledge_manage`, `automation_manage`, `integration_manage`, `audit_read`, … Membership: keep `saas_role` `admin`\|`vendedor` as **floor**; `custom_role_id?` **adds** bits for vendedor-shaped users. `admin` always implies all bits. Do not remove seed roles |
+| report_manage | Permission bit: grants `/relatorios/*` without full admin. Checked after `admin` short-circuit |
+| Integrations | `IntegrationInstall` per `(tenant_id, provider)`; providers enum below; `connection_status`: `not_configured` \| `credentials_saved` \| `connected_stub` \| `live`. Reject `live` (`501`). Secrets sealed. Outbound events = existing `webhook.deliver` style job with provider-shaped payload adapter — stub HTTP no-op or egress-guarded customer URL only |
+| Dashboard apps | `DashboardApp`: `title`, `url`, `inbox_ids?`, `enabled`. URL must pass `UrlEgressGuardPort` (https). Rendered as iframe in conversation UI; no server-side fetch of app HTML required |
+| CSAT notes | `CsatResponse.review_note?`, `reviewed_by_user_id?`, `reviewed_at?`. Admin PATCH only |
+| HC custom domain | `Portal.custom_domain` unique global when set; `custom_domain_verified` bool; verification = DNS TXT stub check port (`DnsVerifyPort`) that **may no-op success in test** / fail-closed without provider. Public HC also resolvable by `Host` → portal when verified. Until verified, only slug routes work |
+| HC locale | E may add `Portal.locale` still default `pt-BR`; optional `PortalLocale` rows — public falls back to pt-BR. No unpaid translation API (Google Translate integration = stub) |
+| Voice channel | `channel_type=voice`; `ChannelVoice` config (provider `twilio_voice`\|`wa_calling` shaped); ≤ `ready_stub`; admin simulate creates conversation with `content_type=text` system note “chamada simulada”; **no** WebRTC SFU in E |
+| Platform APIs | Paths under `/api/platform/*` **reserved / 501** — not acceptance for Casa seed |
+| No Meta | Unchanged — WA and social stay ≤ `ready_stub`; Captain ≠ Meta |
+
+### Integration providers (E)
+
+| `provider` | Stub connect fields (non-secret / secret) |
+|---|---|
+| `slack` | workspace id metadata; sealed bot token |
+| `linear` | workspace; sealed API key |
+| `notion` | workspace; sealed OAuth token |
+| `shopify` | shop domain; sealed admin token |
+| `stripe` | account id; sealed restricted key |
+| `dialogflow` | project id; sealed SA json envelope |
+| `google_translate` | project; sealed API key — **unused** for unpaid live translate |
+| `dyte` | org id; sealed API key (video stub) |
+
+All: GET masked; PUT encrypt; status ≤ `connected_stub`.
+
+### Captain suggestion flow
+
+```
+Agent opens conversation → optional POST /captain/sugerir { mode, conversation_id }
+  → CaptainAiPort.suggest (stub fixture or live if unlocked)
+  → persist CaptainSuggestion (pending)
+  → return proposal to UI
+Agent accepts → existing domain APIs (send message / add labels / assign)
+  → mark suggestion accepted; emit captain.suggestion_accepted
+Monitor job (optional): captain.monitor_scan on open conversations → suggestions only
+```
+
+### SLA apply + evaluate flow
+
+```
+Admin creates SlaPolicy → optional inbox default_sla_policy_id
+Automation action apply_sla OR admin PATCH conversation
+  → upsert ConversationSla; set due_ats from thresholds + clock
+On message.created / conversation.status_changed / sla.evaluate tick:
+  → update hit/breach booleans; emit sla.* events
+Report /relatorios/sla aggregates ConversationSla + breaches in range
+```
+
+### Domain events added in E
+
+`sla.applied` · `sla.removed` · `sla.threshold_warning` · `sla.breached` · `sla.hit` · `capacity.updated` · `captain.suggestion_created` · `captain.suggestion_accepted` · `captain.suggestion_dismissed` · `audit.recorded` (optional mirror) · `integration.updated` · `saml.updated` · `mfa.enrolled` · `mfa.disabled` · `custom_role.updated` · `dashboard_app.updated` · `voice.simulated`
+
+Audit writes go to **`audit_events`** table primarily; domain_events above are for SSE/automations where useful (SLA/Captain). Do not dual-write every audit row to SSE.
+
+### Job kinds enabled in E
+
+| Kind | Trigger |
+|---|---|
+| `sla.evaluate` | Tick + after message/status when ConversationSla active |
+| `assignment.balanced` | New/unassigned conversation when policy `kind=balanced` (RR keeps `assignment.round_robin`) |
+| `captain.suggest` | Optional async suggest; MVP may run suggest inline on POST |
+| `captain.monitor_scan` | Optional periodic; creates suggestions only |
+| `integration.deliver` | Fan-out to connected_stub installs (no-op body or customer webhook URL) |
+| `audit.prune` | Optional retention prune |
+| `dns.verify_portal_domain` | Admin verify custom domain |
+
+### Phase E acceptance (architecture)
+
+1. Admin CRUD SlaPolicy; apply to conversation; timers breach/hit; **SLA report** returns real aggregates (not 501); vendedor without `report_manage` → 403.
+2. Balanced policy + AgentCapacity skips at-capacity agents; round-robin still works.
+3. Resolve with missing required attributes → 422; with attributes → resolved.
+4. Captain suggest returns stub proposal; accept uses desk APIs; **no** model HTTP unless unlock flag in tests that explicitly enable it; **no** Meta.
+5. Audit log lists admin credential/role/SLA/integration changes; vendedor → 403.
+6. SAML/MFA config save + MFA enroll stub; seed password login still works; live IdP not required.
+7. Custom role with `report_manage` can read reports; without → 403.
+8. Integration installs reach `connected_stub`; `live` rejected; no Slack/etc egress in default tests.
+9. Dashboard app URL blocked if egress guard fails.
+10. CSAT review_note PATCH admin; HC custom_domain verify stub; voice inbox ≤ `ready_stub` + simulate.
+11. Cadastro/pipeline/commerce outbox/WA ready_stub unchanged; no unpaid Meta.
+
+### Handoff (Phase E)
+
+| Specialist | Task |
+|---|---|
+| **design** | SaaS: SLA, Capacidade, Captain, Auditoria, Segurança (SAML/MFA), Papéis, Integrações, Apps do painel, Atributos obrigatórios; voice canal stub |
+| **backend** | Phase E tables + jobs; Captain/SAML/MFA/Dns/Integration ports (stubs); report SLA; authz bits |
+| **frontend** | Admin + desk affordances against Phase E `/api/saas/crm/*` map; no parallel kit |
+| **qa** | Phase E checklist; no Meta/live integrations; SLA math; capacity; audit RBAC; MFA enroll; custom role report_manage |
+
 ## Channel polymorphism
 
 ```
@@ -470,7 +612,7 @@ Inbox
 
 channel_type =
   whatsapp | web_widget | email | facebook | instagram | tiktok |
-  twitter | telegram | line | sms | api
+  twitter | telegram | line | sms | api | voice
 
 ChannelWhatsapp (1:1 when channel_type=whatsapp) — Phase A
 ChannelWebsiteWidget (1:1 web_widget) — Phase D
@@ -478,13 +620,14 @@ ChannelEmail (1:1 email) — Phase D
 ChannelSocial (1:1 facebook|instagram|tiktok|twitter|telegram|line) — Phase D
 ChannelSms (1:1 sms) — Phase D
 ChannelApi (1:1 api) — Phase D
+ChannelVoice (1:1 voice) — Phase E stub
 ```
 
-Domain talks to `ChannelSendPort` / `ChannelSimulateInboundPort` / `WidgetSessionPort`. All external provider adapters are stubs until product unlock. Widget/API delivery is first-party persistence + fan-out.
+Domain talks to `ChannelSendPort` / `ChannelSimulateInboundPort` / `WidgetSessionPort`. All external provider adapters are stubs until product unlock. Widget/API delivery is first-party persistence + fan-out. Phase E adds `CaptainAiPort`, `SamAuthPort` / `MfaPort`, `DnsVerifyPort`, `IntegrationConnectPort` — stubs by default.
 
 ## Permission summary
 
-See [authz.md](./authz.md). Map: Chatwoot Administrator → `admin`; Agent → `vendedor`. No custom roles until Phase E.
+See [authz.md](./authz.md). Map: Chatwoot Administrator → `admin`; Agent → `vendedor`. Phase E: optional `CustomRole` permission bits (e.g. `report_manage`) on top of base `saas_role`; `admin` remains full access.
 
 **Inbox visibility (Phase A lock):**
 
@@ -501,31 +644,36 @@ Phase B+ consumers: automations, webhooks, bots, reports projections.
 
 Phase D adds: `channel.updated` | `widget.session_started` | `widget.message_created` | `campaign.displayed` | `push.subscribed` | `push.failed`
 
+Phase E adds: `sla.*` | `capacity.updated` | `captain.suggestion_*` | `integration.updated` | `saml.updated` | `mfa.*` | `custom_role.updated` | `dashboard_app.updated` | `voice.simulated` (see Phase E section). Audit rows live in `audit_events`.
+
 ## Handoff
 
 | Specialist | Task |
 |---|---|
-| **design** | Phase A–D desk IA; canal stubs; Loja widget + pre-chat |
-| **backend** | Phase A→D tables + job consumers per this doc |
-| **frontend** | `/api/saas/crm/*` Phase A→D; Loja widget; public HC; no parallel CSS kit |
-| **qa** | Per-phase acceptance; no Meta/provider HTTP; SSRF; campaign outbox isolation; widget tenancy; cadastro/pipeline regression; tenant isolation |
+| **design** | Phase A–E desk IA; canal stubs; Loja widget; enterprise config (SLA, Captain, audit, security, integrations) |
+| **backend** | Phase A→E tables + job consumers per this doc |
+| **frontend** | `/api/saas/crm/*` Phase A→E; Loja widget; public HC; no parallel CSS kit |
+| **qa** | Per-phase acceptance; no Meta/provider HTTP; SSRF; campaign outbox isolation; widget tenancy; SLA/capacity/audit; cadastro/pipeline regression; tenant isolation |
 
 ## What must not happen
 
 - Second inbox product or parallel `whatsapp_threads` write path after migration.
 - Live Meta Graph / webhook verification / campaign template sync from Meta.
-- Live Facebook / Instagram / TikTok / X / Telegram / LINE / Twilio / IMAP-SMTP / Google-Microsoft mail from channel adapters in Phase D.
-- Transition any channel `connection_status` to `live` before product unlock.
+- Live Facebook / Instagram / TikTok / X / Telegram / LINE / Twilio / IMAP-SMTP / Google-Microsoft mail from channel adapters in Phase D/E.
+- Live Slack / Linear / Notion / Shopify / Stripe / Dialogflow / Translate / Dyte / telephony / IdP SSO without product unlock (Phase E = stub/connect only).
+- Live Captain model HTTP without `CAPTAIN_PROVIDER_ENABLED` + key; never route Captain through Meta.
+- Transition any channel or integration `connection_status` to `live` before product unlock.
 - Trusting client-supplied `tenant_id` on widget or client API (resolve from website_token / API token).
-- Exposing widget HMAC secret or API plaintext token on GET lists after create.
-- Merging Account billing into CRM nav.
+- Exposing widget HMAC secret, API plaintext token, SAML private material, MFA secrets, or integration tokens on GET lists after create.
+- Merging Account billing into CRM nav; implementing `/api/platform/*` super-admin for seed MVP.
 - Second stock ledger.
-- Trusting client for role, prices, stock, or `tenant_id`.
+- Trusting client for role, prices, stock, permission bits, or `tenant_id`.
 - Returning WA / channel secrets on GET.
-- Inline SSRF-prone HTTP from automation/bot/webhook on the request path.
+- Inline SSRF-prone HTTP from automation/bot/webhook/integration/dashboard-app on the request path.
 - Executing automation webhook actions without `UrlEgressGuardPort`.
 - CSAT, bot, or **campaign** delivery calling Meta/SMTP — stub outbox / stub channel only.
 - Mixing `category=campaign` rows into commerce avisos without an explicit filter.
-- Publishing Help Center drafts on public routes.
-- Inventing SLA report numbers before Phase E policies exist.
+- Publishing Help Center drafts on public routes; routing unverified `custom_domain`.
+- Inventing SLA report numbers without `SlaPolicy` + `ConversationSla` rows.
+- Auto-sending Captain suggestions without explicit agent confirm (or admin-gated automation action).
 - WebSocket requirement for Phase D text widget (SSE + poll only).

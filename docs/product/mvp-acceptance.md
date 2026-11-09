@@ -1,72 +1,70 @@
-# MVP acceptance
+# MVP acceptance — Casa dos Frios
 
-Sign-off list for QA. Behavior source: `docs/product/spec.md` and `docs/product/mvp.md`. Seed tenant `demo` is required. PASS only if every item holds.
+Sign-off list for QA. Behavior: `docs/product/spec.md` and `docs/product/mvp.md`. Seed tenant `casa-dos-frios` required. PASS only if every item holds.
 
 ## Demo tenant
 
-- Users in spec seed table login with the documented password.
-- SKUs include at least one hidden from store, one zero-available, dual prices, and a wholesale MOQ > 1.
-- Orders exist in `novo`, `confirmado`, `separando`, `despachado`, `entregue`, `cancelado`.
-- Subscription starts `ativa`. Theme tokens are non-default enough to see a change.
+- Seed users login with documented password (`admin@…`, `vendedor@…`, cliente aprovado, prospecto pendente).
+- SKUs include carnes/frios lean, one `visivel_loja=false`, one zero-available, optional MOQ > 1.
+- Inbox has sample threads for `cadastro`, `orcamento`, `info_empresa`.
+- At least one orçamento `enviado`, one pedido mid-pipeline, theme non-default, channels include WhatsApp.
+- Logo may be placeholder.
 
-## Store
+## SaaS foundation
 
-- Guest catalog shows **varejo** prices and only `visivel_loja` SKUs; available qty = on-hand − reserved.
-- Hidden SKU does not appear. Visible SKU with 0 available shows indisponível and cannot be ordered.
-- Register CPF (valid checksum) when `aceita_cpf`. Register CNPJ (checksum + registry or explicit degrade) when `aceita_cnpj`. Invalid checksum rejected.
-- Tenant with only CPF hides CNPJ path (and the reverse).
-- After login, CPF sees varejo; CNPJ sees atacado and cannot submit below `qtd_min_atacado`.
-- No guest checkout. Place order → `novo`, line prices frozen from the list in force.
-- Meus pedidos shows own orders only and status history.
-- Full CPF/CNPJ not printed in page source logs of the happy path (masked).
+- Login succeeds; bad password fails; logout ends session; expired/invalid session cannot call mutating APIs.
+- Admin creates/deactivates a vendedor; deactivated user cannot login.
+- Vendedor cannot access admin user management or theme/config write.
+- Role cannot be escalated from the client.
 
-## SaaS — seller
+## CRM inbox and cadastro
 
-- Sees all tenant orders. Creates an order for a customer.
-- `novo` → `confirmado` and `novo`/`confirmado` → `cancelado`. Cannot move to `separando`, `despachado`, or `entregue`.
-- Confirm creates reservation; cancel before dispatch releases it. Store available updates.
-- Cannot open Account or theme/tax config.
+- Admin can **simular mensagem** inbound; thread appears with phone + body; intent can be tagged.
+- Cadastro from loja form or inbox intent creates `pendente` with CNPJ checksum.
+- Invalid CNPJ checksum rejected. Registry down → warning + `cnpj_registro_pendente` allowed.
+- Vendedor/admin `aprovado` creates Cliente and outbox notice; `recusado` requires reason + outbox.
+- Cliente não aprovado: API rejects Pedido create and Orçamento → Pedido conversion (4xx).
 
-## SaaS — warehouse
+## Orçamento → Pedido → Venda
 
-- Queue is `confirmado`, `separando`, `despachado`. Cannot confirm a `novo` order.
-- `confirmado` → `separando` → `despachado`. Dispatch decrements on-hand and consumes reserve. Movement log has both reserve and consume (or equivalent one-ledger entries).
-- Optional qty adjust with reason changes on-hand only on this ledger.
-- Cannot edit theme or apply AI import.
+- Vendedor creates orçamento `rascunho` with lines (frozen `preco_atacado`); send → `enviado` requires `valido_ate`; outbox to customer.
+- Cliente (loja) or vendedor marks `aceito` only if cadastro `aprovado` → Pedido `confirmado` + stock **reserve**.
+- `enviado` → `recusado` / `cancelado` / `expirado` do not create Pedido.
+- Pedido: `confirmado` → `em_separacao` → `despachado` (consume) → `entregue`; cancel before despacho releases reserve.
+- Illegal transition (wrong role or status) = 403/409, no stock/outbox side effects.
+- Faturar: Venda `rascunho` → `faturado`; outbox on `faturado`. No NF-e/provider call.
+- Second Venda for same Pedido rejected while one non-cancelled exists.
 
-## SaaS — courier
+## Loja
 
-- Sees `despachado` and `entregue`. `despachado` → `entregue` only. No stock edits.
-
-## SaaS — supervisor
-
-- All legal transitions, including `separando` → `cancelado`.
-- Toggle `visivel_loja` changes Store catalog without changing on-hand.
-- Theme save updates Store and SaaS tokens; Account chrome unchanged.
-- Config: CPF/CNPJ flags (at least one remains true); notification channels.
-- Chat: upload CSV/XLSX → preview (creates/updates/errors) → **Confirmar aplicação** writes absolute `quantidade`. Closing the preview without confirm writes nothing. Bad rows listed; good rows apply.
-- Outbox readable.
+- Public page shows Casa dos Frios branding (name hero-level; placeholder logo ok).
+- Catalog: only `visivel_loja`; available = on-hand − reserved; zero cannot add.
+- WhatsApp CTA present (wa.me or documented demo equivalent).
+- Cadastro form works; guest checkout blocked.
+- Cliente aprovado places Pedido; sees own orçamentos/pedidos + history.
+- Full CNPJ masked in UI; not logged in full on happy path.
 
 ## Notifications
 
-- Every status change inserts outbox rows for **customer and seller** for each enabled channel (`email`, `whatsapp`, or both).
-- No Meta/WhatsApp provider call is required. Stub marks `enviado`. QA asserts rows, recipients, template/status payload.
+- Cadastro approve/refuse and document status changes insert outbox rows for configured channels for **customer and vendedor**.
+- Stub marks `enviado` without Meta or required SMTP. QA asserts rows + payload keys, not provider HTTP.
 
-## Account and entitlements
+## Stock projection
 
-- Only `account_owner` opens Account. Supervisor-only user is denied.
-- Account has no pedidos/estoque/tema nav.
-- Flag → `inadimplente` or `cancelada`: Store checkout 4xx with reason; SaaS mutations 4xx; reads may remain. Flag → `ativa` restores writes.
-- Seed `dono` may be both owner and supervisor but must use **separate chrome**.
+- Confirm reserves; dispatch consumes; cancel-before-dispatch releases.
+- Loja quantity tracks the **same** ledger (no second inventory table driving the store).
+- Admin qty adjust with reason writes movements on that ledger.
 
 ## Isolation and security
 
-- Authenticated user from tenant A cannot read/write tenant B orders, SKUs, or outbox (403/404).
-- Client cannot set role, unit price, or available qty on create/confirm.
-- Illegal transition = 409/403, no side effects on stock or outbox.
+- All operational rows carry `tenant_id`; seed uses one tenant. Tests prove queries are tenant-scoped (second tenant fixture or equivalent).
+- Client cannot set unit price, role, or available qty.
+- pt-BR copy on SaaS and Loja.
 
-## Cross-cutting
+## Explicit non-goals (must remain absent)
 
-- UI copy pt-BR on all three surfaces.
-- CNPJ registry timeout/5xx: register still allowed after checksum; user sees warning; `cnpj_registro_pendente` set.
-- No second inventory table driving the store.
+- No Account/subscription UI.
+- No Meta WhatsApp API dependency for PASS.
+- No NF-e, PIX, or payment capture.
+- No estoquista/entregador role requirements.
+- No AI inventory apply path.

@@ -1,21 +1,22 @@
-import { CANAIS_AVISO } from "@saas-frota/shared";
 import { z } from "zod";
-import { requireEntitlementAtiva, requireSaasRole } from "@/server/authz/gates";
-import { getConfig, updateConfig } from "@/server/config/service";
+import { getSaasConfig, putSaasConfig } from "@/server/config/service";
+import { requireSaasRole } from "@/server/authz/gates";
 import { readJson } from "@/server/http/request";
 import { fail, handleError, ok } from "@/server/http/respond";
 
 const schema = z.object({
-  aceita_cpf: z.boolean(),
-  aceita_cnpj: z.boolean(),
-  canais_aviso: z.enum(CANAIS_AVISO),
-  default_seller_user_id: z.string().nullable().optional(),
+  razao_social: z.string().optional(),
+  nome_fantasia: z.string().optional(),
+  whatsapp_comercial: z.string().nullable().optional(),
+  canais_aviso: z.enum(["email", "whatsapp", "ambos"]).optional(),
+  loja_modo: z.enum(["pedido_direto", "orcamento"]).optional(),
+  default_vendedor_user_id: z.string().nullable().optional(),
 });
 
 export async function GET() {
   try {
-    const session = await requireSaasRole("supervisor");
-    return ok(await getConfig(session));
+    const session = await requireSaasRole("admin");
+    return ok(await getSaasConfig(session));
   } catch (err) {
     return handleError(err);
   }
@@ -23,11 +24,10 @@ export async function GET() {
 
 export async function PUT(req: Request) {
   try {
-    const session = await requireSaasRole("supervisor");
-    requireEntitlementAtiva(session);
+    const session = await requireSaasRole("admin");
     const parsed = schema.safeParse(await readJson(req));
     if (!parsed.success) return fail("validacao", "Configuração inválida.");
-    return ok(await updateConfig(session, parsed.data));
+    return ok(await putSaasConfig(session, parsed.data));
   } catch (err) {
     return handleError(err);
   }

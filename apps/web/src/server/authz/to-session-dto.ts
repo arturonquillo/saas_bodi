@@ -8,9 +8,8 @@ export function toSessionDto(session: SessionContext): SessionDto {
     tenant_slug: session.tenantSlug,
     surface: session.surface,
     saas_role: session.saasRole,
-    account_owner: session.accountOwner,
     is_customer: session.isCustomer,
-    subscription_status: session.subscriptionStatus,
-    document_type: session.documentType,
+    cliente_status: session.clienteStatus,
+    cnpj_last4: session.cnpjLast4,
   };
 }

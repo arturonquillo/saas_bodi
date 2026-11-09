@@ -19,9 +19,10 @@ config({ path: path.join(repoRoot, ".env") });
 config({ path: path.join(process.cwd(), ".env") });
 
 export const env = {
-  // Absolute file URL (file:///...) so Next and Vitest share the same SQLite file.
+  // Absolute file URL so Next and Vitest share the same SQLite file.
   databaseUrl: `file://${path.join(repoRoot, "prisma", "dev.db")}`,
   sessionSecret: process.env.SESSION_SECRET ?? "dev-only-change-me-not-for-production",
-  defaultTenantSlug: process.env.NEXT_PUBLIC_DEFAULT_TENANT_SLUG ?? "demo",
+  defaultTenantSlug: process.env.NEXT_PUBLIC_DEFAULT_TENANT_SLUG ?? "casa-dos-frios",
   cnpjRegistryEnabled: process.env.CNPJ_REGISTRY_ENABLED === "true",
+  whatsappInboxMode: process.env.WHATSAPP_INBOX_MODE ?? "simulate",
 };

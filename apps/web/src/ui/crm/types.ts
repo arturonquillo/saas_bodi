@@ -365,6 +365,7 @@ export type CrmCampaignDto = {
     targeted?: number;
     enviado?: number;
     falha?: number;
+    omitido?: number;
   } | null;
   created_at?: string;
   updated_at?: string;
@@ -374,11 +375,11 @@ export type CrmCampaignRecipientDto = {
   id: string;
   campaign_id: string;
   contact_id: string;
+  /** Not currently returned by Phase C recipient DTO — UI falls back to contact_id. */
   contact_nome?: string | null;
   status: CampaignRecipientStatus | string;
   outbox_id?: string | null;
   error?: string | null;
-  updated_at?: string;
 };
 
 export type ArticleStatus = "draft" | "published" | "archived";
@@ -392,6 +393,7 @@ export type CrmPortalDto = {
   locale: string;
   enabled: boolean;
   custom_domain?: string | null;
+  created_at?: string;
   updated_at?: string;
 };
 
@@ -403,7 +405,6 @@ export type CrmHelpCategoryDto = {
   description?: string | null;
   position: number;
   parent_category_id?: string | null;
-  published_article_count?: number;
 };
 
 export type CrmHelpArticleDto = {
@@ -418,6 +419,7 @@ export type CrmHelpArticleDto = {
   author_user_id?: string | null;
   published_at?: string | null;
   position?: number | null;
+  created_at?: string;
   updated_at?: string;
 };
 
@@ -430,40 +432,41 @@ export type PublicHelpPortalDto = {
 };
 
 export type PublicHelpCategoryDto = {
+  id?: string;
+  portal_id?: string;
   name: string;
   slug: string;
   description?: string | null;
   position: number;
-  published_article_count: number;
+  parent_category_id?: string | null;
+  /** Backend field name (Phase C). */
+  published_count: number;
 };
 
 export type PublicHelpArticleListDto = {
+  id: string;
   title: string;
   slug: string;
-  category_slug?: string | null;
-  category_name?: string | null;
+  category_id: string;
   published_at?: string | null;
+  position?: number | null;
 };
 
 export type PublicHelpArticleDto = {
+  id: string;
   title: string;
   slug: string;
+  category_id: string;
   content_md?: string | null;
   content_html?: string | null;
-  category_slug?: string | null;
-  category_name?: string | null;
   published_at?: string | null;
 };
 
-export type ReportSeriesPoint = {
-  date: string;
-  value?: number;
-  [key: string]: string | number | null | undefined;
-};
-
+/** Backend `series` is polymorphic: row array, named day buckets, or scalar map. */
 export type CrmReportDto = {
-  series: ReportSeriesPoint[];
+  series:
+    | Array<Record<string, string | number | null | undefined>>
+    | Record<string, unknown>;
   totals: Record<string, number | string | null>;
   generated_at: string;
-  rows?: Array<Record<string, string | number | null>>;
 };

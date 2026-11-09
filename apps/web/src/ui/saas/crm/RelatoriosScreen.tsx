@@ -45,19 +45,53 @@ function TotalsGrid({ totals }: { totals: Record<string, number | string | null>
   );
 }
 
-function SeriesTable({
-  series,
-  rows,
-}: {
-  series: CrmReportDto["series"];
-  rows?: CrmReportDto["rows"];
-}) {
-  const tableRows = rows?.length
-    ? rows
-    : (series ?? []).map((point) => {
-        const { date, ...rest } = point;
-        return { date, ...rest } as Record<string, string | number | null>;
-      });
+function flattenSeries(series: CrmReportDto["series"]): Array<Record<string, string | number | null>> {
+  if (Array.isArray(series)) {
+    return series.map((row) => {
+      const out: Record<string, string | number | null> = {};
+      for (const [k, v] of Object.entries(row ?? {})) {
+        out[k] = v === undefined ? null : (v as string | number | null);
+      }
+      return out;
+    });
+  }
+  if (!series || typeof series !== "object") return [];
+
+  const rows: Array<Record<string, string | number | null>> = [];
+  for (const [key, value] of Object.entries(series)) {
+    if (Array.isArray(value)) {
+      for (const point of value) {
+        if (point && typeof point === "object") {
+          const out: Record<string, string | number | null> = { series: key };
+          for (const [k, v] of Object.entries(point as Record<string, unknown>)) {
+            out[k] = v === undefined ? null : (v as string | number | null);
+          }
+          rows.push(out);
+        }
+      }
+      continue;
+    }
+    if (value && typeof value === "object") {
+      // e.g. CSAT { distribution: { "1": n, ... } }
+      for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+        rows.push({
+          series: key,
+          key: k,
+          value: typeof v === "number" || typeof v === "string" ? v : v == null ? null : String(v),
+        });
+      }
+      continue;
+    }
+    rows.push({
+      metric: key,
+      value: typeof value === "number" || typeof value === "string" ? value : value == null ? null : String(value),
+    });
+  }
+  return rows;
+}
+
+function SeriesTable({ series }: { series: CrmReportDto["series"] }) {
+  const tableRows = flattenSeries(series);
 
   if (!tableRows.length) {
     return <p className="mt-4 text-sm text-muted-foreground">{COPY.crm.relatorios_empty_series}</p>;
@@ -150,7 +184,7 @@ function ReportPanel({
         {COPY.crm.relatorios_generated_at}: {formatDate(data.generated_at)}
       </p>
       <TotalsGrid totals={data.totals ?? {}} />
-      <SeriesTable series={data.series ?? []} rows={data.rows} />
+      <SeriesTable series={data.series ?? []} />
     </div>
   );
 }

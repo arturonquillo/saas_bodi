@@ -64,7 +64,7 @@ export function CentralAjudaAdminScreen() {
     setStatus("loading");
     try {
       const [p, cats, arts] = await Promise.all([
-        apiGet<CrmPortalDto>("/api/saas/crm/central-ajuda/portal").catch(() => emptyPortal()),
+        apiGet<CrmPortalDto | null>("/api/saas/crm/central-ajuda/portal").catch(() => null),
         apiGet("/api/saas/crm/central-ajuda/categorias").then((d) =>
           asPage<CrmHelpCategoryDto>(d).items,
         ),
@@ -76,8 +76,9 @@ export function CentralAjudaAdminScreen() {
       ]);
       setPortal({
         ...emptyPortal(),
-        ...p,
-        locale: p.locale || "pt-BR",
+        ...(p ?? {}),
+        locale: p?.locale || "pt-BR",
+        enabled: p?.enabled ?? false,
       });
       setCategories(cats);
       setArticles(arts);

@@ -170,9 +170,7 @@ export function HelpPortalHomeScreen() {
                 >
                   <Link href={`/ajuda/${portalSlug}?categoria=${encodeURIComponent(c.slug)}`}>
                     {c.name}
-                    {typeof c.published_article_count === "number"
-                      ? ` (${c.published_article_count})`
-                      : ""}
+                    {typeof c.published_count === "number" ? ` (${c.published_count})` : ""}
                   </Link>
                 </Button>
               ))}
@@ -183,20 +181,23 @@ export function HelpPortalHomeScreen() {
             <p className="text-sm text-muted-foreground">{COPY.crm.ajuda_public_empty}</p>
           ) : (
             <ul className="divide-y divide-border border-y">
-              {articles.map((a) => (
-                <li key={a.slug}>
-                  <Link
-                    href={`/ajuda/${portalSlug}/artigos/${encodeURIComponent(a.slug)}`}
-                    className="block py-4 hover:bg-muted/40"
-                  >
-                    <p className="font-medium text-foreground">{a.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {a.category_name || a.category_slug || ""}
-                      {a.published_at ? ` · ${formatDateOnly(a.published_at)}` : ""}
-                    </p>
-                  </Link>
-                </li>
-              ))}
+              {articles.map((a) => {
+                const cat = categories.find((c) => c.id === a.category_id);
+                return (
+                  <li key={a.id || a.slug}>
+                    <Link
+                      href={`/ajuda/${portalSlug}/artigos/${encodeURIComponent(a.slug)}`}
+                      className="block py-4 hover:bg-muted/40"
+                    >
+                      <p className="font-medium text-foreground">{a.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {cat?.name || ""}
+                        {a.published_at ? ` · ${formatDateOnly(a.published_at)}` : ""}
+                      </p>
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </>
@@ -257,9 +258,6 @@ export function HelpPortalArticleScreen() {
             </Button>
           </div>
           <header className="mb-8 space-y-2">
-            {article?.category_name ? (
-              <p className="text-sm text-muted-foreground">{article.category_name}</p>
-            ) : null}
             <h1 className="text-3xl font-semibold tracking-tight">{article?.title}</h1>
             {article?.published_at ? (
               <p className="text-xs text-muted-foreground">

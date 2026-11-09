@@ -684,7 +684,7 @@ export function CampanhaDetailScreen() {
         {item.stats ? (
           <p className="text-sm text-muted-foreground">
             Alvo {item.stats.targeted ?? 0} · Enviado {item.stats.enviado ?? 0} · Falha{" "}
-            {item.stats.falha ?? 0}
+            {item.stats.falha ?? 0} · Omitido {item.stats.omitido ?? 0}
           </p>
         ) : null}
         {editable ? (

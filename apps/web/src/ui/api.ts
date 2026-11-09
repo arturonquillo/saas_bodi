@@ -226,6 +226,8 @@ export type UserDto = {
   saas_role: SaasRole | null;
   ativo: boolean;
   is_customer?: boolean;
+  /** Phase E custom role overlay */
+  custom_role_id?: string | null;
 };
 
 export type SaasConfigDto = {

@@ -201,9 +201,14 @@ export const channelSimulateInboundPort: ChannelSimulateInboundPort = {
         },
       });
       if (inbox.allowAutoAssign) {
+        const policy = await db.assignmentPolicy.findFirst({
+          where: { tenantId: input.tenantId, inboxId: inbox.id },
+        });
+        const kind =
+          policy?.kind === "balanced" ? "assignment.balanced" : "assignment.round_robin";
         await jobEnqueuePort.enqueue({
           tenantId: input.tenantId,
-          kind: "assignment.round_robin",
+          kind,
           payload: {
             tenant_id: input.tenantId,
             conversation_id: conversation.id,

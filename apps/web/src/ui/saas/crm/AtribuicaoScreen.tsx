@@ -23,6 +23,7 @@ export function AtribuicaoScreen() {
   const [inboxes, setInboxes] = useState<CrmInboxDto[]>([]);
   const [inboxId, setInboxId] = useState("");
   const [enabled, setEnabled] = useState(false);
+  const [kind, setKind] = useState<"round_robin" | "balanced">("round_robin");
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const [busy, setBusy] = useState(false);
 
@@ -44,6 +45,7 @@ export function AtribuicaoScreen() {
         `/api/saas/crm/inboxes/${inboxId}/politica-atribuicao`,
       );
       setEnabled(Boolean(policy.enabled));
+      setKind(policy.kind === "balanced" ? "balanced" : "round_robin");
       setStatus("ok");
     } catch {
       setStatus("error");
@@ -60,7 +62,7 @@ export function AtribuicaoScreen() {
     setBusy(true);
     try {
       await apiSend(`/api/saas/crm/inboxes/${inboxId}/politica-atribuicao`, "PUT", {
-        kind: "round_robin",
+        kind,
         enabled,
       });
       if (enabled) {
@@ -108,13 +110,29 @@ export function AtribuicaoScreen() {
             <ErrorState onRetry={() => void load()} />
           ) : (
             <form className="space-y-4" onSubmit={onSave}>
+              <div>
+                <Label>Tipo</Label>
+                <Select
+                  value={kind}
+                  onValueChange={(v) => setKind(v as "round_robin" | "balanced")}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="round_robin">{COPY.crm.atribuicao_round_robin}</SelectItem>
+                    <SelectItem value="balanced">{COPY.crm.atribuicao_balanced}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <p className="text-sm text-muted-foreground">
-                {COPY.crm.atribuicao_round_robin}: atribui apenas entre membros online da caixa
-                (ocupado/offline são ignorados).
+                {kind === "balanced"
+                  ? COPY.crm.capacidade_balanced_hint
+                  : `${COPY.crm.atribuicao_round_robin}: atribui apenas entre membros online da caixa (ocupado/offline são ignorados).`}
               </p>
               <label className="flex items-center gap-2 text-sm">
                 <Switch checked={enabled} onCheckedChange={(v) => setEnabled(Boolean(v))} />
-                Habilitar rodízio
+                Habilitar atribuição automática
               </label>
               <Button type="submit" disabled={busy}>
                 {COPY.actions.salvar}

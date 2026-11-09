@@ -15,6 +15,7 @@ export {
   getWidgetSnippet,
   rotateChannelToken,
   simulateChannelInbound,
+  putRequiredAttributesOnResolve,
   assertInteractiveContentAllowed,
   isInteractiveChannel,
 } from "./channels";

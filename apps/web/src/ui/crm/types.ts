@@ -106,6 +106,10 @@ export type CrmInboxDto = {
   timezone?: string;
   member_count?: number;
   connection_status?: WaConnectionStatus | string;
+  /** Phase E */
+  default_sla_policy_id?: string | null;
+  required_attribute_keys_on_resolve?: string[];
+  required_attribute_keys_on_resolve_json?: string[];
 };
 
 export type CrmChannelDto = {
@@ -131,7 +135,8 @@ export type ChannelTypeD =
   | "telegram"
   | "line"
   | "sms"
-  | "api";
+  | "api"
+  | "voice";
 
 export type PreChatField = {
   name: string;
@@ -405,7 +410,7 @@ export type CrmWorkingHoursDto = {
 };
 
 export type CrmAssignmentPolicyDto = {
-  kind: "round_robin" | string;
+  kind: "round_robin" | "balanced" | string;
   enabled: boolean;
   last_assigned_user_id?: string | null;
 };
@@ -419,6 +424,10 @@ export type CrmCsatDto = {
   feedback_message?: string | null;
   assigned_agent_id?: string | null;
   submitted_at: string;
+  /** Phase E */
+  review_note?: string | null;
+  reviewed_by_user_id?: string | null;
+  reviewed_at?: string | null;
 };
 
 export type CrmFilterDto = {
@@ -504,6 +513,8 @@ export type CrmPortalDto = {
   locale: string;
   enabled: boolean;
   custom_domain?: string | null;
+  custom_domain_verified?: boolean;
+  custom_domain_verified_at?: string | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -580,4 +591,163 @@ export type CrmReportDto = {
     | Record<string, unknown>;
   totals: Record<string, number | string | null>;
   generated_at: string;
+};
+
+/** Phase E — enterprise & AI */
+
+export type CrmSlaPolicyDto = {
+  id: string;
+  name: string;
+  frt_seconds: number;
+  nrt_seconds: number;
+  rt_seconds: number;
+  active: boolean;
+  description?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type CrmConversationSlaDto = {
+  conversation_id: string;
+  sla_policy_id: string;
+  policy_name?: string | null;
+  frt_due_at?: string | null;
+  nrt_due_at?: string | null;
+  rt_due_at?: string | null;
+  frt_hit_at?: string | null;
+  nrt_hit_at?: string | null;
+  rt_hit_at?: string | null;
+  frt_breached?: boolean;
+  nrt_breached?: boolean;
+  rt_breached?: boolean;
+  applied_at?: string;
+  updated_at?: string;
+};
+
+export type CrmCaptainAssistantDto = {
+  id: string;
+  name: string;
+  mode: "copilot" | "triage" | "monitor" | "assistant" | string;
+  system_prompt_stub?: string | null;
+  active: boolean;
+  /** Backend captain.assistantDto */
+  config?: Record<string, unknown> | null;
+  config_json?: Record<string, unknown> | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type CrmCaptainSuggestionDto = {
+  id: string;
+  conversation_id: string;
+  assistant_id?: string | null;
+  mode: string;
+  status: "pending" | "accepted" | "dismissed" | "expired" | string;
+  /** Backend captain.suggestionDto uses `proposal` */
+  proposal?: {
+    reply_text?: string;
+    label_ids?: string[];
+    assign_user_id?: string | null;
+    [key: string]: unknown;
+  } | null;
+  proposal_json?: {
+    reply_text?: string;
+    label_ids?: string[];
+    assign_user_id?: string | null;
+    [key: string]: unknown;
+  } | null;
+  created_by?: string;
+  actor_user_id?: string | null;
+  resolved_by_user_id?: string | null;
+  resolved_at?: string | null;
+  created_at?: string;
+};
+
+export type CrmCaptainStatusDto = {
+  provider: "stub" | "live_unlocked" | string;
+  enabled: boolean;
+};
+
+export type CrmAuditEventDto = {
+  id: string;
+  actor_user_id?: string | null;
+  actor_nome?: string | null;
+  action: string;
+  aggregate_type?: string | null;
+  aggregate_id?: string | null;
+  /** Backend auditDto */
+  payload?: Record<string, unknown> | null;
+  payload_json?: Record<string, unknown> | null;
+  ip?: string | null;
+  user_agent?: string | null;
+  created_at: string;
+};
+
+export type CrmSamlConfigDto = {
+  id?: string;
+  enabled: boolean;
+  idp_entity_id?: string | null;
+  idp_sso_url?: string | null;
+  /** Backend samlDto */
+  certificate_present?: boolean;
+  idp_certificate_present?: boolean;
+  sp_entity_id?: string | null;
+  acs_url?: string | null;
+  metadata_url?: string | null;
+  jit_provision?: boolean;
+  status?: string | null;
+  updated_at?: string;
+};
+
+export type CrmMfaStatusDto = {
+  enabled: boolean;
+  enrolled?: boolean;
+  mfa_required?: boolean;
+  confirmed_at?: string | null;
+  recovery_codes_remaining?: number;
+};
+
+export type CrmSecurityPolicyDto = {
+  mfa_required?: boolean;
+  saml_enabled?: boolean;
+  jit_provision?: boolean;
+};
+
+export type CrmCustomRoleDto = {
+  id: string;
+  name: string;
+  description?: string | null;
+  permissions: string[];
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type CrmIntegrationInstallDto = {
+  id?: string;
+  provider: string;
+  connection_status: WaConnectionStatus | "connected_stub" | string;
+  metadata?: Record<string, unknown> | null;
+  secrets_present?: boolean;
+  updated_at?: string;
+  created_at?: string;
+};
+
+export type CrmDashboardAppDto = {
+  id: string;
+  title: string;
+  url: string;
+  enabled: boolean;
+  inbox_ids?: string[] | null;
+  position: number;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type CrmAgentCapacityDto = {
+  id?: string;
+  user_id: string;
+  user_nome?: string | null;
+  max_open_conversations: number;
+  open_count?: number;
+  updated_at?: string;
 };

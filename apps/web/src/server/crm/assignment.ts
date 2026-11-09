@@ -1,3 +1,4 @@
+import { ASSIGNMENT_POLICY_KINDS, type AssignmentPolicyKind } from "@saas-frota/shared";
 import type { SessionContext } from "../authz/session";
 import { assertSaasRole } from "../authz/gates";
 import { db } from "../db";
@@ -47,14 +48,14 @@ export async function getPoliticaAtribuicao(session: SessionContext, inboxId: st
 export async function putPoliticaAtribuicao(
   session: SessionContext,
   inboxId: string,
-  input: { kind?: "round_robin"; enabled: boolean },
+  input: { kind?: AssignmentPolicyKind; enabled: boolean },
 ) {
   assertSaasRole(session, "admin");
   const inbox = await db.inbox.findFirst({ where: { id: inboxId, tenantId: session.tenantId } });
   if (!inbox) throw new ApiError("nao_encontrado", "Não encontrado.");
   const kind = input.kind ?? "round_robin";
-  if (kind !== "round_robin") {
-    throw new ApiError("validacao", "Somente round_robin na Fase B.");
+  if (!(ASSIGNMENT_POLICY_KINDS as readonly string[]).includes(kind)) {
+    throw new ApiError("validacao", "kind de atribuição inválido.");
   }
   const existing = await db.assignmentPolicy.findFirst({
     where: { tenantId: session.tenantId, inboxId },
@@ -109,6 +110,69 @@ export async function pickRoundRobinAssignee(input: {
     idx = lastIdx >= 0 ? (lastIdx + 1) % online.length : 0;
   }
   const next = online[idx]!;
+  await db.assignmentPolicy.update({
+    where: { id: policy.id },
+    data: { lastAssignedUserId: next },
+  });
+  return next;
+}
+
+/**
+ * Balanced: among online inbox members under AgentCapacity, pick fewest open assigned.
+ * Skip at-capacity; if all at capacity leave unassigned (null).
+ */
+export async function pickBalancedAssignee(input: {
+  tenantId: string;
+  inboxId: string;
+}): Promise<string | null> {
+  const policy = await db.assignmentPolicy.findFirst({
+    where: { tenantId: input.tenantId, inboxId: input.inboxId },
+  });
+  if (!policy?.enabled || policy.kind !== "balanced") return null;
+
+  const inbox = await db.inbox.findFirst({
+    where: { id: input.inboxId, tenantId: input.tenantId },
+  });
+  if (!inbox?.allowAutoAssign) return null;
+
+  const members = await db.inboxMember.findMany({
+    where: { tenantId: input.tenantId, inboxId: input.inboxId },
+    include: { user: { select: { id: true, availability: true, ativo: true } } },
+    orderBy: { userId: "asc" },
+  });
+  const online = members.filter((m) => m.user.ativo && m.user.availability === "online");
+  if (!online.length) return null;
+
+  const capacities = await db.agentCapacity.findMany({
+    where: {
+      tenantId: input.tenantId,
+      userId: { in: online.map((m) => m.userId) },
+    },
+  });
+  const capMap = new Map(capacities.map((c) => [c.userId, c.maxOpenConversations]));
+
+  const openCounts = await Promise.all(
+    online.map(async (m) => {
+      const open = await db.conversation.count({
+        where: {
+          tenantId: input.tenantId,
+          assigneeUserId: m.userId,
+          status: { in: ["open", "pending", "snoozed"] },
+        },
+      });
+      return { userId: m.userId, open };
+    }),
+  );
+
+  const eligible = openCounts.filter((c) => {
+    const max = capMap.get(c.userId);
+    if (max == null) return true; // no capacity row = unlimited
+    return c.open < max;
+  });
+  if (!eligible.length) return null;
+
+  eligible.sort((a, b) => a.open - b.open || a.userId.localeCompare(b.userId));
+  const next = eligible[0]!.userId;
   await db.assignmentPolicy.update({
     where: { id: policy.id },
     data: { lastAssignedUserId: next },

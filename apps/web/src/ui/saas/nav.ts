@@ -31,7 +31,15 @@ export type NavIconName =
   | "filtros"
   | "campanhas"
   | "ajuda"
-  | "modelos_email";
+  | "modelos_email"
+  | "sla"
+  | "capacidade"
+  | "captain"
+  | "auditoria"
+  | "seguranca"
+  | "papeis"
+  | "integracoes"
+  | "apps_painel";
 
 export type NavItem = {
   href: string;
@@ -112,7 +120,57 @@ const CRM_CONFIG_NAV: NavItem[] = [
     adminOnly: true,
     crmConfig: true,
   },
+  {
+    href: "/saas/crm/capacidade",
+    label: COPY.crm.nav_capacidade,
+    icon: "capacidade",
+    adminOnly: true,
+    crmConfig: true,
+  },
+  { href: "/saas/crm/sla", label: COPY.crm.nav_sla, icon: "sla", adminOnly: true, crmConfig: true },
   { href: "/saas/crm/csat", label: COPY.crm.nav_csat, icon: "csat", adminOnly: true, crmConfig: true },
+  {
+    href: "/saas/crm/captain",
+    label: COPY.crm.nav_captain,
+    icon: "captain",
+    adminOnly: true,
+    crmConfig: true,
+  },
+  {
+    href: "/saas/crm/auditoria",
+    label: COPY.crm.nav_auditoria,
+    icon: "auditoria",
+    adminOnly: true,
+    crmConfig: true,
+  },
+  {
+    href: "/saas/crm/seguranca",
+    label: COPY.crm.nav_seguranca,
+    icon: "seguranca",
+    adminOnly: true,
+    crmConfig: true,
+  },
+  {
+    href: "/saas/crm/papeis",
+    label: COPY.crm.nav_papeis,
+    icon: "papeis",
+    adminOnly: true,
+    crmConfig: true,
+  },
+  {
+    href: "/saas/crm/integracoes",
+    label: COPY.crm.nav_integracoes,
+    icon: "integracoes",
+    adminOnly: true,
+    crmConfig: true,
+  },
+  {
+    href: "/saas/crm/apps-painel",
+    label: COPY.crm.nav_apps_painel,
+    icon: "apps_painel",
+    adminOnly: true,
+    crmConfig: true,
+  },
   {
     href: "/saas/crm/campanhas",
     label: COPY.crm.nav_campanhas,
@@ -200,7 +258,15 @@ const ADMIN_CRM_PATHS = [
   "/saas/crm/webhooks",
   "/saas/crm/horarios",
   "/saas/crm/atribuicao",
+  "/saas/crm/capacidade",
+  "/saas/crm/sla",
   "/saas/crm/csat",
+  "/saas/crm/captain",
+  "/saas/crm/auditoria",
+  "/saas/crm/seguranca",
+  "/saas/crm/papeis",
+  "/saas/crm/integracoes",
+  "/saas/crm/apps-painel",
   "/saas/crm/campanhas",
   "/saas/crm/central-ajuda",
 ];
@@ -274,7 +340,15 @@ export function currentPageLabel(pathname: string, role: SaasRole | null | undef
   if (pathname.startsWith("/saas/crm/webhooks")) return COPY.crm.nav_webhooks;
   if (pathname.startsWith("/saas/crm/horarios")) return COPY.crm.nav_horarios;
   if (pathname.startsWith("/saas/crm/atribuicao")) return COPY.crm.nav_atribuicao;
+  if (pathname.startsWith("/saas/crm/capacidade")) return COPY.crm.nav_capacidade;
+  if (pathname.startsWith("/saas/crm/sla")) return COPY.crm.nav_sla;
   if (pathname.startsWith("/saas/crm/csat")) return COPY.crm.nav_csat;
+  if (pathname.startsWith("/saas/crm/captain")) return COPY.crm.nav_captain;
+  if (pathname.startsWith("/saas/crm/auditoria")) return COPY.crm.nav_auditoria;
+  if (pathname.startsWith("/saas/crm/seguranca")) return COPY.crm.nav_seguranca;
+  if (pathname.startsWith("/saas/crm/papeis")) return COPY.crm.nav_papeis;
+  if (pathname.startsWith("/saas/crm/integracoes")) return COPY.crm.nav_integracoes;
+  if (pathname.startsWith("/saas/crm/apps-painel")) return COPY.crm.nav_apps_painel;
   if (pathname.startsWith("/saas/crm/filtros")) return COPY.crm.nav_filtros;
   if (pathname.startsWith("/saas/cadastros")) return COPY.nav.cadastros;
   if (pathname.startsWith("/saas/orcamentos")) return COPY.nav.orcamentos;

@@ -235,6 +235,25 @@ export async function runActions(input: {
           });
           break;
         }
+        case "apply_sla": {
+          const { applyConversationSla } = await import("./sla");
+          const policyId = String(params.sla_policy_id ?? "");
+          if (!policyId) throw new ApiError("validacao", "sla_policy_id obrigatório.");
+          await applyConversationSla(input.session, input.conversationId, policyId);
+          break;
+        }
+        case "remove_sla": {
+          const { removeConversationSla } = await import("./sla");
+          await removeConversationSla(input.session, input.conversationId);
+          break;
+        }
+        case "captain.apply_suggestion": {
+          const { aceitarSugestao } = await import("./captain");
+          const suggestionId = String(params.suggestion_id ?? "");
+          if (!suggestionId) throw new ApiError("validacao", "suggestion_id obrigatório.");
+          await aceitarSugestao(input.session, suggestionId);
+          break;
+        }
         case "send_webhook": {
           if (!input.allowWebhook) {
             throw new ApiError("validacao", "send_webhook não permitido em macros.");

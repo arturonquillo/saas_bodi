@@ -14,9 +14,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { apiGet, apiSend, asPage, isApiError } from "../../api";
 import { COPY } from "../../copy";
 import { formatDate } from "../../format";
+import { patchCsatReview } from "../../crm/phase-e";
 import type { CrmCsatDto, CrmInboxDto } from "../../crm/types";
 import { SaasPage } from "../../layout";
 import { ErrorState, TableSkeleton } from "../../states";
@@ -30,6 +32,7 @@ export function CsatAdminScreen() {
   const [configInbox, setConfigInbox] = useState("");
   const [csatEnabled, setCsatEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [notes, setNotes] = useState<Record<string, string>>({});
 
   useEffect(() => {
     void apiGet("/api/saas/crm/inboxes")
@@ -51,14 +54,35 @@ export function CsatAdminScreen() {
       if (inboxId !== "all") q.set("inbox_id", inboxId);
       if (rating !== "all") q.set("rating", rating);
       const qs = q.toString();
-      setItems(
-        asPage<CrmCsatDto>(await apiGet(`/api/saas/crm/csat${qs ? `?${qs}` : ""}`)).items,
-      );
+      const list = asPage<CrmCsatDto>(
+        await apiGet(`/api/saas/crm/csat${qs ? `?${qs}` : ""}`),
+      ).items;
+      setItems(list);
+      setNotes((prev) => {
+        const next = { ...prev };
+        for (const item of list) {
+          if (next[item.id] === undefined) next[item.id] = item.review_note ?? "";
+        }
+        return next;
+      });
       setStatus("ok");
     } catch {
       setStatus("error");
     }
   }, [inboxId, rating]);
+
+  async function saveReview(id: string) {
+    setBusy(true);
+    try {
+      await patchCsatReview(id, notes[id]?.trim() || "");
+      toast.success(COPY.actions.salvar);
+      void load();
+    } catch (err) {
+      toast.error(isApiError(err) ? err.message : COPY.save_fail);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   useEffect(() => {
     void load();
@@ -162,22 +186,45 @@ export function CsatAdminScreen() {
           ) : items.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">{COPY.crm.csat_empty}</p>
           ) : (
-            <ul className="space-y-4">
+            <ul className="space-y-6">
               {items.map((item) => (
-                <li key={item.id} className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">{item.rating} ★</Badge>
-                      <span className="text-sm text-muted-foreground">
-                        {formatDate(item.submitted_at)}
-                      </span>
+                <li key={item.id} className="space-y-2 border-b border-border/60 pb-4 last:border-0">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">{item.rating} ★</Badge>
+                        <span className="text-sm text-muted-foreground">
+                          {formatDate(item.submitted_at)}
+                        </span>
+                      </div>
+                      {item.feedback_message ? (
+                        <p className="mt-1 text-sm text-gray-900">{item.feedback_message}</p>
+                      ) : null}
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Conversa {item.conversation_id}
+                      </p>
                     </div>
-                    {item.feedback_message ? (
-                      <p className="mt-1 text-sm text-gray-900">{item.feedback_message}</p>
-                    ) : null}
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Conversa {item.conversation_id}
-                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-xs">{COPY.crm.csat_review_note}</Label>
+                    <Textarea
+                      className="mt-1"
+                      rows={2}
+                      placeholder={COPY.crm.csat_review_placeholder}
+                      value={notes[item.id] ?? ""}
+                      onChange={(e) =>
+                        setNotes((prev) => ({ ...prev, [item.id]: e.target.value }))
+                      }
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="mt-2"
+                      disabled={busy}
+                      onClick={() => void saveReview(item.id)}
+                    >
+                      {COPY.crm.csat_review_save}
+                    </Button>
                   </div>
                 </li>
               ))}

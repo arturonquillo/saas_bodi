@@ -160,9 +160,24 @@ export function inboxDto(row: {
   allowAutoAssign: boolean;
   vendedorSeeAll: boolean;
   timezone?: string;
+  defaultSlaPolicyId?: string | null;
+  requiredAttributeKeysOnResolveJson?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }) {
+  let required_attribute_keys_on_resolve: string[] = [];
+  if (row.requiredAttributeKeysOnResolveJson) {
+    try {
+      const parsed = JSON.parse(row.requiredAttributeKeysOnResolveJson) as unknown;
+      if (Array.isArray(parsed)) {
+        required_attribute_keys_on_resolve = parsed.filter(
+          (x): x is string => typeof x === "string",
+        );
+      }
+    } catch {
+      required_attribute_keys_on_resolve = [];
+    }
+  }
   return {
     id: row.id,
     name: row.name,
@@ -174,6 +189,8 @@ export function inboxDto(row: {
     allow_auto_assign: row.allowAutoAssign,
     vendedor_see_all: row.vendedorSeeAll,
     timezone: row.timezone ?? "America/Sao_Paulo",
+    default_sla_policy_id: row.defaultSlaPolicyId ?? null,
+    required_attribute_keys_on_resolve,
     created_at: row.createdAt.toISOString(),
     updated_at: row.updatedAt.toISOString(),
   };

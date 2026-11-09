@@ -231,6 +231,48 @@ async function handleRoundRobin(payload: JsonRecord) {
   await patchConversa(session, conversationId, { assignee_user_id: next });
 }
 
+async function handleBalanced(payload: JsonRecord) {
+  const { pickBalancedAssignee } = await import("../crm/assignment");
+  const { systemSession } = await import("../crm/actions-runner");
+  const { patchConversa } = await import("../crm/conversations");
+  const tenantId = String(payload.tenant_id ?? "");
+  const conversationId = String(payload.conversation_id ?? "");
+  const conv = await db.conversation.findFirst({
+    where: { id: conversationId, tenantId },
+  });
+  if (!conv || conv.assigneeUserId) return;
+  const next = await pickBalancedAssignee({ tenantId, inboxId: conv.inboxId });
+  if (!next) return;
+  const session = systemSession(tenantId, next);
+  await patchConversa(session, conversationId, { assignee_user_id: next });
+}
+
+async function handleSlaEvaluate(payload: JsonRecord) {
+  const { evaluateSla } = await import("../crm/sla");
+  await evaluateSla({
+    tenant_id: String(payload.tenant_id ?? ""),
+    conversation_id: payload.conversation_id
+      ? String(payload.conversation_id)
+      : undefined,
+  });
+}
+
+async function handleDnsVerifyPortal(payload: JsonRecord) {
+  const { dnsVerifyPort } = await import("./dns-verify");
+  const portalId = String(payload.portal_id ?? "");
+  const domain = String(payload.domain ?? "");
+  const token = String(payload.token ?? "");
+  const tenantId = String(payload.tenant_id ?? "");
+  if (!portalId || !domain || !token) return;
+  const result = await dnsVerifyPort.verifyTxt({ domain, expectedToken: token });
+  if (result.verified) {
+    await db.portal.updateMany({
+      where: { id: portalId, tenantId },
+      data: { customDomainVerified: true },
+    });
+  }
+}
+
 async function handleJob(kind: string, payload: unknown, tenantId: string): Promise<void> {
   const p = {
     ...((payload && typeof payload === "object" ? payload : {}) as JsonRecord),
@@ -272,6 +314,28 @@ async function handleJob(kind: string, payload: unknown, tenantId: string): Prom
       return;
     case "assignment.round_robin":
       await handleRoundRobin(p);
+      return;
+    case "assignment.balanced":
+      await handleBalanced(p);
+      return;
+    case "sla.evaluate":
+      await handleSlaEvaluate(p);
+      return;
+    case "integration.deliver":
+      // Stub no-op — no unpaid Slack/Linear/… HTTP.
+      return;
+    case "audit.prune": {
+      const { pruneAudit } = await import("../crm/audit");
+      const payload = p as { tenant_id?: string; days?: number };
+      await pruneAudit(String(payload.tenant_id ?? tenantId), Number(payload.days ?? 90));
+      return;
+    }
+    case "dns.verify_portal_domain":
+      await handleDnsVerifyPortal(p);
+      return;
+    case "captain.suggest":
+    case "captain.monitor_scan":
+      // Optional — MVP suggest runs inline on POST.
       return;
     case "push.notify": {
       const { handlePushNotify } = await import("../crm/push");

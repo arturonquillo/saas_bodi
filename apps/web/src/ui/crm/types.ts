@@ -336,3 +336,134 @@ export type CrmImportBatchDto = {
   };
   last_error?: string | null;
 };
+
+/** Phase C — campaigns, help center, reports */
+
+export type CampaignKind = "one_off" | "ongoing";
+export type CampaignStatus = "draft" | "scheduled" | "active" | "completed" | "cancelled";
+export type CampaignChannel = "whatsapp" | "sms";
+export type CampaignDisplayStatus = "awaiting_widget" | "ready";
+export type CampaignRecipientStatus = "pendente" | "enviado" | "falha" | "omitido";
+
+export type CrmCampaignDto = {
+  id: string;
+  title: string;
+  description?: string | null;
+  kind: CampaignKind | string;
+  status: CampaignStatus | string;
+  inbox_id?: string | null;
+  channel: CampaignChannel | string;
+  audience_label_ids: string[];
+  template_key?: string | null;
+  message?: string | null;
+  scheduled_at?: string | null;
+  display_status?: CampaignDisplayStatus | string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+  created_by_user_id?: string | null;
+  stats?: {
+    targeted?: number;
+    enviado?: number;
+    falha?: number;
+  } | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type CrmCampaignRecipientDto = {
+  id: string;
+  campaign_id: string;
+  contact_id: string;
+  contact_nome?: string | null;
+  status: CampaignRecipientStatus | string;
+  outbox_id?: string | null;
+  error?: string | null;
+  updated_at?: string;
+};
+
+export type ArticleStatus = "draft" | "published" | "archived";
+
+export type CrmPortalDto = {
+  id: string;
+  name: string;
+  slug: string;
+  header_text?: string | null;
+  homepage_md?: string | null;
+  locale: string;
+  enabled: boolean;
+  custom_domain?: string | null;
+  updated_at?: string;
+};
+
+export type CrmHelpCategoryDto = {
+  id: string;
+  portal_id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  position: number;
+  parent_category_id?: string | null;
+  published_article_count?: number;
+};
+
+export type CrmHelpArticleDto = {
+  id: string;
+  portal_id: string;
+  category_id: string;
+  title: string;
+  slug: string;
+  content_md: string;
+  content_html?: string | null;
+  status: ArticleStatus | string;
+  author_user_id?: string | null;
+  published_at?: string | null;
+  position?: number | null;
+  updated_at?: string;
+};
+
+export type PublicHelpPortalDto = {
+  name: string;
+  slug: string;
+  header_text?: string | null;
+  homepage_md?: string | null;
+  locale: string;
+};
+
+export type PublicHelpCategoryDto = {
+  name: string;
+  slug: string;
+  description?: string | null;
+  position: number;
+  published_article_count: number;
+};
+
+export type PublicHelpArticleListDto = {
+  title: string;
+  slug: string;
+  category_slug?: string | null;
+  category_name?: string | null;
+  published_at?: string | null;
+};
+
+export type PublicHelpArticleDto = {
+  title: string;
+  slug: string;
+  content_md?: string | null;
+  content_html?: string | null;
+  category_slug?: string | null;
+  category_name?: string | null;
+  published_at?: string | null;
+};
+
+export type ReportSeriesPoint = {
+  date: string;
+  value?: number;
+  [key: string]: string | number | null | undefined;
+};
+
+export type CrmReportDto = {
+  series: ReportSeriesPoint[];
+  totals: Record<string, number | string | null>;
+  generated_at: string;
+  rows?: Array<Record<string, string | number | null>>;
+};

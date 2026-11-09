@@ -1,6 +1,7 @@
 import {
   BarChart3,
   Bell,
+  BookOpen,
   Bot,
   Building2,
   ClipboardList,
@@ -10,6 +11,7 @@ import {
   Filter,
   Inbox,
   ListChecks,
+  Megaphone,
   MessageSquareText,
   Package,
   Palette,
@@ -54,6 +56,8 @@ const icons = {
   atribuicao: Shuffle,
   csat: Star,
   filtros: Filter,
+  campanhas: Megaphone,
+  ajuda: BookOpen,
 } as const;
 
 export function NavIcon({ name }: { name: NavIconName }) {

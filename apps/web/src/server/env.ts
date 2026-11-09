@@ -25,4 +25,8 @@ export const env = {
   defaultTenantSlug: process.env.NEXT_PUBLIC_DEFAULT_TENANT_SLUG ?? "casa-dos-frios",
   cnpjRegistryEnabled: process.env.CNPJ_REGISTRY_ENABLED === "true",
   whatsappInboxMode: process.env.WHATSAPP_INBOX_MODE ?? "simulate",
+  /** base64 32-byte key — AES-256-GCM for WA channel secrets */
+  credentialsEncryptionKey:
+    process.env.CREDENTIALS_ENCRYPTION_KEY ??
+    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
 };

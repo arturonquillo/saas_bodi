@@ -1,79 +1,93 @@
 import type { WhatsappIntent } from "@saas-frota/shared";
 import type { SessionContext } from "../authz/session";
 import { assertSaasRole } from "../authz/gates";
+import {
+  getConversa,
+  listConversas,
+  listMensagens,
+  patchConversa,
+  simularInbound,
+} from "../crm/conversations";
 import { db } from "../db";
-import { decodeCursor, encodeCursor, parsePaging } from "../http/pagination";
 import { ApiError } from "../http/respond";
-import { whatsappInboxSimulatePort } from "../ports/whatsapp-inbox";
+import { whatsappInboxSimulatePort } from "../ports/channel";
 
-function threadDto(row: {
+const INTENT_FROM_LABEL: Record<string, WhatsappIntent> = {
+  "intent:cadastro": "cadastro",
+  "intent:orcamento": "orcamento",
+  "intent:info_empresa": "info_empresa",
+  "intent:outro": "outro",
+};
+
+const INTENT_TO_LABEL: Record<WhatsappIntent, string> = {
+  cadastro: "intent:cadastro",
+  orcamento: "intent:orcamento",
+  info_empresa: "intent:info_empresa",
+  outro: "intent:outro",
+};
+
+function legacyStatus(status: string): "aberta" | "arquivada" {
+  return status === "resolved" ? "arquivada" : "aberta";
+}
+
+function legacyDirection(messageType: string, isPrivate: boolean): string {
+  if (messageType === "incoming") return "inbound";
+  if (isPrivate) return "outbound_note";
+  return "outbound_note";
+}
+
+/** Deprecated: maps Conversation → legacy inbox thread DTO for one-release dual-read. */
+function threadDtoFromConversation(conv: Awaited<ReturnType<typeof getConversa>>, messages?: Array<{
   id: string;
-  phoneE164: string;
-  intent: string | null;
-  clienteId: string | null;
-  cadastroRequestId: string | null;
-  orcamentoId: string | null;
-  status: string;
-  createdAt: Date;
-  updatedAt: Date;
-  messages?: Array<{
-    id: string;
-    direction: string;
-    body: string;
-    simulated: boolean;
-    createdAt: Date;
-  }>;
-}) {
+  message_type: string;
+  private: boolean;
+  content: string;
+  simulated: boolean;
+  created_at: string;
+}>) {
+  const intentLabel = conv.labels?.find((l) => l.title.startsWith("intent:"))?.title;
   return {
-    id: row.id,
-    phone_e164: row.phoneE164,
-    intent: row.intent,
-    cliente_id: row.clienteId,
-    cadastro_request_id: row.cadastroRequestId,
-    orcamento_id: row.orcamentoId,
-    status: row.status,
-    created_at: row.createdAt.toISOString(),
-    updated_at: row.updatedAt.toISOString(),
-    messages: (row.messages ?? []).map((m) => ({
+    id: conv.id,
+    phone_e164: conv.contact?.phone_e164 ?? "",
+    intent: intentLabel ? (INTENT_FROM_LABEL[intentLabel] ?? null) : null,
+    cliente_id: conv.cliente_id,
+    cadastro_request_id: conv.cadastro_request_id,
+    orcamento_id: conv.orcamento_id,
+    status: legacyStatus(conv.status),
+    created_at: conv.created_at,
+    updated_at: conv.updated_at,
+    deprecated: true,
+    crm_conversation_id: conv.id,
+    messages: (messages ?? []).map((m) => ({
       id: m.id,
-      direction: m.direction,
-      body: m.body,
+      direction: legacyDirection(m.message_type, m.private),
+      body: m.content,
       simulated: m.simulated,
-      created_at: m.createdAt.toISOString(),
+      created_at: m.created_at,
     })),
   };
 }
 
 export async function listInbox(session: SessionContext, url: URL) {
   assertSaasRole(session, "admin", "vendedor");
-  const { limit, cursor } = parsePaging(url);
-  const decoded = decodeCursor(cursor);
-  const rows = await db.whatsappThread.findMany({
-    where: {
-      tenantId: session.tenantId,
-      ...(decoded ? { id: { gt: decoded[0] } } : {}),
-    },
-    include: {
-      messages: { orderBy: { createdAt: "desc" }, take: 1 },
-    },
-    orderBy: { id: "asc" },
-    take: limit + 1,
-  });
-  const page = rows.slice(0, limit);
+  const page = await listConversas(session, url);
   return {
-    items: page.map(threadDto),
-    next_cursor: rows.length > limit ? encodeCursor([page[page.length - 1]!.id]) : null,
+    items: page.items.map((c) => threadDtoFromConversation(c)),
+    next_cursor: page.next_cursor,
+    deprecated: true,
+    migrate_to: "/api/saas/crm/conversas",
   };
 }
 
 export async function getInboxThread(session: SessionContext, threadId: string) {
   assertSaasRole(session, "admin", "vendedor");
-  const row = await db.whatsappThread.findFirst({
-    where: { id: threadId, tenantId: session.tenantId },
-    include: { messages: { orderBy: { createdAt: "asc" } } },
-  });
-  if (!row) throw new ApiError("nao_encontrado", "Não encontrado.");
-  return threadDto(row);
+  const conv = await getConversa(session, threadId);
+  const msgs = await listMensagens(
+    session,
+    threadId,
+    new URL("http://localhost/?limit=100"),
+  );
+  return threadDtoFromConversation(conv, msgs.items);
 }
 
 export async function patchInboxThread(
@@ -88,41 +102,22 @@ export async function patchInboxThread(
   },
 ) {
   assertSaasRole(session, "admin", "vendedor");
-  const row = await db.whatsappThread.findFirst({
-    where: { id: threadId, tenantId: session.tenantId },
+  await patchConversa(session, threadId, {
+    status: input.status === "arquivada" ? "resolved" : input.status === "aberta" ? "open" : undefined,
+    cliente_id: input.cliente_id,
+    cadastro_request_id: input.cadastro_request_id,
+    orcamento_id: input.orcamento_id,
   });
-  if (!row) throw new ApiError("nao_encontrado", "Não encontrado.");
-
-  if (input.cliente_id) {
-    const c = await db.cliente.findFirst({
-      where: { id: input.cliente_id, tenantId: session.tenantId },
+  if (input.intent) {
+    const labelTitle = INTENT_TO_LABEL[input.intent];
+    const label = await db.label.findUnique({
+      where: { tenantId_title: { tenantId: session.tenantId, title: labelTitle } },
     });
-    if (!c) throw new ApiError("nao_encontrado", "Não encontrado.");
+    if (label) {
+      const { setConversationLabels } = await import("../crm/conversations");
+      await setConversationLabels(session, threadId, [label.id], "add");
+    }
   }
-  if (input.cadastro_request_id) {
-    const c = await db.cadastroRequest.findFirst({
-      where: { id: input.cadastro_request_id, tenantId: session.tenantId },
-    });
-    if (!c) throw new ApiError("nao_encontrado", "Não encontrado.");
-  }
-  if (input.orcamento_id) {
-    const o = await db.orcamento.findFirst({
-      where: { id: input.orcamento_id, tenantId: session.tenantId },
-    });
-    if (!o) throw new ApiError("nao_encontrado", "Não encontrado.");
-  }
-
-  await db.whatsappThread.update({
-    where: { id: threadId },
-    data: {
-      intent: input.intent === undefined ? undefined : input.intent,
-      status: input.status,
-      clienteId: input.cliente_id === undefined ? undefined : input.cliente_id,
-      cadastroRequestId:
-        input.cadastro_request_id === undefined ? undefined : input.cadastro_request_id,
-      orcamentoId: input.orcamento_id === undefined ? undefined : input.orcamento_id,
-    },
-  });
   return getInboxThread(session, threadId);
 }
 
@@ -135,16 +130,12 @@ export async function simulateInbound(
   },
 ) {
   assertSaasRole(session, "admin");
-  if (!input.phone_e164.trim() || !input.body.trim()) {
-    throw new ApiError("validacao", "Telefone e mensagem são obrigatórios.");
-  }
-  const result = await whatsappInboxSimulatePort.ingestInbound({
-    tenantId: session.tenantId,
-    phoneE164: input.phone_e164.trim(),
-    body: input.body.trim(),
-    intentHint: input.intent_hint,
+  const conv = await simularInbound(session, {
+    phone_e164: input.phone_e164,
+    body: input.body,
+    intent_label: input.intent_hint ? (INTENT_TO_LABEL[input.intent_hint] as never) : undefined,
   });
-  return getInboxThread(session, result.threadId);
+  return getInboxThread(session, conv.id);
 }
 
 export async function lojaWhatsappCta(input: {
@@ -168,6 +159,7 @@ export async function lojaWhatsappCta(input: {
   });
   return {
     thread_id: result.threadId,
+    conversation_id: result.threadId,
     message_id: result.messageId,
     whatsapp_comercial: tenant.whatsappComercial,
   };

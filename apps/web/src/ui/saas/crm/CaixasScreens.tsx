@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -100,6 +100,10 @@ export function CaixasListScreen() {
 
 export function CaixaDetailScreen() {
   const { id } = useParams<{ id: string }>();
+  const pathname = usePathname();
+  const router = useRouter();
+  const onCanalRoute = Boolean(pathname?.endsWith("/canal"));
+  const [activeTab, setActiveTab] = useState(onCanalRoute ? "canal" : "geral");
   const [inbox, setInbox] = useState<CrmInboxDto | null>(null);
   const [channel, setChannel] = useState<CrmChannelDto | null>(null);
   const [templates, setTemplates] = useState<CrmTemplateDto[]>([]);
@@ -113,6 +117,11 @@ export function CaixaDetailScreen() {
     allow_auto_assign: false,
     lock_to_single_conversation: false,
   });
+
+  useEffect(() => {
+    if (onCanalRoute) setActiveTab("canal");
+    else setActiveTab((t) => (t === "canal" ? "geral" : t));
+  }, [onCanalRoute]);
 
   const load = useCallback(async () => {
     setStatus("loading");
@@ -273,7 +282,17 @@ export function CaixaDetailScreen() {
         </BreadcrumbList>
       </Breadcrumb>
 
-      <Tabs defaultValue="geral">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => {
+          setActiveTab(value);
+          if (value === "canal") {
+            router.replace(`/saas/crm/caixas/${id}/canal`);
+          } else if (onCanalRoute) {
+            router.replace(`/saas/crm/caixas/${id}`);
+          }
+        }}
+      >
         <TabsList>
           <TabsTrigger value="geral">Geral</TabsTrigger>
           <TabsTrigger value="membros">{COPY.crm.caixa_members}</TabsTrigger>

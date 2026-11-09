@@ -23,6 +23,7 @@ export type TestWorld = {
   };
   clienteId: string;
   cadastroPendenteId: string;
+  inboxId: string;
   skus: {
     visivel: string;
     oculto: string;
@@ -241,7 +242,55 @@ export async function createWorld(label: string): Promise<TestWorld> {
     ],
   });
 
-  return { tenantId, slug, users, clienteId, cadastroPendenteId, skus };
+  // Minimal CRM desk for simulate/visibility tests
+  const inboxId = newId("inx");
+  await db.inbox.create({
+    data: {
+      id: inboxId,
+      tenantId,
+      name: "WhatsApp",
+      channelType: "whatsapp",
+    },
+  });
+  await db.channelWhatsapp.create({
+    data: {
+      id: newId("chw"),
+      tenantId,
+      inboxId,
+      connectionStatus: "ready_stub",
+      messageTemplatesJson: "[]",
+    },
+  });
+  await db.inboxMember.createMany({
+    data: [
+      { id: newId("inm"), tenantId, inboxId, userId: users.admin },
+      { id: newId("inm"), tenantId, inboxId, userId: users.vendedor },
+    ],
+  });
+  for (const title of [
+    "intent:cadastro",
+    "intent:orcamento",
+    "intent:info_empresa",
+    "intent:outro",
+  ]) {
+    await db.label.create({
+      data: {
+        id: newId("lbl"),
+        tenantId,
+        title,
+        color: "#1F5C6B",
+        system: true,
+      },
+    });
+  }
+  await db.agentNotificationSetting.createMany({
+    data: [
+      { id: newId("ans"), tenantId, userId: users.admin },
+      { id: newId("ans"), tenantId, userId: users.vendedor },
+    ],
+  });
+
+  return { tenantId, slug, users, clienteId, cadastroPendenteId, skus, inboxId };
 }
 
 export async function destroyWorld(world: TestWorld) {

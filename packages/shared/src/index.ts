@@ -1,4 +1,5 @@
 export * from "./api";
+export * from "./crm";
 export * from "./documents";
 export * from "./errors";
 export * from "./inventory";

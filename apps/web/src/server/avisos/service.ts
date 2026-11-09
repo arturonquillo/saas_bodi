@@ -10,6 +10,8 @@ export async function listAvisos(session: SessionContext, url: URL) {
   const rows = await db.notificationOutbox.findMany({
     where: {
       tenantId: session.tenantId,
+      // Commerce UX: treat null-era rows as commerce via default; filter category.
+      category: "commerce",
       ...(decoded ? { id: { gt: decoded[0] } } : {}),
     },
     orderBy: { id: "asc" },

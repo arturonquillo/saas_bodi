@@ -44,9 +44,36 @@ describe("seed contract casa-dos-frios", () => {
     expect(balPicanha.reserved).toBe(5);
     expect(availableQty(balEsg.onHand, balEsg.reserved)).toBe(0);
 
-    const intents = await db.whatsappThread.findMany({ where: { tenantId: tenant.id } });
-    expect(intents.map((t) => t.intent)).toEqual(
-      expect.arrayContaining(["cadastro", "orcamento", "info_empresa"]),
+    const inbox = await db.inbox.findFirst({
+      where: { tenantId: tenant.id, channelType: "whatsapp" },
+      include: { channelWhatsapp: true },
+    });
+    expect(inbox).toBeTruthy();
+    expect(inbox?.channelWhatsapp?.connectionStatus).toMatch(/ready_stub|credentials_saved/);
+    expect(inbox?.channelWhatsapp?.secretsCiphertext).toBeTruthy();
+
+    const labels = await db.label.findMany({ where: { tenantId: tenant.id, system: true } });
+    expect(labels.map((l) => l.title)).toEqual(
+      expect.arrayContaining([
+        "intent:cadastro",
+        "intent:orcamento",
+        "intent:info_empresa",
+        "intent:outro",
+      ]),
+    );
+
+    const conversations = await db.conversation.findMany({
+      where: { tenantId: tenant.id },
+      include: { labels: { include: { label: true } } },
+    });
+    const intentTitles = conversations.flatMap((c) => c.labels.map((l) => l.label.title));
+    expect(intentTitles).toEqual(
+      expect.arrayContaining(["intent:cadastro", "intent:orcamento", "intent:info_empresa"]),
+    );
+    expect(await db.contact.count({ where: { tenantId: tenant.id } })).toBeGreaterThanOrEqual(3);
+    expect(await db.company.count({ where: { tenantId: tenant.id } })).toBeGreaterThanOrEqual(1);
+    expect(await db.cannedResponse.count({ where: { tenantId: tenant.id } })).toBeGreaterThanOrEqual(
+      1,
     );
 
     const orc = await db.orcamento.findFirst({

@@ -81,10 +81,10 @@ Hero may use `--color-background` as atmospheric wash — not the whole page tok
 npx shadcn@latest add button input label textarea select checkbox switch \
   form table badge alert alert-dialog dialog sheet dropdown-menu \
   sidebar breadcrumb tabs separator skeleton sonner avatar scroll-area \
-  card tooltip popover navigation-menu
+  card tooltip popover navigation-menu command
 ```
 
-Add only if a screen needs it: `command` (SKU search), `calendar` + `popover` (valido_ate).
+CRM Phase A **requires** `command` (global search + canned `/shortcode` in composer). Also add if needed: `calendar` + `popover` (snooze / `valido_ate`).
 
 ---
 
@@ -104,15 +104,17 @@ Add only if a screen needs it: `command` (SKU search), `calendar` + `popover` (v
 | Sheet | Mobile nav / cart | Mobile nav, optional thread | |
 | Sidebar | — | App shell | |
 | Breadcrumb | PDP | Doc detail | |
-| Tabs | Meus docs (orçamentos/pedidos) | Optional doc family | |
-| Card | Product tile, auth panel | KPI strip only if used | **Not** SaaS lists |
-| Skeleton | Catalog, PDP | Tables, inbox | |
+| Tabs | Meus docs (orçamentos/pedidos) | Optional doc family; Caixa/canal | |
+| Card | Product tile, auth panel | CRM list/settings only — **not** Conversas panes | |
+| Skeleton | Catalog, PDP | Tables, Conversas panes | |
 | Sonner | Cart, success | Transitions optional | |
 | Separator | Header/footer | Sidebar groups | |
-| Avatar | — | Optional thread initials | |
-| ScrollArea | — | Inbox message pane | |
-| DropdownMenu | Account menu | Row actions | |
-| Tooltip | — | Truncated cells | |
+| Avatar | — | Contact / agent initials | |
+| ScrollArea | — | Conversas panes / message stream | |
+| DropdownMenu | Account menu | Row actions, thread more, notifications | |
+| Tooltip | — | Truncated cells, stub nav, system labels | |
+| Command | — | Global search + canned shortcodes | CRM Phase A |
+| Popover | — | Notifications, snooze, label picker | |
 | NavigationMenu | Optional header | — | Prefer simple links |
 
 ---
@@ -143,9 +145,13 @@ Same pattern as Loja auth; marca wordmark; no Loja links.
 
 `SidebarProvider` + `Sidebar` + main. Admin group separated by `Separator`.
 
-### Inbox
+### Conversas (CRM Phase A)
 
-`ScrollArea` thread list + detail; message bubbles (Tailwind); intent `Select`; admin `Dialog` Simular; `Badge` intents.
+Full-bleed three-pane (no outer `Card`): filter `ScrollArea` + list `ScrollArea` + thread (`ScrollArea` messages + composer) + context rail. `Select` status/priority/assign; `Badge` status/labels; `DropdownMenu` more/bulk; admin `Dialog` Simular; `Command` for `/` canned; private note toggle; commerce `Button` links. Details: [`crm-desk.md`](./crm-desk.md).
+
+### Contatos / Empresas / Labels / Equipes / Respostas / Caixas
+
+`SaasPage` + `Card` list rows (starter rhythm) or `Table` inside Card; `Dialog` create/edit; `AlertDialog` delete; canal page `Tabs` + `Alert` stub honesty + masked secrets `Input`.
 
 ### Cadastros
 
@@ -171,28 +177,33 @@ Form color `Input`s + logo field + live preview iframe/panel + `Button Salvar` +
 
 `Table` read-only: data, canal, status Badge, template, doc id.
 
+### Relatórios stub (Phase C placeholder)
+
+`SaasPage` + `Alert` only — no charts.
+
 ---
 
 ## 6. Status Badge mapping
 
 | Tone | Badge approach |
 |---|---|
-| muted / rascunho | `secondary` |
-| primary outline / enviado / confirmado | `outline` or default |
-| warning / pendente / em_separacao / expirado | class with `--color-warning` |
-| success / aprovado / aceito / entregue / faturado | class with `--color-success` |
-| danger / cancelado / recusado | `destructive` |
+| muted / rascunho / snoozed | `secondary` |
+| primary outline / enviado / confirmado / open | `outline` or default |
+| warning / pendente / pending / em_separacao / expirado / credentials_saved | class with `--color-warning` |
+| success / aprovado / aceito / entregue / faturado / resolved / ready_stub | class with `--color-success` |
+| danger / cancelado / recusado / priority urgent | `destructive` |
 | accent / despachado | class with `--brand-accent` |
 
-Always include the pt-BR label text.
+Always include the pt-BR label text. Conversation statuses: Aberta · Pendente · Adiada · Resolvida.
 
 ---
 
 ## 7. What frontend must not improvise
 
-- Custom button/input/table CSS kit.
-- Cards wrapping every SaaS table.
+- Custom button/input/table CSS kit or Chatwoot-cloned non-shadcn desk.
+- Cards wrapping Conversas panes or every SaaS table.
 - Tenant accent → shadcn `--accent`.
 - Account chrome components.
-- Extra routes not in [`overview.md`](./overview.md).
+- Extra routes not in [`overview.md`](./overview.md) / [`crm-desk.md`](./crm-desk.md).
 - Color-only status.
+- Connection status `live` control in Phase A.

@@ -49,8 +49,16 @@ No guest checkout. No payments. No SaaS link. No Account link.
 | Screen | Route (conceptual) | Roles |
 |---|---|---|
 | Entrar | `/saas/entrar` | Workers |
-| Inbox WhatsApp | `/saas/inbox` | admin, vendedor |
-| Thread | `/saas/inbox/:id` | admin, vendedor |
+| **Conversas** (CRM desk) | `/saas/conversas` · `/saas/conversas/:id` | admin, vendedor |
+| Contatos | `/saas/contatos` · `/saas/contatos/:id` | admin, vendedor |
+| Empresas | `/saas/empresas` · `/saas/empresas/:id` | admin, vendedor |
+| Labels | `/saas/crm/labels` | admin, vendedor |
+| Equipes | `/saas/crm/equipes` | **admin** |
+| Respostas rápidas | `/saas/crm/respostas-rapidas` | admin, vendedor |
+| Caixas de entrada | `/saas/crm/caixas` · `…/:id` · `…/canal` | **admin** |
+| Notificações / preferências | header + `/saas/crm/notificacoes` | self |
+| Perfil agente | `/saas/crm/perfil` | self |
+| Relatórios (Phase C stub) | `/saas/crm/relatorios` | **admin** placeholder |
 | Cadastros | `/saas/cadastros` | admin, vendedor |
 | Cadastro detail | `/saas/cadastros/:id` | admin, vendedor |
 | Orçamentos | `/saas/orcamentos` | admin, vendedor |
@@ -64,8 +72,10 @@ No guest checkout. No payments. No SaaS link. No Account link.
 | Usuários | `/saas/usuarios` | **admin only** |
 | Tema | `/saas/tema` | **admin only** |
 | Configuração | `/saas/configuracao` | **admin only** |
-| Simular WhatsApp | `/saas/inbox` (tool) | **admin only** |
-| Avisos (outbox) | `/saas/avisos` | admin, vendedor |
+| Simular WhatsApp | Conversas tool / Dialog | **admin only** |
+| Avisos (commerce outbox) | `/saas/avisos` | admin, vendedor |
+
+Legacy `/saas/inbox` → redirect `/saas/conversas`. Full CRM desk UX: [`crm-desk.md`](./crm-desk.md).
 
 No Account, no AI chat, no estoquista/entregador modules.
 
@@ -88,13 +98,18 @@ Hide what the API denies. Do not show disabled admin items to vendedor.
 
 ### Admin
 
-`Inbox` · `Cadastros` · `Orçamentos` · `Pedidos` · `Vendas` · `Estoque` · `Usuários` · `Tema` · `Configuração` · `Avisos` · Sair
+**CRM:** `Conversas` · `Contatos` · `Empresas` · `Labels` · `Equipes` · `Respostas rápidas` · `Caixas` · (opt) `Relatórios` stub  
+**Comércio:** `Cadastros` · `Orçamentos` · `Pedidos` · `Vendas` · `Estoque` · `Avisos`  
+**Admin:** `Usuários` · `Tema` · `Configuração` · Sair  
+Header: notificações + disponibilidade.
 
 ### Vendedor
 
-`Inbox` · `Cadastros` · `Orçamentos` · `Pedidos` · `Vendas` · `Estoque` (read) · `Avisos` · Sair
+**CRM:** `Conversas` · `Contatos` · `Empresas` · `Labels` · `Respostas rápidas`  
+**Comércio:** `Cadastros` · `Orçamentos` · `Pedidos` · `Vendas` · `Estoque` (read) · `Avisos` · Sair  
+Header: notificações + disponibilidade. Sem Caixas / Equipes / Canal.
 
-Home after login: **Inbox** (CRM-first).
+Home after login: **Conversas** (CRM-first).
 
 ## Chrome rules
 

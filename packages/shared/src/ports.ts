@@ -1,4 +1,4 @@
-import type { SystemIntentLabel } from "./crm";
+import type { CaptainMode, SystemIntentLabel } from "./crm";
 
 export type CnpjRegistryResult =
   | { ok: true; razaoSocial: string }
@@ -82,4 +82,43 @@ export type JobWorkerPort = {
 
 export type UrlEgressGuardPort = {
   assertSafeHttpsUrl: (url: string) => Promise<{ href: string; hostname: string }>;
+};
+
+/** Phase E — Captain AI (stub by default; live only with unlock + key). */
+export type CaptainAiPort = {
+  suggest: (input: {
+    tenantId: string;
+    conversationId: string;
+    mode: CaptainMode;
+    assistantId?: string;
+    promptStub?: string;
+  }) => Promise<{ proposal: unknown; provider: "stub" | "live" }>;
+};
+
+export type SamlAuthPort = {
+  getSpMetadata: (tenantId: string) => Promise<string>;
+  validateAssertion: (input: {
+    tenantId: string;
+    rawSamlResponse: string;
+  }) => Promise<{ ok: true; nameId: string; email?: string } | { ok: false; reason: string }>;
+};
+
+export type MfaPort = {
+  enroll: (userId: string) => Promise<{ secret: string; otpauthUri: string }>;
+  verify: (userId: string, code: string) => Promise<boolean>;
+  disable: (userId: string) => Promise<void>;
+};
+
+export type DnsVerifyPort = {
+  verifyTxt: (input: {
+    domain: string;
+    expectedToken: string;
+  }) => Promise<{ verified: boolean; skipped?: "no_provider" }>;
+};
+
+export type IntegrationConnectPort = {
+  test: (input: {
+    tenantId: string;
+    provider: string;
+  }) => Promise<{ ok: boolean; stub: true }>;
 };

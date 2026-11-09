@@ -7,6 +7,7 @@ import { fail, handleError, ok } from "@/server/http/respond";
 const schema = z.object({
   ativo: z.boolean().optional(),
   saas_role: z.enum(["admin", "vendedor"]).optional(),
+  custom_role_id: z.string().nullable().optional(),
 });
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {

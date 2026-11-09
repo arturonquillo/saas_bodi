@@ -14,7 +14,9 @@ Replace the old `saas_frota` dual-channel commerce MVP framing with a **CRM-firs
 
 **In:** SaaS foundation; WhatsApp CRM inbox (stub/simulated); cadastro; Orçamento → Pedido → Venda/Faturamento; loja pública; seed Casa dos Frios; pt-BR + LGPD.
 
-**Out:** Account billing site; Meta API; NF-e/PIX; native app; estoquista/entregador; AI stock chat; varejo/CPF.
+**Out of MVP (tracked):** Account billing; live Meta API; NF-e/PIX; native app; estoquista/entregador; AI stock chat; varejo/CPF.
+
+**Post-MVP product commitment:** full **Chatwoot feature parity** evolving the simulated inbox — see `docs/product/chatwoot-parity.md`. WhatsApp remains **listo para conectar** (config/UI/contracts) without live Meta until unlocked.
 
 ## UX surfaces
 
@@ -41,4 +43,4 @@ See `mvp-acceptance.md`. Demo seed `casa-dos-frios` in one sitting.
 - frontend / backend: implement against contracts (after this brief).
 - qa: acceptance sign-off.
 
-Full detail: `spec.md`, `mvp.md`.
+Full detail: `spec.md`, `mvp.md`. CRM desk roadmap: `chatwoot-parity.md`.

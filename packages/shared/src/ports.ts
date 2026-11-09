@@ -8,7 +8,7 @@ export type CnpjRegistryPort = {
   lookup: (cnpjDigits: string) => Promise<CnpjRegistryResult>;
 };
 
-export type OutboxChannel = "email" | "whatsapp";
+export type OutboxChannel = "email" | "whatsapp" | "sms";
 
 export type OutboxTransportPort = {
   send: (row: {
@@ -18,6 +18,16 @@ export type OutboxTransportPort = {
     templateKey: string;
     payload: unknown;
   }) => Promise<void>;
+};
+
+/** Phase C — campaign blast via stub outbox only (no Meta/Twilio). */
+export type CampaignSendPort = {
+  enqueueBatch: (input: {
+    tenantId: string;
+    campaignId: string;
+    cursor?: string;
+    limit: number;
+  }) => Promise<{ processed: number; done: boolean; nextCursor?: string }>;
 };
 
 /** @deprecated Prefer ChannelSimulateInboundPort — kept for migration callers. */

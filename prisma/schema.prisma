@@ -89,6 +89,7 @@ enum MovementType {
 enum OutboxChannel {
   email
   whatsapp
+  sms
 }
 
 enum OutboxRecipientRole {
@@ -239,6 +240,11 @@ model Tenant {
   csatResponses         CsatResponse[]
   customFilters         CustomFilter[]
   contactImportBatches  ContactImportBatch[]
+  campaigns             Campaign[]
+  campaignRecipients    CampaignRecipient[]
+  portals               Portal[]
+  helpCategories        HelpCategory[]
+  articles              Article[]
 
   @@map("tenants")
 }
@@ -293,6 +299,8 @@ model User {
   contactImportBatches   ContactImportBatch[]      @relation("ImportBatchCreator")
   assignmentPolicyCursor AssignmentPolicy[]        @relation("AssignmentPolicyCursor")
   csatAssigned           CsatResponse[]            @relation("CsatAssignedAgent")
+  campaignsCreated       Campaign[]                @relation("CampaignCreator")
+  articlesAuthored       Article[]                 @relation("ArticleAuthor")
 
   @@map("users")
 }
@@ -395,6 +403,7 @@ model Contact {
   primaryForClientes Cliente[]     @relation("ClientePrimaryContact")
   cadastrosLinked CadastroRequest[] @relation("CadastroContact")
   csatResponses   CsatResponse[]
+  campaignRecipients CampaignRecipient[]
 
   @@index([tenantId, phoneE164])
   @@index([tenantId, email])
@@ -478,6 +487,7 @@ model Inbox {
   agentBotInboxes AgentBotInbox[]
   webhooks        Webhook[]
   csatResponses   CsatResponse[]
+  campaigns       Campaign[]
 
   @@index([tenantId, channelType])
   @@map("inboxes")
@@ -993,6 +1003,126 @@ model ContactImportBatch {
   @@map("contact_import_batches")
 }
 
+model Campaign {
+  id                   String    @id
+  tenantId             String    @map("tenant_id")
+  title                String
+  description          String?
+  kind                 String
+  status               String    @default("draft")
+  inboxId              String?   @map("inbox_id")
+  channel              String    @default("whatsapp")
+  audienceLabelIdsJson String    @default("[]") @map("audience_label_ids_json")
+  templateKey          String?   @map("template_key")
+  message              String?
+  scheduledAt          DateTime? @map("scheduled_at")
+  displayStatus        String?   @map("display_status")
+  startedAt            DateTime? @map("started_at")
+  completedAt          DateTime? @map("completed_at")
+  createdByUserId      String    @map("created_by_user_id")
+  statsJson            String?   @map("stats_json")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  tenant     Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inbox      Inbox?              @relation(fields: [inboxId], references: [id], onDelete: SetNull)
+  createdBy  User                @relation("CampaignCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  recipients CampaignRecipient[]
+  outbox     NotificationOutbox[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, kind])
+  @@map("campaigns")
+}
+
+model CampaignRecipient {
+  id         String  @id
+  tenantId   String  @map("tenant_id")
+  campaignId String  @map("campaign_id")
+  contactId  String  @map("contact_id")
+  status     String  @default("pendente")
+  outboxId   String? @map("outbox_id")
+  error      String?
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact  Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, contactId])
+  @@index([tenantId, campaignId, status])
+  @@map("campaign_recipients")
+}
+
+model Portal {
+  id          String   @id
+  tenantId    String   @map("tenant_id")
+  name        String
+  slug        String
+  headerText  String?  @map("header_text")
+  homepageMd  String?  @map("homepage_md")
+  locale      String   @default("pt-BR")
+  enabled     Boolean  @default(true)
+  customDomain String? @map("custom_domain")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant     Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  categories HelpCategory[]
+  articles   Article[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, enabled])
+  @@map("portals")
+}
+
+model HelpCategory {
+  id               String  @id
+  tenantId         String  @map("tenant_id")
+  portalId         String  @map("portal_id")
+  name             String
+  slug             String
+  description      String?
+  position         Int     @default(0)
+  parentCategoryId String? @map("parent_category_id")
+
+  tenant   Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portal   Portal        @relation(fields: [portalId], references: [id], onDelete: Cascade)
+  parent   HelpCategory? @relation("HelpCategoryTree", fields: [parentCategoryId], references: [id], onDelete: SetNull)
+  children HelpCategory[] @relation("HelpCategoryTree")
+  articles Article[]
+
+  @@unique([portalId, slug])
+  @@index([tenantId, portalId])
+  @@map("help_categories")
+}
+
+model Article {
+  id            String    @id
+  tenantId      String    @map("tenant_id")
+  portalId      String    @map("portal_id")
+  categoryId    String    @map("category_id")
+  title         String
+  slug          String
+  contentMd     String    @map("content_md")
+  contentHtml   String?   @map("content_html")
+  status        String    @default("draft")
+  authorUserId  String    @map("author_user_id")
+  publishedAt   DateTime? @map("published_at")
+  position      Int       @default(0)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  tenant   Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portal   Portal       @relation(fields: [portalId], references: [id], onDelete: Cascade)
+  category HelpCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  author   User         @relation("ArticleAuthor", fields: [authorUserId], references: [id], onDelete: Cascade)
+
+  @@unique([portalId, slug])
+  @@index([portalId, status])
+  @@index([tenantId, categoryId])
+  @@map("articles")
+}
+
 model Orcamento {
   id                String           @id
   tenantId          String           @map("tenant_id")
@@ -1228,9 +1358,11 @@ model NotificationOutbox {
   venda           VendaFaturamento? @relation(fields: [vendaId], references: [id], onDelete: SetNull)
   cadastroRequest CadastroRequest?  @relation(fields: [cadastroRequestId], references: [id], onDelete: SetNull)
   conversation    Conversation?     @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  campaign        Campaign?         @relation(fields: [campaignId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, status])
   @@index([tenantId, category, status])
+  @@index([tenantId, campaignId])
   @@map("notification_outbox")
 }
 

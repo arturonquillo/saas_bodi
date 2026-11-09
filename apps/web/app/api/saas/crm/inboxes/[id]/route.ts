@@ -21,6 +21,7 @@ const patchSchema = z.object({
   lock_to_single_conversation: z.boolean().optional(),
   allow_auto_assign: z.boolean().optional(),
   vendedor_see_all: z.boolean().optional(),
+  timezone: z.string().optional(),
 });
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {

@@ -97,6 +97,7 @@ export async function patchInbox(
     lock_to_single_conversation?: boolean;
     allow_auto_assign?: boolean;
     vendedor_see_all?: boolean;
+    timezone?: string;
   },
 ) {
   assertSaasRole(session, "admin");
@@ -112,6 +113,7 @@ export async function patchInbox(
       lockToSingleConversation: input.lock_to_single_conversation,
       allowAutoAssign: input.allow_auto_assign,
       vendedorSeeAll: input.vendedor_see_all,
+      timezone: input.timezone,
     },
   });
   return getInbox(session, id);

@@ -294,6 +294,15 @@ export async function putNotificacaoPrefs(
   return getNotificacaoPrefs(session);
 }
 
+export async function getPerfil(session: SessionContext) {
+  assertSaasRole(session, "admin", "vendedor");
+  const user = await db.user.findUniqueOrThrow({ where: { id: session.userId } });
+  return {
+    availability: user.availability,
+    signature: user.signature,
+  };
+}
+
 export async function patchPerfil(
   session: SessionContext,
   input: { availability?: AgentAvailability; signature?: string | null },

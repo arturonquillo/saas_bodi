@@ -151,7 +151,10 @@ export function EquipeDetailScreen() {
   const load = useCallback(async () => {
     setStatus("loading");
     try {
-      const t = await apiGet<CrmTeamDto>(`/api/saas/crm/teams/${id}`);
+      // No GET /teams/:id — resolve from list + members.
+      const list = asPage<CrmTeamDto>(await apiGet("/api/saas/crm/teams")).items;
+      const t = list.find((x) => x.id === id) ?? null;
+      if (!t) throw new Error("missing");
       setTeam(t);
       const members = await apiGet<{ user_ids?: string[] } | string[]>(
         `/api/saas/crm/teams/${id}/members`,

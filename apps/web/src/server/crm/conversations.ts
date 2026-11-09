@@ -88,7 +88,27 @@ export async function getConversa(session: SessionContext, id: string) {
   const row = await loadConversation(session.tenantId, id);
   if (!row) throw new ApiError("nao_encontrado", "Não encontrado.");
   await assertConversationVisible(session, row);
-  return conversationDto(row);
+  const draft = await db.conversationDraft.findUnique({
+    where: { conversationId_userId: { conversationId: id, userId: session.userId } },
+  });
+  const viewers = await db.agentPresence.findMany({
+    where: {
+      tenantId: session.tenantId,
+      conversationId: id,
+      expiresAt: { gt: new Date() },
+      userId: { not: session.userId },
+      state: "viewing",
+    },
+    include: { user: { select: { id: true, nome: true } } },
+  });
+  return {
+    ...conversationDto(row),
+    draft: draft?.body ?? "",
+    viewers: viewers.map((v) => ({
+      user_id: v.userId,
+      nome: v.user.nome,
+    })),
+  };
 }
 
 export async function patchConversa(

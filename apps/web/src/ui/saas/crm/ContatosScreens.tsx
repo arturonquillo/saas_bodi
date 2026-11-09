@@ -225,7 +225,7 @@ export function ContatoDetailScreen() {
     if (!note.trim()) return;
     setBusy(true);
     try {
-      await apiSend(`/api/saas/crm/contatos/${id}/notas`, "POST", { body: note.trim() });
+      await apiSend(`/api/saas/crm/contatos/${id}/notas`, "POST", { nota: note.trim() });
       setNote("");
       toast.success(COPY.actions.salvar);
       void load();

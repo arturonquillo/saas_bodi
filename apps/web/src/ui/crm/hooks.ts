@@ -1,10 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { CRM_DOMAIN_EVENT_TYPES } from "@saas-frota/shared";
 import { apiGet, apiSend } from "../api";
 import type { CrmSseEvent } from "./types";
 
 const POLL_MS = 15_000;
+
+function parseSseData(raw: string): CrmSseEvent | null {
+  try {
+    const data = JSON.parse(raw) as CrmSseEvent | { tenant_id?: string };
+    if (data && typeof data === "object" && "type" in data && "id" in data) {
+      return data as CrmSseEvent;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 /** SSE with 15s poll fallback per jobs-realtime.md. */
 export function useCrmRealtime(opts: {
@@ -25,6 +38,7 @@ export function useCrmRealtime(opts: {
     let es: EventSource | null = null;
     let pollTimer: ReturnType<typeof setInterval> | null = null;
     let lastId: string | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
     const startPoll = () => {
       setMode("poll");
@@ -35,6 +49,13 @@ export function useCrmRealtime(opts: {
       void onPollRef.current?.();
     };
 
+    const handlePayload = (raw: string) => {
+      const data = parseSseData(raw);
+      if (!data) return;
+      if (data.id) lastId = data.id;
+      onEventRef.current?.(data);
+    };
+
     const connect = () => {
       if (closed) return;
       try {
@@ -43,21 +64,23 @@ export function useCrmRealtime(opts: {
           : "/api/saas/crm/events/stream";
         es = new EventSource(url, { withCredentials: true });
         es.onopen = () => setMode("sse");
-        es.onmessage = (msg) => {
-          try {
-            const data = JSON.parse(msg.data) as CrmSseEvent;
-            if (data.id) lastId = data.id;
-            onEventRef.current?.(data);
-          } catch {
-            /* ignore malformed */
-          }
-        };
+
+        // Named CRM events (server uses `event: <type>`).
+        for (const type of CRM_DOMAIN_EVENT_TYPES) {
+          es.addEventListener(type, (msg) => {
+            handlePayload((msg as MessageEvent).data);
+          });
+        }
         es.addEventListener("ready", () => setMode("sse"));
+        // Fallback if any event is emitted as default `message`.
+        es.onmessage = (msg) => handlePayload(msg.data);
+
         es.onerror = () => {
           es?.close();
           es = null;
           startPoll();
-          window.setTimeout(connect, POLL_MS);
+          if (reconnectTimer) clearTimeout(reconnectTimer);
+          reconnectTimer = setTimeout(connect, POLL_MS);
         };
       } catch {
         startPoll();
@@ -70,6 +93,7 @@ export function useCrmRealtime(opts: {
       closed = true;
       es?.close();
       if (pollTimer) clearInterval(pollTimer);
+      if (reconnectTimer) clearTimeout(reconnectTimer);
     };
   }, [opts.enabled]);
 

@@ -15,9 +15,9 @@ import { ErrorState, TableSkeleton } from "../../states";
 
 const DEFAULT_PREFS: CrmNotificationPrefsDto = {
   assigned: true,
-  unassigned: true,
-  participating: true,
-  all: false,
+  unassigned_conversation: true,
+  conversation_activity: true,
+  email_enabled: false,
 };
 
 export function NotificacoesScreen() {
@@ -126,9 +126,9 @@ export function NotificacoesScreen() {
               {(
                 [
                   ["assigned", "Atribuídas a mim"],
-                  ["unassigned", "Não atribuídas"],
-                  ["participating", "Participando"],
-                  ["all", "Todas"],
+                  ["unassigned_conversation", "Não atribuídas"],
+                  ["conversation_activity", "Participando"],
+                  ["email_enabled", "E-mail (stub)"],
                 ] as const
               ).map(([key, label]) => (
                 <label key={key} className="flex items-center gap-3 text-sm">

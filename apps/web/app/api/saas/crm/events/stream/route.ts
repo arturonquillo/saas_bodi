@@ -10,7 +10,9 @@ export async function GET(req: Request) {
   try {
     ensureJobWorkerStarted();
     const session = await requireSaasRole("admin", "vendedor");
-    const lastEventId = req.headers.get("Last-Event-ID");
+    const url = new URL(req.url);
+    const lastEventId =
+      req.headers.get("Last-Event-ID") || url.searchParams.get("last_event_id");
     const encoder = new TextEncoder();
     let closed = false;
     let heartbeat: ReturnType<typeof setInterval> | null = null;

@@ -236,11 +236,12 @@ function FilterStrip({
                 chip(
                   `label-${l.id}`,
                   displayLabelTitle(l.title),
-                  filter.label === l.id || filter.label === l.title,
+                  filter.label === l.title,
                   () =>
                     setFilter({
                       ...filter,
-                      label: filter.label === l.id || filter.label === l.title ? "" : l.id,
+                      // API filters by label.title
+                      label: filter.label === l.title ? "" : l.title,
                     }),
                 ),
               )}
@@ -557,7 +558,7 @@ export function ConversasScreen() {
             }
           : prev,
       );
-      void apiSend(`/api/saas/crm/conversas/${detail.id}/draft`, "PUT", { content: "" }).catch(
+      void apiSend(`/api/saas/crm/conversas/${detail.id}/draft`, "PUT", { body: "" }).catch(
         () => undefined,
       );
       void loadList({ soft: true });
@@ -578,7 +579,7 @@ export function ConversasScreen() {
     if (!detail || !selectedId) return;
     const handle = window.setTimeout(() => {
       void apiSend(`/api/saas/crm/conversas/${selectedId}/draft`, "PUT", {
-        content: composer,
+        body: composer,
       }).catch(() => undefined);
     }, 800);
     return () => clearTimeout(handle);
@@ -778,7 +779,10 @@ export function ConversasScreen() {
                       </div>
                       <div className="mt-0.5 flex items-center gap-2 pl-4">
                         <p className="truncate text-xs text-muted-foreground">
-                          {row.preview || "—"}
+                          {row.preview ||
+                            row.contact?.phone_e164 ||
+                            row.contact?.nome ||
+                            "—"}
                         </p>
                         <Badge
                           variant="outline"

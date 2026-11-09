@@ -35,9 +35,47 @@ import { useAgentAvailability } from "../crm/hooks";
 import type { CrmNotificationDto, CrmSearchHitDto, CrmSearchResultDto } from "../crm/types";
 import { formatDate } from "../format";
 
-function flattenSearch(data: CrmSearchResultDto, q: string): CrmSearchHitDto[] {
+function flattenSearch(data: CrmSearchResultDto, _q: string): CrmSearchHitDto[] {
   if (data.items?.length) return data.items;
   const hits: CrmSearchHitDto[] = [];
+
+  for (const c of data.conversations ?? []) {
+    hits.push({
+      type: "conversation",
+      id: c.id,
+      title: c.contact?.nome || c.contact?.phone_e164 || c.id,
+      subtitle: c.contact?.phone_e164 ?? null,
+      href: `/saas/conversas/${c.id}`,
+    });
+  }
+  for (const c of data.contacts ?? []) {
+    hits.push({
+      type: "contact",
+      id: c.id,
+      title: c.nome,
+      subtitle: c.phone_e164 || c.email || null,
+      href: `/saas/contatos/${c.id}`,
+    });
+  }
+  for (const m of data.messages ?? []) {
+    hits.push({
+      type: "message",
+      id: m.id,
+      title: m.content.slice(0, 80),
+      subtitle: m.created_at,
+      href: `/saas/conversas/${m.conversation_id}`,
+    });
+  }
+  for (const co of data.companies ?? []) {
+    hits.push({
+      type: "contact",
+      id: co.id,
+      title: co.razao_social,
+      subtitle: "Empresa",
+      href: `/saas/empresas/${co.id}`,
+    });
+  }
+
   for (const c of data.conversas ?? []) {
     hits.push({
       ...c,
@@ -58,9 +96,6 @@ function flattenSearch(data: CrmSearchResultDto, q: string): CrmSearchHitDto[] {
       type: "message",
       href: m.href || `/saas/conversas/${m.id}`,
     });
-  }
-  if (!hits.length && q) {
-    /* empty */
   }
   return hits;
 }

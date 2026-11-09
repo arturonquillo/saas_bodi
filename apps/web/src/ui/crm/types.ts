@@ -144,9 +144,9 @@ export type CrmNotificationDto = {
 
 export type CrmNotificationPrefsDto = {
   assigned: boolean;
-  unassigned: boolean;
-  participating: boolean;
-  all: boolean;
+  unassigned_conversation: boolean;
+  conversation_activity: boolean;
+  email_enabled: boolean;
 };
 
 export type CrmPerfilDto = {
@@ -163,6 +163,15 @@ export type CrmSearchHitDto = {
 };
 
 export type CrmSearchResultDto = {
+  /** Backend buscaCrm shape */
+  conversations?: Array<{
+    id: string;
+    contact?: { nome?: string | null; phone_e164?: string | null } | null;
+  }>;
+  contacts?: Array<{ id: string; nome: string; phone_e164?: string | null; email?: string | null }>;
+  messages?: Array<{ id: string; conversation_id: string; content: string; created_at: string }>;
+  companies?: Array<{ id: string; razao_social: string }>;
+  /** Legacy / flattened */
   conversas?: CrmSearchHitDto[];
   contatos?: CrmSearchHitDto[];
   mensagens?: CrmSearchHitDto[];

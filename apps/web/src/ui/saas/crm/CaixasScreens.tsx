@@ -316,14 +316,15 @@ export function CaixaDetailScreen() {
         const w = await getWidgetConfig(id).catch(() => null);
         if (w) {
           setWidget(w);
-          setPreChat(w.pre_chat_fields?.length ? w.pre_chat_fields : defaultPreChatFields());
+          const fields = (w.pre_chat_fields ?? []) as PreChatField[];
+          setPreChat(fields.length ? fields : defaultPreChatFields());
           setOriginsText((w.allowed_origins ?? []).join("\n") || "http://localhost:3000");
           setWelcomeTitle(w.welcome_title ?? "");
           setWidgetColor(w.widget_color ?? "#7A1F1F");
           setContinuity(w.continuity === "contact" ? "contact" : "session");
         }
         const sn = await getWidgetSnippet(id).catch(() => null);
-        setSnippet(sn?.snippet_html ?? sn?.snippet_js ?? "");
+        setSnippet(sn?.snippet ?? sn?.snippet_html ?? sn?.snippet_js ?? "");
       } else {
         setWidget(null);
         setSnippet("");
@@ -418,7 +419,7 @@ export function CaixaDetailScreen() {
         forward_to_email: fd.get("forward_to_email") || null,
         from_email_display: fd.get("from_email_display") || null,
         email_template_id: fd.get("email_template_id") || null,
-        ...secretPayload(fd, ["imap_password", "smtp_password", "oauth_refresh_token"]),
+                        ...secretPayload(fd, ["imap_password", "smtp_password", "oauth_token"]),
       };
     } else if (type === "sms") {
       body = {
@@ -483,7 +484,8 @@ export function CaixaDetailScreen() {
     setBusy(true);
     try {
       const res = await rotateCanalToken(id);
-      const token = res.token ?? res.website_token ?? res.api_access_token ?? null;
+      const token =
+        res.website_token ?? res.api_access_token ?? res.token ?? null;
       setRotatedToken(token);
       toast.success(COPY.crm.canal_token_once);
       void load();
@@ -527,7 +529,7 @@ export function CaixaDetailScreen() {
       });
       setWidget(saved);
       const sn = await getWidgetSnippet(id).catch(() => null);
-      setSnippet(sn?.snippet_html ?? sn?.snippet_js ?? "");
+      setSnippet(sn?.snippet ?? sn?.snippet_html ?? sn?.snippet_js ?? "");
       toast.success(COPY.actions.salvar);
     } catch (err) {
       toast.error(isApiError(err) ? err.message : COPY.save_fail);
@@ -855,9 +857,9 @@ export function CaixaDetailScreen() {
                           { id: "imap_password", name: "imap_password", label: "Senha IMAP" },
                           { id: "smtp_password", name: "smtp_password", label: "Senha SMTP" },
                           {
-                            id: "oauth_refresh_token",
-                            name: "oauth_refresh_token",
-                            label: "OAuth refresh token",
+                            id: "oauth_token",
+                            name: "oauth_token",
+                            label: "OAuth token",
                           },
                         ]}
                       />

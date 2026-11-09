@@ -197,11 +197,11 @@ export function LojaChatWidget() {
 
   useEffect(() => {
     if (!open || !sessionToken) return;
-    void widgetFetch<{ id?: string } | null>("/api/loja/widget/conversa", {
+    void widgetFetch<{ conversation?: { id?: string } | null }>("/api/loja/widget/conversa", {
       session: sessionToken,
     })
       .then((c) => {
-        if (c?.id) setPreChatDone(true);
+        if (c?.conversation?.id) setPreChatDone(true);
       })
       .catch(() => {
         /* need pre-chat */

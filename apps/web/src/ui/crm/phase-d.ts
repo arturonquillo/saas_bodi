@@ -163,10 +163,15 @@ export async function putCanal(id: string, body: Record<string, unknown>) {
 }
 
 export async function rotateCanalToken(id: string) {
-  return apiSend<{ token: string; website_token?: string; api_access_token?: string }>(
-    `${CAIXAS_API}/${id}/canal/rotacionar-token`,
-    "POST",
-  );
+  return apiSend<{
+    channel_type?: string;
+    token?: string;
+    website_token?: string;
+    hmac_secret?: string;
+    api_access_token?: string;
+    token_prefix?: string;
+    token_last4?: string;
+  }>(`${CAIXAS_API}/${id}/canal/rotacionar-token`, "POST");
 }
 
 export async function simulateCanal(id: string, body: Record<string, unknown>) {

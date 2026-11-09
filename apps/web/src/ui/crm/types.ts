@@ -166,9 +166,11 @@ export type CrmCanalDto = {
 
 export type CrmWidgetConfigDto = {
   inbox_id: string;
+  channel_type?: string;
   website_token?: string | null;
-  allowed_origins: string[];
-  pre_chat_fields: PreChatField[];
+  hmac_secret_present?: boolean;
+  allowed_origins?: string[];
+  pre_chat_fields?: PreChatField[];
   welcome_title?: string | null;
   widget_color?: string | null;
   continuity?: "session" | "contact" | string;
@@ -177,7 +179,9 @@ export type CrmWidgetConfigDto = {
 
 export type CrmWidgetSnippetDto = {
   website_token: string;
-  snippet_html: string;
+  /** Backend field name from getWidgetSnippet. */
+  snippet: string;
+  snippet_html?: string;
   snippet_js?: string;
 };
 

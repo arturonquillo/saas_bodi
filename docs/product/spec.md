@@ -1,6 +1,6 @@
 # Product spec — Casa dos Frios CRM + atacado
 
-Living spec. The **product** agent updates this when behavior changes. MVP brief: `docs/product/mvp.md`. Acceptance: `docs/product/mvp-acceptance.md`. Feature overview: `docs/product/brief.md`. Stack choices belong in `docs/architecture/` once the architect locks them.
+Living spec. The **product** agent updates this when behavior changes. MVP brief: `docs/product/mvp.md`. Acceptance: `docs/product/mvp-acceptance.md`. Feature overview: `docs/product/brief.md`. **CRM desk parity:** `docs/product/chatwoot-parity.md` (full Chatwoot inventory + phases). Stack choices belong in `docs/architecture/` once the architect locks them.
 
 This document **supersedes** the former `saas_frota` wholesale/retail MVP framing. Hard constraints from `AGENTS.md` still apply **unless** this spec explicitly replaces them below.
 
@@ -38,7 +38,7 @@ Each paying company is a **tenant**. MVP ships **one seeded tenant** (`casa-dos-
 | Account site with manual subscription flag gating ops | **Deferred.** No Account chrome in MVP. First tenant is always operational. Product billing comes when the SaaS is sold to others. |
 | AI inventory chat with confirm | **Deferred** to a later inventory phase. |
 | Order machine `novo→…→entregue` as the only sales doc | Replaced by **Orçamento → Pedido de venda → Venda/Faturamento** (below). |
-| WhatsApp outbox only | Still **stub outbox** for outbound; MVP adds a **simulated inbox** (no Meta Cloud API). |
+| WhatsApp outbox only | Still **stub outbox** for outbound; MVP ships a **simulated inbox** (no Meta Cloud API). **Post-MVP CRM:** evolve that inbox into **Chatwoot feature parity** (`chatwoot-parity.md`) — WhatsApp channel remains **listo para conectar** (credentials/UI/contracts only) until paid Meta unlock. |
 
 Still in force: tenant isolation readiness, RBAC enforced server-side, pt-BR, LGPD for tax IDs, CNPJ checksum + public registry when registering companies, store stock as a **projection** of one storage ledger (when stock is shown), shadcn/ui for UI, no trusting the client for roles/prices/stock, no unpaid Meta/SMTP integrations silently.
 
@@ -54,18 +54,24 @@ Must exist before CRM features are useful:
 
 ## CRM core
 
-### WhatsApp inbox (first-class)
+### WhatsApp inbox (first-class) → Chatwoot-parity desk
 
 Inbound messages land in a tenant **inbox** (simulated in MVP). Each thread is tied to a phone (E.164 BR) and optionally a customer/prospect record.
 
-**Intent tags** (manual or rule-assisted; MVP allows manual tag + seed examples):
+**Product direction (locked in `chatwoot-parity.md`):** evolve this simulated inbox into a **native Chatwoot-parity CRM desk** (conversations, contacts, labels, teams, assignments, canned responses, automations, macros, CSAT, campaigns, help center, reports, agent bots, custom attributes, notifications, multi-channel inbox model, etc.). Do **not** add a second disconnected inbox product. Commerce pipeline and cadastro gates stay authoritative.
 
-| Intent | Meaning | Outcome |
+**MVP intent tags** (manual or rule-assisted; seed examples). Under parity Phase A these become **system labels** (and optional conversation custom attributes) with the same commerce outcomes:
+
+| Intent / label | Meaning | Outcome |
 |---|---|---|
 | `cadastro` | Pedido de cadastro atacadista | Opens/updates a **Solicitação de cadastro** |
 | `orcamento` | Pedido de orçamento / preços | Opens/updates an **Orçamento** draft or links to one |
 | `info_empresa` | Dúvidas sobre a empresa | Handled in thread; no sales doc required |
 | `outro` | Unclassified | Stays in inbox for vendedor |
+
+**Conversation statuses (parity):** `open` \| `pending` \| `snoozed` \| `resolved` (Chatwoot enum). MVP simulator may keep a thinner thread model until Phase A lands.
+
+**WhatsApp channel (parity):** admin UI + credential fields + contracts = **Pronto para conectar / listo para conectar**. Live Meta Cloud API / unpaid provider calls remain **forbidden**; simulate inbound + `notification_outbox` stay until product unlocks paid Meta.
 
 Wholesale rule (locked): **no Pedido de venda and no Venda/Faturamento for a customer whose cadastro is not `aprovado`.** Orçamentos may be drafted for prospects, but converting to Pedido requires `aprovado`.
 
@@ -255,10 +261,11 @@ Also seed: SKUs (carnes/frios lean), one hidden SKU, one zero-available, inbox t
 
 - Account site to sell this SaaS; self-serve tenant onboarding; white-label domains.
 - Native customer app (phase 2).
-- Meta WhatsApp Cloud API (paid) replacing stubs.
+- **Chatwoot parity desk** phases A→E — full inventory in `docs/product/chatwoot-parity.md` (evolves simulated inbox; WhatsApp stays stub until paid Meta).
+- Meta WhatsApp Cloud API (paid) replacing stubs (unlock after credentials “live”).
 - NF-e, PIX/payment gateway, returns, partial invoice.
 - Roles estoquista / entregador; courier assignment; multi-warehouse.
-- AI inventory import; varejo/CPF channel; analytics; i18n.
+- AI inventory import; varejo/CPF channel; i18n (Help Center multi-locale is parity Phase E).
 
 ## Open questions
 
@@ -267,7 +274,8 @@ Also seed: SKUs (carnes/frios lean), one hidden SKU, one zero-available, inbox t
 | Question | Decision |
 |---|---|
 | Sales pipeline | Orçamento → Pedido de venda → Venda/Faturamento with statuses/matrices above |
-| WhatsApp | Stub outbox + simulated inbox; no Meta until paid integration is approved |
+| WhatsApp | Stub outbox + simulated inbox; no Meta until paid integration is approved. Parity desk: credentials UI “pronto para conectar”; evolve inbox per `chatwoot-parity.md` |
+| CRM desk scope | Full Chatwoot feature parity committed; phased A–E; omit only with explicit phase-later justification in that brief |
 | Cadastro gate | CNPJ cadastro `aprovado` required before Pedido/Venda |
 | First tenant | Casa dos Frios seed; multi-tenant sell later |
 | Roles | `admin` + `vendedor` only |

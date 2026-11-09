@@ -1,6 +1,6 @@
 # MVP — Casa dos Frios CRM + loja atacado
 
-Vertical slice for a Brazilian wholesale distributor demo in one sitting. Behavior source of truth: `docs/product/spec.md`. Checks: `docs/product/mvp-acceptance.md`. Overview: `docs/product/brief.md`. Stack is **not** chosen here.
+Vertical slice for a Brazilian wholesale distributor demo in one sitting. Behavior source of truth: `docs/product/spec.md`. Checks: `docs/product/mvp-acceptance.md`. Overview: `docs/product/brief.md`. **Post-MVP CRM desk:** `docs/product/chatwoot-parity.md` (does not expand this MVP slice). Stack is **not** chosen here.
 
 ## Problem
 
@@ -43,7 +43,7 @@ Success metric: seed `casa-dos-frios`, every actor completes their step without 
 ### Locked decisions (do not reopen in implementation)
 
 1. Pipeline and matrices in `docs/product/spec.md`.
-2. WhatsApp = outbox stub + simulated inbox.
+2. WhatsApp = outbox stub + simulated inbox (parity desk is post-MVP; see `chatwoot-parity.md`).
 3. Cadastro CNPJ aprovado before Pedido/Venda.
 4. Roles = admin + vendedor only.
 5. Seed `casa-dos-frios`; no onboarding wizard; no Account entitlement gate.

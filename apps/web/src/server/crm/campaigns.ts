@@ -339,11 +339,27 @@ export async function enviarCampanha(session: SessionContext, id: string) {
   }
 
   if (row.kind === "ongoing") {
+    // Phase D: if target widget inbox is ready_stub, flip display_status to ready.
+    let displayStatus: string = "awaiting_widget";
+    const widgetInboxId = row.inboxId;
+    if (widgetInboxId) {
+      const widget = await db.channelWebsiteWidget.findFirst({
+        where: { tenantId: session.tenantId, inboxId: widgetInboxId },
+      });
+      if (widget?.connectionStatus === "ready_stub") {
+        displayStatus = "ready";
+      }
+    } else {
+      const anyReady = await db.channelWebsiteWidget.findFirst({
+        where: { tenantId: session.tenantId, connectionStatus: "ready_stub" },
+      });
+      if (anyReady) displayStatus = "ready";
+    }
     await db.campaign.update({
       where: { id },
       data: {
         status: "active",
-        displayStatus: "awaiting_widget",
+        displayStatus,
         startedAt: new Date(),
       },
     });
@@ -352,7 +368,7 @@ export async function enviarCampanha(session: SessionContext, id: string) {
       type: "campaign.started",
       aggregateType: "campaign",
       aggregateId: id,
-      payload: { campaign_id: id, kind: "ongoing", display_status: "awaiting_widget" },
+      payload: { campaign_id: id, kind: "ongoing", display_status: displayStatus },
       actorUserId: session.userId,
     });
     return getCampanha(session, id);

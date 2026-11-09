@@ -29,4 +29,7 @@ export const env = {
   credentialsEncryptionKey:
     process.env.CREDENTIALS_ENCRYPTION_KEY ??
     "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+  /** Optional Web Push VAPID — unset → push APIs 404 / jobs no-op */
+  vapidPublicKey: process.env.VAPID_PUBLIC_KEY ?? "",
+  vapidPrivateKey: process.env.VAPID_PRIVATE_KEY ?? "",
 };

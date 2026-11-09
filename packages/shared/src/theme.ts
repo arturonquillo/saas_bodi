@@ -15,7 +15,7 @@ export const THEME_CSS_VARS = {
   logo_url: "--logo-url",
 } as const;
 
-/** Design tokens win over architecture seed example palette. */
+/** Seed must match docs/design/tokens.md (wins over architecture seed example). */
 export const SEED_THEME: ThemeTokens = {
   marca: "Casa dos Frios",
   primary: "#7A1F1F",

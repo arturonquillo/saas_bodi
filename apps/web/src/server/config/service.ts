@@ -1,52 +1,80 @@
-import type { CanalAviso } from "@saas-frota/shared";
-import { db } from "../db";
-import { ApiError } from "../http/respond";
-import { requireEntitlementAtiva } from "../authz/gates";
+import type { CanalAviso, LojaModo } from "@saas-frota/shared";
 import type { SessionContext } from "../authz/session";
+import { assertSaasRole } from "../authz/gates";
+import { db } from "../db";
+import { env } from "../env";
+import { ApiError } from "../http/respond";
 
-export async function getConfig(session: SessionContext) {
-  const tenant = await db.tenant.findUniqueOrThrow({ where: { id: session.tenantId } });
+export async function getLojaConfig(slug?: string) {
+  const tenant = await db.tenant.findUnique({
+    where: { slug: slug || env.defaultTenantSlug },
+  });
+  if (!tenant) throw new ApiError("nao_encontrado", "Tenant não encontrado.");
   return {
-    aceita_cpf: tenant.aceitaCpf,
-    aceita_cnpj: tenant.aceitaCnpj,
-    canais_aviso: tenant.canaisAviso,
-    default_seller_user_id: tenant.defaultSellerUserId,
+    loja_modo: tenant.lojaModo,
+    whatsapp_comercial: tenant.whatsappComercial,
+    nome_fantasia: tenant.nomeFantasia,
   };
 }
 
-export async function updateConfig(
+export async function getSaasConfig(session: SessionContext) {
+  assertSaasRole(session, "admin");
+  const tenant = await db.tenant.findUniqueOrThrow({ where: { id: session.tenantId } });
+  return {
+    razao_social: tenant.razaoSocial,
+    nome_fantasia: tenant.nomeFantasia,
+    cnpj_last4: tenant.cnpjLast4,
+    whatsapp_comercial: tenant.whatsappComercial,
+    canais_aviso: tenant.canaisAviso,
+    loja_modo: tenant.lojaModo,
+    default_vendedor_user_id: tenant.defaultVendedorUserId,
+  };
+}
+
+export async function putSaasConfig(
   session: SessionContext,
   input: {
-    aceita_cpf: boolean;
-    aceita_cnpj: boolean;
-    canais_aviso: CanalAviso;
-    default_seller_user_id?: string | null;
+    razao_social?: string;
+    nome_fantasia?: string;
+    whatsapp_comercial?: string | null;
+    canais_aviso?: CanalAviso;
+    loja_modo?: LojaModo;
+    default_vendedor_user_id?: string | null;
   },
 ) {
-  requireEntitlementAtiva(session);
-  if (!input.aceita_cpf && !input.aceita_cnpj) {
-    throw new ApiError("conflito", "Mantenha ao menos um documento aceito (CPF ou CNPJ).");
-  }
-  if (input.default_seller_user_id) {
-    const membership = await db.membership.findUnique({
+  assertSaasRole(session, "admin");
+  if (input.default_vendedor_user_id) {
+    const mem = await db.membership.findFirst({
       where: {
-        tenantId_userId: { tenantId: session.tenantId, userId: input.default_seller_user_id },
+        tenantId: session.tenantId,
+        userId: input.default_vendedor_user_id,
+        saasRole: { in: ["admin", "vendedor"] },
       },
     });
-    if (!membership || membership.saasRole !== "vendedor") {
-      throw new ApiError("validacao", "Vendedor padrão inválido.");
-    }
+    if (!mem) throw new ApiError("validacao", "Vendedor padrão inválido.");
   }
-  await db.tenant.update({
+  const tenant = await db.tenant.update({
     where: { id: session.tenantId },
     data: {
-      aceitaCpf: input.aceita_cpf,
-      aceitaCnpj: input.aceita_cnpj,
+      razaoSocial: input.razao_social?.trim() || undefined,
+      nomeFantasia: input.nome_fantasia?.trim() || undefined,
+      whatsappComercial:
+        input.whatsapp_comercial === undefined ? undefined : input.whatsapp_comercial,
       canaisAviso: input.canais_aviso,
-      ...(input.default_seller_user_id !== undefined
-        ? { defaultSellerUserId: input.default_seller_user_id }
-        : {}),
+      lojaModo: input.loja_modo,
+      defaultVendedorUserId:
+        input.default_vendedor_user_id === undefined
+          ? undefined
+          : input.default_vendedor_user_id,
     },
   });
-  return getConfig(session);
+  return {
+    razao_social: tenant.razaoSocial,
+    nome_fantasia: tenant.nomeFantasia,
+    cnpj_last4: tenant.cnpjLast4,
+    whatsapp_comercial: tenant.whatsappComercial,
+    canais_aviso: tenant.canaisAviso,
+    loja_modo: tenant.lojaModo,
+    default_vendedor_user_id: tenant.defaultVendedorUserId,
+  };
 }

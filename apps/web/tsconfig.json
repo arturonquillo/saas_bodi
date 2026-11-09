@@ -38,8 +38,6 @@
     ".next/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules",
-    "src/server/**",
-    "**/*.test.ts"
+    "node_modules"
   ]
 }

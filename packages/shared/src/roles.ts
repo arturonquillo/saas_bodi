@@ -7,7 +7,3 @@ export type Surface = (typeof SURFACES)[number];
 export function isSaasRole(value: string): value is SaasRole {
   return (SAAS_ROLES as readonly string[]).includes(value);
 }
-
-export function isAdmin(role: SaasRole | null | undefined): boolean {
-  return role === "admin";
-}

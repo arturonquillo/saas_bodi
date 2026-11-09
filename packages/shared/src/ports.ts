@@ -17,3 +17,12 @@ export type OutboxTransportPort = {
     payload: unknown;
   }) => Promise<void>;
 };
+
+export type WhatsappInboxSimulatePort = {
+  ingestInbound: (input: {
+    tenantId: string;
+    phoneE164: string;
+    body: string;
+    intentHint?: "cadastro" | "orcamento" | "info_empresa" | "outro";
+  }) => Promise<{ threadId: string; messageId: string }>;
+};

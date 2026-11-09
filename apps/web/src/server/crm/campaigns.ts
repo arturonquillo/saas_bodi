@@ -15,7 +15,7 @@ import { db } from "../db";
 import { decodeCursor, encodeCursor, parsePaging } from "../http/pagination";
 import { ApiError } from "../http/respond";
 import { newId } from "../ids";
-import { jobEnqueuePort } from "../ports/jobs";
+import { ensureJobWorkerStarted, jobEnqueuePort } from "../ports/jobs";
 import { stubOutboxTransport } from "../ports/outbox";
 import { appendDomainEvent } from "./events";
 
@@ -385,6 +385,7 @@ export async function enviarCampanha(session: SessionContext, id: string) {
       } satisfies Stats),
     },
   });
+  ensureJobWorkerStarted();
   await jobEnqueuePort.enqueue({
     tenantId: session.tenantId,
     kind: "campaign.send_batch",
@@ -498,6 +499,7 @@ export async function promoteScheduledCampaigns(limit = 20) {
         } satisfies Stats),
       },
     });
+    ensureJobWorkerStarted();
     await jobEnqueuePort.enqueue({
       tenantId: camp.tenantId,
       kind: "campaign.send_batch",

@@ -97,19 +97,91 @@ Catalog item:
 | PUT | `/api/saas/config` | admin (`canais_aviso`, `loja_modo`, profile fields) |
 | GET | `/api/saas/avisos` | admin, vendedor (outbox list) |
 
-## SaaS — inbox & cadastro
+## SaaS — cadastro
 
 | Method | Path | Authz |
 |---|---|---|
-| GET | `/api/saas/inbox` | admin, vendedor |
-| GET | `/api/saas/inbox/:threadId` | admin, vendedor |
-| PATCH | `/api/saas/inbox/:threadId` | admin, vendedor (intent, links) |
-| POST | `/api/saas/inbox/simular` | **admin** |
 | GET | `/api/saas/cadastros` | admin, vendedor |
 | GET | `/api/saas/cadastros/:id` | admin, vendedor |
 | POST | `/api/saas/cadastros/:id/transicao` | admin, vendedor — `{ para: "aprovado" \| "recusado", motivo_recusa? }` |
 
-Approve creates Cliente (+ optional User invite/password already from form), outbox notice. Refuse requires `motivo_recusa`.
+Approve creates Cliente (+ Company/Contact links per [crm-chatwoot-parity.md](./crm-chatwoot-parity.md)), outbox notice. Refuse requires `motivo_recusa`.
+
+## SaaS — CRM desk (Phase A)
+
+Canonical Chatwoot-parity HTTP under `/api/saas/crm/*`. Full product inventory: `docs/product/chatwoot-parity.md`. Architecture: [crm-chatwoot-parity.md](./crm-chatwoot-parity.md).
+
+**Legacy:** `/api/saas/inbox*` is **deprecated** at Phase A ship — redirect or thin proxy to CRM conversas for one release, then remove. No dual-write after migration.
+
+### Inboxes & WhatsApp channel
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| GET | `/api/saas/crm/inboxes` | admin, vendedor | list; vendedor: membership only |
+| POST | `/api/saas/crm/inboxes` | **admin** | create inbox (+ channel stub) |
+| GET | `/api/saas/crm/inboxes/:id` | admin, member | |
+| PATCH | `/api/saas/crm/inboxes/:id` | **admin** | greeting, OOOH, flags, members replace via sub-route |
+| GET/PUT | `/api/saas/crm/inboxes/:id/members` | **admin** | `{ user_ids: string[] }` |
+| GET | `/api/saas/crm/inboxes/:id/channel` | **admin** | WA config; **secrets masked** |
+| PUT | `/api/saas/crm/inboxes/:id/channel` | **admin** | credentials (encrypt); status ≤ `ready_stub`; reject `live` |
+| GET/PUT | `/api/saas/crm/inboxes/:id/templates` | **admin** | stub `message_templates` JSON |
+| POST | `/api/saas/crm/simular` | **admin** | `{ inbox_id?, phone_e164, body, intent_label? }` → Conversation + incoming Message |
+
+### Conversas
+
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| GET | `/api/saas/crm/conversas` | admin, vendedor | filters: `status`, `inbox_id`, `assignee`, `team_id`, `label`, `q`, `updated_since`, cursor |
+| GET | `/api/saas/crm/conversas/:id` | admin, visible vendedor | includes contact, labels, commerce links |
+| PATCH | `/api/saas/crm/conversas/:id` | admin, visible vendedor | status, priority, assignee, team, mute, snooze, commerce link ids |
+| POST | `/api/saas/crm/conversas/bulk` | admin, vendedor | `{ ids, action, params }` assign/resolve/label/mute |
+| GET | `/api/saas/crm/conversas/:id/mensagens` | same | cursor; `?after=` for poll |
+| POST | `/api/saas/crm/conversas/:id/mensagens` | same | `{ content, private?, content_type? }` — outgoing stub delivery |
+| POST | `/api/saas/crm/conversas/:id/labels` | same | `{ label_ids }` replace or add (document in shared types) |
+| PUT | `/api/saas/crm/conversas/:id/draft` | same | agent draft body |
+| GET | `/api/saas/crm/busca` | admin, vendedor | `?q=` conversations/contacts/messages |
+
+Conversation status body values: `open` \| `pending` \| `snoozed` \| `resolved`. Priority: `low` \| `medium` \| `high` \| `urgent` \| null.
+
+### Contatos & empresas
+
+| Method | Path | Authz |
+|---|---|---|
+| GET/POST | `/api/saas/crm/contatos` | admin, vendedor |
+| GET/PATCH | `/api/saas/crm/contatos/:id` | admin, vendedor |
+| POST | `/api/saas/crm/contatos/:id/notas` | admin, vendedor |
+| POST | `/api/saas/crm/contatos/:id/conversas` | admin, vendedor — start outbound on contactable inbox (WA stub) |
+| GET/POST | `/api/saas/crm/empresas` | admin, vendedor |
+| GET/PATCH | `/api/saas/crm/empresas/:id` | admin, vendedor |
+
+### Labels, teams, canned, notifications, presence, realtime
+
+| Method | Path | Authz |
+|---|---|---|
+| GET/POST | `/api/saas/crm/labels` | admin, vendedor (POST admin **or** both — lock: **both** may CRUD labels in A for parity speed; revisit E) |
+| PATCH/DELETE | `/api/saas/crm/labels/:id` | same |
+| GET/POST | `/api/saas/crm/teams` | **admin** POST; GET admin+vendedor |
+| PATCH | `/api/saas/crm/teams/:id` | **admin** |
+| GET/PUT | `/api/saas/crm/teams/:id/members` | **admin** |
+| GET/POST | `/api/saas/crm/respostas-rapidas` | admin, vendedor |
+| PATCH/DELETE | `/api/saas/crm/respostas-rapidas/:id` | admin, vendedor |
+| GET | `/api/saas/crm/notificacoes` | self |
+| POST | `/api/saas/crm/notificacoes/:id/ler` | self |
+| GET/PUT | `/api/saas/crm/notificacoes/preferencias` | self |
+| PATCH | `/api/saas/crm/perfil` | self — availability, signature |
+| POST | `/api/saas/crm/presence` | admin, vendedor — see [jobs-realtime.md](./jobs-realtime.md) |
+| GET | `/api/saas/crm/events/stream` | admin, vendedor — SSE |
+
+### Phase B–E API (names reserved — implement later)
+
+| Phase | Prefix / resources |
+|---|---|
+| **B** | `/automacoes`, `/macros`, `/atributos`, `/bots`, `/webhooks`, `/horarios`, `/politicas-atribuicao`, `/csat` |
+| **C** | `/campanhas`, `/central-ajuda/*`, `/relatorios/*` |
+| **D** | channel types beyond WA; `/api/loja/widget/*` client messaging |
+| **E** | `/sla`, `/auditoria`, `/integracoes`, Captain |
+
+Do not invent ad-hoc BFF routes outside this map — extend architecture first.
 
 ## SaaS — sales pipeline
 

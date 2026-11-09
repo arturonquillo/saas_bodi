@@ -35,13 +35,51 @@ MVP has no `subscription_status` check. Seed tenant is always operational. Do no
 | Users create / deactivate / list | yes | no |
 | Theme / tenant config write | yes | no |
 | Simulate WhatsApp inbound | yes | no |
-| Inbox read + intent tag | yes | yes |
 | Cadastro approve / refuse | yes | yes |
 | Orçamento / Pedido / Venda transitions (per product matrix) | yes | yes |
 | SKU create / stock adjust / visibility | yes | read (+ lines from catalog when creating docs) |
-| Outbox read | yes | yes |
+| Outbox read (`category=commerce`) | yes | yes |
 
 Fulfillment statuses (`em_separacao`, `despachado`, `entregue`) are operated by **admin and vendedor** — no dedicated warehouse/courier roles.
+
+## CRM desk matrix (Phase A)
+
+Chatwoot Administrator → `admin`; Agent → `vendedor`. Custom roles = Phase E.
+
+| Action | admin | vendedor |
+|---|---|---|
+| List/read conversations (visibility below) | all inboxes | inbox member + assigned/unassigned/team |
+| Private notes, labels on conversation | yes | yes |
+| Assign / reassign / team / priority / snooze / mute / bulk | yes | yes (within visibility) |
+| Post outgoing / drafts | yes | yes |
+| Canned responses CRUD | yes | yes |
+| Contacts / companies CRUD + notes | yes | yes |
+| Start outbound conversation on WA stub | yes | yes |
+| Labels CRUD | yes | yes (Phase A lock) |
+| Teams / inbox members / channel credentials | yes | read membership only |
+| Simulate inbound | yes | no |
+| Agent notifications + prefs + presence | self | self |
+| SSE event stream | yes (tenant) | yes (filtered) |
+| Automations, bots, webhooks, campaigns, reports, help center publish | Phase B/C — **admin** only when shipped | — |
+
+### Conversation visibility helper
+
+```ts
+assertConversationVisible(session, conversation):
+  // admin → ok if tenant matches
+  // vendedor → tenant + InboxMember(user) + (
+  //   conversation.assignee_user_id === user
+  //   || conversation.assignee_user_id == null
+  //   || TeamMember(user, conversation.team_id)
+  //   || inbox.vendedor_see_all === true
+  // )
+```
+
+Cross-tenant or invisible id → **404** `nao_encontrado` (same as other resources).
+
+### Cadastro ↔ Contact (domain)
+
+On cadastro `aprovado`: upsert Company by CNPJ; upsert/link Contact; set `Contact.cliente_id`, `Cliente.primary_contact_id`, `Cliente.company_id`. Pedido gate remains **`requireClienteAprovado` only** — Contact alone never authorizes checkout.
 
 ## Loja customer
 
@@ -74,6 +112,8 @@ requireCustomer()
 requireSaasRole(...roles: Array<"admin" | "vendedor">)
 requireClienteAprovado(clienteId: string)
 assertTenantScope(row.tenant_id, session.tenantId)
+assertConversationVisible(session, conversation)
+assertInboxMember(session, inboxId) // when needed for channel reads
 ```
 
 Domain services call these; UI does not re-implement authorization.

@@ -30,7 +30,16 @@ The workspace package names may still say `@saas-frota/*` from the prior product
 | Theme | CSS variables from tenant `themes` row — names in `docs/design/` when present |
 | Package manager | npm workspaces |
 
-Do **not** add Stripe, Meta Cloud API, NF-e/SEFAZ, PIX, or a required SMTP provider. Outbox and WhatsApp inbox adapters are stubs (see [ports.md](./ports.md)).
+Do **not** add Stripe, Meta Cloud API, NF-e/SEFAZ, PIX, or a required SMTP provider. Outbox and WhatsApp channel adapters are stubs (see [ports.md](./ports.md)). Chatwoot-parity CRM is **native** in this app — do not embed Chatwoot OSS as a sidecar.
+
+### CRM runtime add-ons (Phase A)
+
+| Piece | Choice |
+|---|---|
+| Realtime | **SSE** (`/api/saas/crm/events/stream`) + presence POST — [jobs-realtime.md](./jobs-realtime.md) |
+| Jobs | In-process `background_jobs` tick worker |
+| WA secrets | AES-256-GCM via `CREDENTIALS_ENCRYPTION_KEY` |
+| Desk IA | saas-starter admin shell + shadcn (design) |
 
 ## Folder map
 
@@ -90,7 +99,8 @@ Copy `.env.example`. No production secrets belong in git.
 | `SESSION_SECRET` | HMAC for session cookies (dev placeholder only) |
 | `NEXT_PUBLIC_DEFAULT_TENANT_SLUG` | `casa-dos-frios` |
 | `CNPJ_REGISTRY_ENABLED` | `false` = port degrades (checksum still runs) |
-| `WHATSAPP_INBOX_MODE` | `simulate` (MVP only; no Meta webhook) |
+| `WHATSAPP_INBOX_MODE` | `simulate` (no Meta webhook until product unlock) |
+| `CREDENTIALS_ENCRYPTION_KEY` | base64 32-byte key for WA channel secret slots |
 
 ## Auth cookies
 

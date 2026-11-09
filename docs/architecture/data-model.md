@@ -14,8 +14,19 @@ This model **replaces** the former single `Order` (`novo`→`entregue`) machine 
 Tenant 1──1 Theme
        1──* Membership ──1 User
        1──* CadastroRequest
-       1──* Cliente ──? User (loja login)
-       1──* WhatsappThread ──* WhatsappMessage
+       1──* Company
+       1──* Contact ──? Cliente ──? User (loja login)
+                   ──* ContactInbox
+       1──* Inbox ──? ChannelWhatsapp
+                 ──* InboxMember
+                 ──* Conversation ──* Message
+                                 ──* ConversationLabel ── Label
+       1──* Team ──* TeamMember
+       1──* CannedResponse
+       1──* AgentNotification / AgentNotificationSetting
+       1──* AgentPresence
+       1──* DomainEvent
+       1──* BackgroundJob
        1──* Orcamento ──* OrcamentoLine ──* OrcamentoStatusHistory
        1──* PedidoVenda ──* PedidoLine ──* PedidoStatusHistory
                       ──? VendaFaturamento ──* VendaStatusHistory
@@ -24,6 +35,8 @@ Tenant 1──1 Theme
        1──* NotificationOutbox
        1──* Session
 ```
+
+**Phase A CRM** replaces `WhatsappThread` / `WhatsappMessage` (migrate in place — see [crm-chatwoot-parity.md](./crm-chatwoot-parity.md)). Phase B+ tables (AutomationRule, Macro, CustomAttributeDefinition, AgentBot, Webhook, WorkingHour, AssignmentPolicy, CsatResponse) and Phase C (Campaign, Portal/Article, report rollups) are sketched at the end of this file — implement when that phase starts.
 
 No `InventoryImportBatch` in MVP. No Account / subscription tables required for ops.
 
@@ -105,14 +118,53 @@ No `account_owner`. No `estoquista` / `entregador` / `supervisor` in MVP enums.
 
 Unique active CNPJ per tenant: at most one non-`recusado` request (or unique `(tenant_id, cnpj_digits)` with business rules preventing duplicate `pendente`/`aprovado`).
 
+### Company (Phase A CRM)
+
+CNPJ organization graph — shared by Contacts and Cliente. Not a second people DB.
+
+| Column | Type | Notes |
+|---|---|---|
+| `tenant_id` | fk | |
+| `cnpj_digits` / `cnpj_last4` | string | never log full |
+| `cnpj_registro_pendente` | bool | |
+| `razao_social` | string | |
+| `nome_fantasia` | string? | |
+| unique | `(tenant_id, cnpj_digits)` | |
+
+### Contact (Phase A CRM)
+
+CRM person. Prospects and WA chats exist here without being Cliente.
+
+| Column | Type | Notes |
+|---|---|---|
+| `tenant_id` | fk | |
+| `nome` | string | |
+| `email` | string? | |
+| `phone_e164` | string? | indexed; BR E.164 |
+| `company_id` | fk? | |
+| `cliente_id` | fk? | set when commerce-approved |
+| `cadastro_request_id` | fk? | |
+| `notas` | string? | free-text |
+| `created_at` / `updated_at` | datetime | |
+
+### ContactInbox
+
+| Column | Notes |
+|---|---|
+| `tenant_id`, `contact_id`, `inbox_id` | |
+| `source_id` | channel identity (WA = phone E.164) |
+| unique | `(tenant_id, inbox_id, source_id)` |
+
 ### Cliente
 
-Created on cadastro `aprovado` (or seeded).
+Created on cadastro `aprovado` (or seeded). **Commerce gate only** — not the CRM contact graph.
 
 | Column | Type | Notes |
 |---|---|---|
 | `tenant_id` | fk | |
 | `user_id` | fk? | loja login user when credentials exist |
+| `company_id` | fk? | Phase A: link to Company by CNPJ |
+| `primary_contact_id` | fk? | Phase A: Contact for this buyer |
 | `cnpj_digits` / `cnpj_last4` | string | |
 | `cnpj_registro_pendente` | bool | |
 | `razao_social` | string | |
@@ -125,23 +177,84 @@ Created on cadastro `aprovado` (or seeded).
 
 MVP does **not** sell to CPF-only customers. No `document_type` varejo path.
 
-### WhatsappThread / WhatsappMessage (simulated inbox)
+CadastroRequest gains `contact_id?` and `conversation_id?` (replaces `thread_id` after migration).
 
-| Thread | Notes |
+### Inbox + ChannelWhatsapp (Phase A)
+
+| Inbox | Notes |
 |---|---|
-| `tenant_id`, `phone_e164` | identity of chat |
-| `intent` | `cadastro` \| `orcamento` \| `info_empresa` \| `outro` \| null |
-| `cliente_id` / `cadastro_request_id` / `orcamento_id` | optional links |
-| `status` | `aberta` \| `arquivada` |
+| `tenant_id`, `name`, `channel_type` | Phase A: `whatsapp` (D+: email, api, web_widget, …) |
+| `greeting` / `ooo_message` | string? |
+| `csat_enabled` | bool default false |
+| `lock_to_single_conversation` | bool |
+| `allow_auto_assign` | bool |
+| `vendedor_see_all` | bool default false |
+
+One **default** WhatsApp inbox per tenant (seed). `ChannelWhatsapp` 1:1:
+
+| Column | Notes |
+|---|---|
+| `provider` | `whatsapp_cloud` \| `default` |
+| `phone_e164_display` | routing/display |
+| `phone_number_id` / `business_account_id` | plaintext metadata |
+| `secrets_ciphertext` | AES-256-GCM envelope — api_key/token, api_secret, webhook_verify_token |
+| `connection_status` | `not_configured` \| `credentials_saved` \| `ready_stub` \| `live` |
+| `message_templates_json` | stub template cache (editable) |
+
+`live` is **unreachable** until product unlocks Meta.
+
+### Conversation / Message (Phase A — evolves WhatsappThread/Message)
+
+| Conversation | Notes |
+|---|---|
+| `tenant_id`, `inbox_id`, `contact_id` | required |
+| `status` | `open` \| `pending` \| `snoozed` \| `resolved` |
+| `priority` | `low` \| `medium` \| `high` \| `urgent` \| null |
+| `assignee_user_id` / `team_id` | nullable |
+| `snoozed_until` | datetime? |
+| `muted` | bool |
+| `cliente_id` / `cadastro_request_id` / `orcamento_id` | commerce deep-links |
+| `last_activity_at` | for sort |
+| `created_at` / `updated_at` | |
 
 | Message | Notes |
 |---|---|
-| `direction` | `inbound` \| `outbound_note` |
-| `body` | text |
-| `simulated` | bool — true for admin “simular mensagem” |
+| `tenant_id`, `conversation_id` | |
+| `message_type` | `incoming` \| `outgoing` \| `activity` |
+| `private` | bool — private notes |
+| `content` | text |
+| `content_type` | `text` \| `attachment` (metadata only in A) |
+| `attachment_meta_json` | filename, mime, size, storage key — no execute |
+| `sender_user_id` | agent when outgoing/note |
+| `delivery_status` | `queued` \| `sent` \| `delivered` \| `read` \| `failed` — stub for WA |
+| `simulated` | bool |
 | `created_at` | |
 
-No Meta message ids in MVP.
+Legacy map: thread `aberta`→`open`, `arquivada`→`resolved`; message `inbound`→`incoming`; `outbound_note`→`outgoing` + `private=true`. Intent enum → system **Label** on conversation. No Meta message ids while stubbed.
+
+### Label / Team / InboxMember / CannedResponse
+
+| Entity | Notes |
+|---|---|
+| **Label** | `tenant_id`, `title`, `color`, `show_on_sidebar`; system titles `intent:cadastro` etc. seeded |
+| **ConversationLabel** / **ContactLabel** | M2M |
+| **Team** | `tenant_id`, `name` |
+| **TeamMember** | `team_id`, `user_id` |
+| **InboxMember** | `inbox_id`, `user_id` |
+| **CannedResponse** | `short_code`, `content` with `{{contact.nome}}` etc.; tenant-scoped |
+
+### Agent notifications & presence
+
+| Entity | Notes |
+|---|---|
+| **AgentNotificationSetting** | per user: assigned / unassigned / conversation activity booleans; email via outbox stub optional |
+| **AgentNotification** | `user_id`, `type`, `title`, `body`, `conversation_id?`, `read_at?` |
+| **AgentPresence** | `user_id`, `conversation_id?`, `state`, `expires_at` |
+| User profile extras | `availability` `online`\|`busy`\|`offline`; `signature` text? (signature UI may trail to B) |
+
+### DomainEvent / BackgroundJob
+
+See [jobs-realtime.md](./jobs-realtime.md). Both tenant-scoped. Phase A writes events on CRM mutations; job worker present; automation kinds idle until B.
 
 ### Orcamento
 
@@ -228,13 +341,17 @@ Append-only. Types in MVP: `reserve` \| `release` \| `consume` \| `adjust`. No `
 |---|---|---|
 | `tenant_id` | fk | |
 | `channel` | `email` \| `whatsapp` | |
-| `recipient_role` | `customer` \| `vendedor` | |
+| `recipient_role` | `customer` \| `vendedor` \| `agent` | `agent` for CRM desk emails |
 | `recipient` | string | PII |
-| `template_key` | string | e.g. `cadastro.aprovado`, `orcamento.status`, `pedido.status`, `venda.faturado` |
+| `template_key` | string | e.g. `cadastro.aprovado`, `orcamento.status`, `pedido.status`, `venda.faturado`, `campaign.wa_one_off` |
+| `category` | `commerce` \| `campaign` \| `crm_agent` \| `csat` \| `agent_email` | default `commerce`; Phase C campaigns use `campaign` |
+| `campaign_id` | fk? | null until Phase C |
 | `payload_json` | string | ids + status — **no full tax ID** |
 | `status` | `pendente` \| `enviado` \| `falha` | |
-| `orcamento_id` / `pedido_id` / `venda_id` / `cadastro_request_id` | fk? | |
+| `orcamento_id` / `pedido_id` / `venda_id` / `cadastro_request_id` / `conversation_id` | fk? | |
 | `created_at` | | |
+
+Commerce notification UX lists `category = commerce` (and null-treated-as-commerce during migration). Do not mix campaign blasts into that list without a filter.
 
 ### Session
 
@@ -288,23 +405,48 @@ Loja projection: SKU listed iff `visivel_loja`; shown qty = `available`. Zero av
 | `memberships` | unique `(tenant_id, user_id)`; `(tenant_id, saas_role)` |
 | `cadastro_requests` | `(tenant_id, status)`; `(tenant_id, cnpj_digits)` |
 | `clientes` | unique `(tenant_id, cnpj_digits)`; `(tenant_id, user_id)` |
-| `whatsapp_threads` | `(tenant_id, phone_e164)`; `(tenant_id, intent)` |
+| `companies` | unique `(tenant_id, cnpj_digits)` |
+| `contacts` | `(tenant_id, phone_e164)`; `(tenant_id, email)`; `(tenant_id, cliente_id)` |
+| `contact_inboxes` | unique `(tenant_id, inbox_id, source_id)` |
+| `inboxes` | `(tenant_id, channel_type)` |
+| `conversations` | `(tenant_id, status, last_activity_at)`; `(tenant_id, assignee_user_id)`; `(tenant_id, inbox_id)`; `(tenant_id, contact_id)` |
+| `messages` | `(tenant_id, conversation_id, created_at)` |
+| `labels` | unique `(tenant_id, title)` |
+| `teams` / `team_members` / `inbox_members` | tenant + parent fks |
+| `canned_responses` | unique `(tenant_id, short_code)` |
+| `domain_events` | `(tenant_id, created_at)` |
+| `background_jobs` | `(status, run_after)`; `(tenant_id, kind, status)` |
 | `orcamentos` | `(tenant_id, status)`; `(tenant_id, cliente_id)` |
 | `pedidos_venda` | `(tenant_id, status)`; `(tenant_id, cliente_id)`; unique `orcamento_id` |
 | `vendas_faturamento` | `(tenant_id, status)`; partial unique non-cancelled per `pedido_id` |
 | `skus` | unique `(tenant_id, codigo)`; `(tenant_id, visivel_loja)` |
 | `inventory_balances` | `(tenant_id)` |
 | `inventory_movements` | `(tenant_id, sku_id, created_at)` |
-| `notification_outbox` | `(tenant_id, status)` |
+| `notification_outbox` | `(tenant_id, status)`; `(tenant_id, category, status)` |
 | `sessions` | unique `token_hash` |
+
+Legacy `whatsapp_threads` / `whatsapp_messages` indexes are removed after Phase A migration.
 
 List endpoints paginated (cursor + limit, default 20, max 100). Catalog: one join Sku↔Balance, no N+1.
 
-## What must not exist (MVP)
+## Phase B–E entities (contract sketch — do not block A)
+
+Implement when the phase starts; columns may thicken without changing names.
+
+| Phase | Entities |
+|---|---|
+| **B** | `AutomationRule` (event, conditions_json, actions_json, active); `Macro` (visibility public\|private, actions_json, owner_user_id?); `CustomAttributeDefinition` (model contact\|conversation, attribute_display_type, key); values on contact/conversation JSON or side table; `AgentBot` + `AgentBotInbox` (webhook_url); `Webhook` (url, subscriptions_json); `WorkingHour`; `AssignmentPolicy`; `CsatResponse` (conversation_id, rating, feedback) |
+| **C** | `Campaign` (kind ongoing\|one_off, audience, template_ref, status); `Portal`, `Category`, `Article` (pt-BR); report rollup tables or materialized queries from `domain_events` |
+| **D** | Additional `channel_*` tables; `WidgetConfig`; client messaging API identities |
+| **E** | `SlaPolicy`; `AuditEvent`; Captain/AI ports; SAML config; custom role tables |
+
+## What must not exist (MVP + parity)
 
 - Second stock / `store_stocks` table.
-- Meta webhook tables as source of truth.
+- Meta webhook tables as **source of truth** for messages (stub simulate + outbox only until unlock).
+- Parallel write path to legacy `whatsapp_threads` after Conversation migration.
 - NF-e, PIX, payment capture tables.
 - Account billing tables driving ops entitlement.
 - AI inventory import batches.
 - CPF / varejo price path as a sales channel.
+- Plaintext storage of WA access tokens / app secrets.

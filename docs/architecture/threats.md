@@ -32,13 +32,37 @@ MVP threat notes. Blockers if a PR ships the failure mode.
 
 **Risk:** Someone wires Meta Cloud API webhooks or outbound Graph calls to “finish” inbox/outbox without a product decision.
 
-**Rule:** `WhatsappInboxSimulatePort` + `StubOutboxTransport` are MVP adapters. Real providers need product + architect change. Acceptance proves **rows**, not provider HTTP.
+**Rule:** `ChannelSimulateInboundPort` + `StubChannelSendPort` + `StubOutboxTransport` are the adapters. Connection status must not reach `live` until product unlocks Meta. Acceptance proves **rows**, not provider HTTP. Tests assert no Graph host egress from WA adapters.
 
 ## Simulated inbox abuse
 
 **Risk:** Unauthenticated caller injects inbound threads; or vendedor escalates to simulate without admin.
 
-**Rule:** `POST /api/saas/inbox/simular` is **admin-only**, tenant-scoped. Public Loja WhatsApp CTA may log a simulated inbound only through a documented, rate-limited demo endpoint if enabled — default seed path is admin simulate + seed data.
+**Rule:** `POST /api/saas/crm/simular` is **admin-only**, tenant-scoped (legacy `/inbox/simular` same rule until removed). Public Loja WhatsApp CTA may log a simulated inbound only through a documented, rate-limited demo endpoint if enabled — default seed path is admin simulate + seed data.
+
+## Conversation / Contact IDOR
+
+**Risk:** Vendedor reads another inbox’s conversations or contacts across assignment rules; or guesses ids from other tenants.
+
+**Rule:** `assertConversationVisible` + tenant scope on every CRM read/write. Contacts are tenant-scoped; still no cross-tenant. Return **404** for invisible conversations (do not leak existence via 403).
+
+## WA credential leakage
+
+**Risk:** Access tokens / app secrets in GET JSON, logs, SSE payloads, or client bundles.
+
+**Rule:** Encrypt at rest (AES-256-GCM). GET returns masked placeholders + `secrets_present`. Never put secrets in `domain_events` or notifications. Rotate `CREDENTIALS_ENCRYPTION_KEY` only via controlled re-encrypt job.
+
+## Webhook / bot SSRF (Phase B — contract now)
+
+**Risk:** Automation or AgentBot posts to `http://169.254.169.254/` or internal admin URLs.
+
+**Rule:** Jobs only (not request path). `UrlEgressGuardPort` https + DNS + private-IP deny + redirect re-check. See [jobs-realtime.md](./jobs-realtime.md).
+
+## Campaign / outbox confusion (Phase C)
+
+**Risk:** Campaign blasts appear as commerce status notifications or reuse cadastro templates.
+
+**Rule:** `notification_outbox.category` discriminates; commerce avisos UI filters `commerce`. Campaign keys use `campaign.*` prefix.
 
 ## CNPJ lookup abuse
 
@@ -66,13 +90,14 @@ MVP threat notes. Blockers if a PR ships the failure mode.
 
 ## Performance (contract)
 
-Catalog: single join, paginate. Lists indexed by `(tenant_id, status)`. No N+1 on document lines — include in one query. Inbox thread list paginated.
+Catalog: single join, paginate. Lists indexed by `(tenant_id, status)`. No N+1 on document lines — include in one query. Conversation list: `(tenant_id, status, last_activity_at)`; messages `(tenant_id, conversation_id, created_at)`. SSE fan-out in-process OK for seed scale; multi-instance needs pub/sub later ([jobs-realtime.md](./jobs-realtime.md)).
 
 ## Residual risks (accepted for MVP)
 
 - SQLite file on disk is not encrypted at rest; local demo only.
-- `SESSION_SECRET` in `.env` is a placeholder; rotate before any shared host.
-- WhatsApp numbers stored in plaintext (PII); encrypt-at-rest later.
+- `SESSION_SECRET` / `CREDENTIALS_ENCRYPTION_KEY` in `.env` are placeholders; rotate before any shared host.
+- Contact phone / WhatsApp display numbers stored in plaintext (PII); channel **secrets** encrypted; full phone encrypt-at-rest later if required.
 - No second-tenant in the demo seed — isolation tests are backend’s job.
-- Single Next process shares memory across surfaces; mitigate with tenant checks, not process isolation.
+- Single Next process shares memory across surfaces; mitigate with tenant checks, not process isolation. SSE is single-node.
 - Venda/Faturamento is an internal stub — not fiscal proof.
+- Job worker in-process can stall under load — acceptable until ops scale.

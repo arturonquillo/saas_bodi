@@ -61,29 +61,64 @@ Silent exception: create → Orçamento `rascunho` and create → Venda `rascunh
 
 Payload includes document id + new status — **no full tax ID**.
 
-## WhatsApp inbox simulator
+## WhatsApp / channel ports (Chatwoot-parity)
+
+Phase A evolves the simulator onto Conversation. Prefer these names; keep a deprecated alias to `WhatsappInboxSimulatePort` only during migration.
 
 ```ts
-interface WhatsappInboxSimulatePort {
+interface ChannelSimulateInboundPort {
   ingestInbound(input: {
     tenantId: string
+    inboxId?: string          // default WA inbox if omitted
     phoneE164: string
     body: string
-    intentHint?: "cadastro" | "orcamento" | "info_empresa" | "outro"
-  }): Promise<{ threadId: string; messageId: string }>;
+    intentLabel?: "intent:cadastro" | "intent:orcamento" | "intent:info_empresa" | "intent:outro"
+  }): Promise<{ conversationId: string; messageId: string; contactId: string }>
+}
+
+interface ChannelSendPort {
+  sendOutgoing(input: {
+    tenantId: string
+    inboxId: string
+    conversationId: string
+    messageId: string
+    toE164: string
+    body: string
+  }): Promise<{ deliveryStatus: "queued" | "sent" | "failed" }>
+}
+
+interface ChannelCredentialsVaultPort {
+  seal(secrets: Record<string, string>): Promise<string>      // ciphertext blob
+  open(ciphertext: string): Promise<Record<string, string>>   // never log
+  mask(secretsPresent: boolean): { secrets_present: boolean }
 }
 ```
 
-MVP behavior:
+Behavior:
 
-- Admin SaaS action “simular mensagem” calls this port.
-- Seed uses the same path to create sample threads.
-- Optional Loja CTA demo hook may call it when explicitly enabled for demos; production wa.me link does not require Meta.
-- **No** Meta webhook receiver in MVP. `WHATSAPP_INBOX_MODE=simulate`.
+- Admin “simular mensagem” / seed / optional Loja CTA → `ChannelSimulateInboundPort` (upsert Contact + ContactInbox + Conversation + Message; apply intent label).
+- Agent outgoing messages → `StubChannelSendPort` marks `delivery_status=sent` without Meta HTTP.
+- `WHATSAPP_INBOX_MODE=simulate` (no Meta webhook receiver).
+- `ChannelCredentialsVaultPort` uses AES-256-GCM + `CREDENTIALS_ENCRYPTION_KEY` ([crm-chatwoot-parity.md](./crm-chatwoot-parity.md)).
 
-Intent tags may be set manually by admin/vendedor after ingest. Linking a thread to cadastro/orçamento is a SaaS write, not automatic magic beyond seed examples.
+## Jobs / egress
 
-## Explicitly out of MVP ports
+```ts
+interface JobEnqueuePort { /* see jobs-realtime.md */ }
+interface JobWorkerPort { tick(limit?: number): Promise<number> }
+
+interface UrlEgressGuardPort {
+  assertSafeHttpsUrl(url: string): Promise<{ href: string; hostname: string }>
+}
+```
+
+Required before Phase B webhook/bot actions. Phase A may ship no-op consumers.
+
+## Outbox category (Phase C ready)
+
+`OutboxTransportPort` unchanged. Writers set `category`: `commerce` (default) \| `campaign` \| `crm_agent` \| `csat` \| `agent_email`. Campaign WA one-offs may enqueue outbox with `category=campaign` and stub templates — **no** Meta template submission API.
+
+## Explicitly forbidden / deferred ports
 
 | Port | Status |
 |---|---|
@@ -93,3 +128,5 @@ Intent tags may be set manually by admin/vendedor after ingest. Linking a thread
 | Payment / PIX | forbidden |
 | Inventory file parse / AI apply | deferred (no port required for MVP) |
 | Account billing provider | deferred |
+| Captain / model provider | Phase E |
+| Live channel providers (FB, IG, Telegram, …) | Phase D stubs only until paid unlock |

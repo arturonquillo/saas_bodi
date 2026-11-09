@@ -1,23 +1,25 @@
 # SaaS Desk chrome — Casa dos Frios
 
-Layout and density for `/saas`. Flows live in [`saas.md`](./saas.md). Tokens in [`tokens.md`](./tokens.md).
+Layout and density for `/saas`. Flows: [`saas.md`](./saas.md). **CRM Phase A desk:** [`crm-desk.md`](./crm-desk.md). Tokens: [`tokens.md`](./tokens.md).
+
+Shell follows **saas-starter** dashboard nesting (header + sidebar). Do not invent a second chrome.
 
 ## Shell
 
 ```
 ┌──────── sidebar 240px ────────┬──────── main ─────────────────────┐
-│ [logo/wordmark]               │ breadcrumb                         │
-│ Casa dos Frios                │ title (Archivo)  status Badge      │
-│                               │ action row                         │
-│ Inbox                         │────────────────────────────────────│
-│ Cadastros                     │ content (Table / form / split)     │
-│ Orçamentos                    │                                    │
-│ Pedidos                       │                                    │
-│ Vendas                        │                                    │
-│ Estoque                       │                                    │
-│ ── admin only ──              │                                    │
-│ Usuários / Tema / Config      │                                    │
-│ Avisos                        │                                    │
+│ [logo/wordmark]               │ starter header (bell · status)     │
+│ Casa dos Frios                │ breadcrumb / SaasPage title        │
+│                               │────────────────────────────────────│
+│ CRM                           │ content:                           │
+│  Conversas                    │  · Conversas = full-bleed 3-pane   │
+│  Contatos / Empresas          │  · other pages = SaasPage + Cards  │
+│ Comércio                      │                                    │
+│  Cadastros … Estoque · Avisos │                                    │
+│ CRM config (admin+)           │                                    │
+│  Caixas · Equipes · Labels …  │                                    │
+│ Admin                         │                                    │
+│  Usuários / Config / Tema     │                                    │
 │                               │                                    │
 │ Admin · Sair                  │                                    │
 └───────────────────────────────┴────────────────────────────────────┘
@@ -27,6 +29,7 @@ Layout and density for `/saas`. Flows live in [`saas.md`](./saas.md). Tokens in 
 - Sidebar: `#FAFBFC`, 1px right border `#E5E9EC`.
 - Active nav: 3px `--primary` left bar + `color-mix(in srgb, var(--color-primary) 8%, transparent)`.
 - Role + Sair pinned bottom — not a role switcher.
+- Header: agent availability `Select` + notifications bell (CRM Phase A).
 
 ## List pages
 
@@ -45,18 +48,24 @@ Layout and density for `/saas`. Flows live in [`saas.md`](./saas.md). Tokens in 
 6. Lines `Table`
 7. History list + notify `Alert` / live region
 
-## Inbox split
+## Conversas split (Phase A — replaces Inbox)
 
-| Region | Content |
-|---|---|
-| Left 360px | Thread rows: phone, preview, time, intent Badge, unread dot |
-| Right | Messages (bubbles muted/primary wash), intent `Select`, links to cadastro/orçamento, admin Simular |
+Full-bleed inside main (no outer Card). Spec: [`crm-desk.md`](./crm-desk.md).
 
-Mobile: stack — list then navigate to thread route.
+| Region | Width | Content |
+|---|---|---|
+| Filter strip | 220px (≥1280) | Status / caixa / assignee / label filters |
+| List | 320px | Rows: nome/phone, preview, time, status Badge, label dots, unread |
+| Thread | flex | Header controls + messages `ScrollArea` + composer |
+| Context | 280px | Contato, labels, assign, commerce deep links |
+
+Mobile: list → `/saas/conversas/:id` thread; filters/context = `Sheet`. Legacy `/saas/inbox` redirects here.
+
+**Cards wrap Contatos / Labels / settings lists only — never the Conversas panes.**
 
 ## KPI strip (optional, real counts only)
 
-Max three: Conversas não lidas · Cadastros pendentes · Orçamentos enviados. Archivo numbers in `--primary`. No fake analytics.
+Max three: Conversas não lidas · Cadastros pendentes · Orçamentos enviados. Archivo numbers in `--primary`. No fake analytics. No Relatórios charts in Phase A.
 
 ## Density
 

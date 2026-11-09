@@ -129,20 +129,102 @@ Locked strings for MVP. Do not invent alternate status labels.
 | venda_stub_banner | Faturamento interno (stub) — sem NF-e. |
 | venda_faturada | Faturamento interno registrado (stub). |
 
-## Inbox
+## Inbox (legacy keys — map UI to CRM)
 
 | Key | String |
 |---|---|
-| inbox_title | Inbox WhatsApp |
+| inbox_title | Conversas |
 | inbox_empty | Nenhuma conversa ainda. |
 | simulate_message | Simular mensagem |
 | simulate_ok | Mensagem simulada adicionada. |
-| intent | Intenção |
+| intent | Label |
 | intent_cadastro | Cadastro |
 | intent_orcamento | Orçamento |
 | intent_info_empresa | Info empresa |
 | intent_outro | Outro |
-| outbox_stub_note | Registrado no outbox (stub). |
+| outbox_stub_note | Registrado (stub). |
+
+## CRM desk (Phase A)
+
+| Key | String |
+|---|---|
+| nav_conversas | Conversas |
+| nav_contatos | Contatos |
+| nav_empresas | Empresas |
+| nav_labels | Labels |
+| nav_equipes | Equipes |
+| nav_respostas_rapidas | Respostas rápidas |
+| nav_caixas | Caixas de entrada |
+| nav_notificacoes | Notificações |
+| nav_perfil_crm | Perfil |
+| nav_relatorios | Relatórios |
+| conversas_title | Conversas |
+| conversas_empty | Nenhuma conversa ainda. |
+| conversas_empty_filter | Nenhuma conversa neste filtro. |
+| conversas_filter_mine | Minhas |
+| conversas_filter_unassigned | Não atribuídas |
+| conversas_filter_open | Abertas |
+| conversas_filter_pending | Pendentes |
+| conversas_filter_snoozed | Adiadas |
+| conversas_filter_resolved | Resolvidas |
+| conversas_clear_filters | Limpar filtros |
+| status_open | Aberta |
+| status_pending | Pendente |
+| status_snoozed | Adiada |
+| status_resolved | Resolvida |
+| priority_low | Baixa |
+| priority_medium | Média |
+| priority_high | Alta |
+| priority_urgent | Urgente |
+| assign | Atribuir |
+| team | Equipe |
+| private_note | Nota privada |
+| send_reply | Enviar |
+| snooze | Adiar |
+| mute | Silenciar |
+| bulk_actions | Ações em massa |
+| viewing_collision | {nome} está vendo esta conversa. |
+| sse_poll_fallback | Atualizando a cada 15s… |
+| contatos_title | Contatos |
+| contatos_empty | Nenhum contato. |
+| contato_novo | Novo contato |
+| contato_nova_conversa | Nova conversa |
+| empresas_title | Empresas |
+| empresas_empty | Nenhuma empresa. |
+| empresa_nova | Nova empresa |
+| labels_title | Labels |
+| labels_empty | Nenhum label. |
+| label_create | Criar label |
+| label_system | Sistema |
+| equipes_title | Equipes |
+| equipes_empty | Nenhuma equipe. |
+| equipe_create | Criar equipe |
+| equipe_members | Membros |
+| respostas_title | Respostas rápidas |
+| respostas_empty | Nenhuma resposta rápida. |
+| resposta_create | Criar resposta |
+| resposta_shortcode | Atalho |
+| caixas_title | Caixas de entrada |
+| caixa_members | Membros da caixa |
+| canal_title | Canal WhatsApp |
+| canal_not_configured | Não configurado |
+| canal_credentials_saved | Credenciais salvas |
+| canal_ready_stub | Pronto para conectar |
+| canal_mark_ready | Marcar pronto para conectar |
+| canal_stub_alert | Envio e recebimento reais aguardam integração Meta aprovada. Você pode salvar credenciais e simular mensagens. |
+| canal_secrets_change | Alterar |
+| canal_templates | Modelos (cache stub) |
+| notificacoes_empty | Nenhuma notificação. |
+| notificacoes_prefs | Preferências de notificação |
+| perfil_availability | Disponibilidade |
+| availability_online | Online |
+| availability_busy | Ocupado |
+| availability_offline | Offline |
+| perfil_signature | Assinatura |
+| search_placeholder | Buscar conversas, contatos, mensagens… |
+| search_empty | Nenhum resultado para “{q}”. |
+| relatorios_stub | Relatórios na fase C. |
+| phase_later_tooltip | Em breve — fase {phase} |
 
 ## Notify lines
 

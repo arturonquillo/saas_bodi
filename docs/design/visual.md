@@ -32,7 +32,7 @@ Three rejected directions (brief):
 | Prospecto | Understand cadastro pending; cannot buy |
 | Cliente aprovado | Price + MOQ clear; checkout one primary |
 | Admin | Users, tema, simulate inbox — dense but calm |
-| Vendedor | Inbox → tag → cadastro/orçamento without hunting |
+| Vendedor | Conversas → label/assign → cadastro/orçamento without hunting |
 
 ## Type
 
@@ -81,7 +81,7 @@ Border-first. Cards only when they wrap an interaction (catalog tile, auth form,
 
 1. Loja hero: subtle cool mist gradient drift (opacity only; disabled under reduced motion).
 2. Primary button press: 1px translateY + shadow drop.
-3. Inbox thread open: Sheet/page content fade-in 200ms.
+3. Conversas thread open: Sheet/page content fade-in 200ms.
 4. Status badge: color crossfade on legal transition.
 
 ## Chrome

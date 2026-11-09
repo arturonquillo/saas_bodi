@@ -2,7 +2,7 @@
 
 Operator workspace. Base `/saas`. Tenant theme, **compact** density. CRM-first. **Zero Account / billing chrome.**
 
-Chrome detail: [`saas-desk.md`](./saas-desk.md). Kit: [`shadcn.md`](./shadcn.md).
+Chrome: [`saas-desk.md`](./saas-desk.md). **Chatwoot-parity Conversas desk:** [`crm-desk.md`](./crm-desk.md). Kit: [`shadcn.md`](./shadcn.md).
 
 ## 1. Context
 
@@ -10,19 +10,19 @@ Chrome detail: [`saas-desk.md`](./saas-desk.md). Kit: [`shadcn.md`](./shadcn.md)
 
 | Role | Jobs |
 |---|---|
-| **Admin** | Users/RBAC, tema, config, simulate WhatsApp, everything vendedor can do |
-| **Vendedor** | Inbox, cadastros approve/refuse, orçamento→pedido→venda, read estoque |
+| **Admin** | Users/RBAC, tema, config, CRM caixas/canal WA stub, simulate inbound, everything vendedor can do |
+| **Vendedor** | Conversas (visibility rules), contatos, labels, canned, cadastros approve/refuse, orçamento→pedido→venda, read estoque |
 
 ### Primary goal
 
-Move WhatsApp-led demand into cadastro + Orçamento → Pedido → Venda without leaving the desk.
+Move WhatsApp-led demand into cadastro + Orçamento → Pedido → Venda without leaving the desk — via Chatwoot-parity **Conversas**, not a second inbox product.
 
 ### Constraints
 
 - Roles only `admin` | `vendedor`.
 - Cadastro `aprovado` before Pedido / Venda / accept→Pedido.
-- WhatsApp inbox simulated; outbox stub.
-- pt-BR; CNPJ masked; shadcn only.
+- WhatsApp channel **Pronto para conectar** (credentials + simulate); no Meta live I/O.
+- pt-BR; CNPJ masked; shadcn + saas-starter only.
 
 ## 2. Information hierarchy
 
@@ -38,38 +38,38 @@ Move WhatsApp-led demand into cadastro + Orçamento → Pedido → Venda without
 
 **Entry:** `/saas/entrar`
 
-**Happy path:** email + password → session cookie `cdf_sessao_saas` → home **Inbox**.
+**Happy path:** email + password → session cookie `cdf_sessao_saas` → home **Conversas**.
 
-**Alternate:** bad credentials → inline error; inactive user → “Conta desativada.”; already session → redirect Inbox.
+**Alternate:** bad credentials → inline error; inactive user → “Conta desativada.”; already session → redirect Conversas.
 
 **Completion:** Sidebar shows marca + role chip.
 
 ### Admin — users / RBAC
 
-**Entry:** `/saas/usuarios` (admin only; vendedor → redirect Inbox).
+**Entry:** `/saas/usuarios` (admin only; vendedor → redirect Conversas).
 
 **Happy path:** list users → criar (email, nome, papel `admin`|`vendedor`, senha inicial) → appears ativo → desativar (confirm) → cannot login.
 
 **Must not:** client-side role escalation; delete that erases audit (deactivate only).
 
-### CRM — WhatsApp inbox (simulated)
+### CRM — Conversas desk (Phase A)
 
-**Entry:** `/saas/inbox`
+**Entry:** `/saas/conversas` (legacy `/saas/inbox` redirects).
 
-**Layout:** thread list (phone, last preview, intent Badge, unread) | conversation + composer tools.
+**Full UX:** [`crm-desk.md`](./crm-desk.md) — three-pane desk, labels (system intents), assign/team, canned `/shortcode`, notifications, WA ready_stub settings.
 
-**Happy path:**
+**Happy path (summary):**
 
-1. Admin **Simular mensagem** (Dialog): phone E.164, body, optional intent → thread appears.
-2. Vendedor opens thread → tags intent (`cadastro` | `orcamento` | `info_empresa` | `outro`).
-3. Intent `cadastro` → link/create Solicitação; `orcamento` → link/create Orçamento rascunho.
-4. Reply is **outbox stub** note in UI (no Meta send) — show “Registrado no outbox (stub).”
+1. Admin **Simular mensagem** (Dialog): caixa, phone E.164, body, optional system label → Conversation appears.
+2. Vendedor opens thread → status/priority/assign; applies Labels (incl. Cadastro / Orçamento).
+3. Label / commerce links → Solicitação or Orçamento rascunho (existing gates).
+4. Public reply → stub delivery “Registrado (stub).”; private notes stay on desk.
 
 **Empty:** “Nenhuma conversa ainda.” + admin CTA simular.
 
 ### Cadastro CNPJ approval
 
-**Entry:** `/saas/cadastros` or from inbox.
+**Entry:** `/saas/cadastros` or from Conversas context rail.
 
 **Happy path:** open `pendente` → review CNPJ (masked), razão, contact → **Aprovar** → Cliente created + outbox → status `aprovado`.
 
@@ -117,11 +117,11 @@ Cold desk — see [`visual.md`](./visual.md). Focal point on each doc page = **s
 
 ### Desktop
 
-Sidebar 240px + main. Inbox = split list/detail. Doc pages = breadcrumb, title+badge, actions, lines table, history.
+Sidebar 240px + main (saas-starter). Conversas = full-bleed three-pane. Other CRM + doc pages = `SaasPage` + Card/list rhythm.
 
 ### Mobile
 
-Sidebar → Sheet. Inbox → list then full-screen thread. Action buttons full-width stack.
+Sidebar → Sheet. Conversas → list then full-screen thread. Action buttons full-width stack.
 
 ## 6. Components
 
@@ -136,7 +136,7 @@ See [`shadcn.md`](./shadcn.md) SaaS inventory. Mandatory primitives: `Sidebar`, 
 
 ## 8. States
 
-See [`states.md`](./states.md) — empty inbox, loading skeletons, 403/409, cadastro gate, registry-down, expired orçamento.
+See [`states.md`](./states.md) + [`crm-desk.md`](./crm-desk.md) §10 — empty conversas/CRM, loading skeletons, 403/409, cadastro gate, WA stub, registry-down, expired orçamento.
 
 ## 9. Responsive
 
@@ -152,7 +152,7 @@ Tenant primary/accent; compact density; system status colors.
 
 ## 11. Accessibility
 
-[`a11y.md`](./a11y.md). Inbox list semantics; dialogs trap focus; status live regions.
+[`a11y.md`](./a11y.md). Conversas listbox semantics; dialogs trap focus; status / new-message live regions.
 
 ## 12. Copy
 
@@ -162,12 +162,13 @@ Tenant primary/accent; compact density; system status colors.
 
 ### Must implement
 
-Screens and flows above; hide admin nav from vendedor; simulate-mensagem Dialog; pipeline buttons per product matrix.
+Screens and flows above; CRM desk per [`crm-desk.md`](./crm-desk.md); hide admin/CRM-config nav from vendedor; simulate-mensagem Dialog; pipeline buttons per product matrix.
 
 ### Must not improvise
 
 - Account links or entitlement banners.
-- Meta WhatsApp real send UI.
+- Meta WhatsApp real send / `live` connection UI.
 - NF-e fields.
 - Extra roles.
-- Parallel CSS kit.
+- Parallel CSS kit or Chatwoot-cloned non-shadcn chrome.
+- Cards wrapping Conversas panes.

@@ -7,7 +7,7 @@ Empty, loading, error, forbidden, and **cadastro gates**. Copy: [`copy-pt-BR.md`
 ## Loading
 
 - Keep chrome (Loja header / SaaS sidebar).
-- Body → skeletons matching layout (tiles on Loja, rows on SaaS tables, split panes on inbox).
+- Body → skeletons matching layout (tiles on Loja, rows on SaaS tables, Conversas panes).
 - No spinner-only blank page.
 
 ## Empty
@@ -17,7 +17,15 @@ Empty, loading, error, forbidden, and **cadastro gates**. Copy: [`copy-pt-BR.md`
 | Loja | Catalog, no visible SKUs | Nenhum produto visível na loja. | None for customer |
 | Loja | Cart | Seu carrinho está vazio. | Ver catálogo |
 | Loja | Meus docs | Você ainda não tem orçamentos ou pedidos. | Ver catálogo / WhatsApp |
-| SaaS | Inbox | Nenhuma conversa ainda. | Simular mensagem (admin) |
+| SaaS | Conversas (zero) | Nenhuma conversa ainda. | Simular mensagem (admin) |
+| SaaS | Conversas (filter) | Nenhuma conversa neste filtro. | Limpar filtros |
+| SaaS | Contatos | Nenhum contato. | Novo contato |
+| SaaS | Empresas | Nenhuma empresa. | Nova empresa |
+| SaaS | Labels | Nenhum label. | Criar label |
+| SaaS | Equipes | Nenhuma equipe. | Criar equipe |
+| SaaS | Respostas rápidas | Nenhuma resposta rápida. | Criar resposta |
+| SaaS | Notificações | Nenhuma notificação. | — |
+| SaaS | Relatórios stub | Relatórios na fase C. | — |
 | SaaS | Cadastros | Nenhum cadastro. | — |
 | SaaS | Orçamentos | Nenhum orçamento. | Novo orçamento |
 | SaaS | Pedidos | Nenhum pedido. | Novo pedido (aprovado) |
@@ -26,7 +34,7 @@ Empty, loading, error, forbidden, and **cadastro gates**. Copy: [`copy-pt-BR.md`
 | SaaS | Outbox | Nenhum aviso registrado. | — |
 | SaaS | Usuários | Nenhum usuário. | Criar usuário |
 
-Empty = title + optional one secondary action. Optional cool gradient tile — no marketing illustration packs.
+Empty = title + optional one secondary action. Optional cool gradient tile — no marketing illustration packs. CRM detail: [`crm-desk.md`](./crm-desk.md).
 
 ## Error (recoverable)
 
@@ -41,7 +49,7 @@ Empty = title + optional one secondary action. Optional cool gradient tile — n
 |---|---|---|
 | Guest | Meus docs / checkout | Redirect `entrar` with return |
 | Customer | Someone else’s doc | “Não encontrado.” |
-| Vendedor | Usuários / Tema / Config / Simular | Redirect Inbox; omit nav |
+| Vendedor | Usuários / Tema / Config / Caixas / Canal / Equipes / Simular | Redirect Conversas; omit nav |
 | Worker | Illegal transition | 403/409 toast; refresh; no side effects |
 | Other tenant | Any id | Same as not found |
 
@@ -91,3 +99,14 @@ Empty = title + optional one secondary action. Optional cool gradient tile — n
 
 - Outbox rows may show `enviado` without Meta — UI copy still names the **intended** channel.
 - Simulate inbound: success toast “Mensagem simulada adicionada.”
+- WA canal `ready_stub`: Badge **Pronto para conectar** + Alert that real send/receive awaits Meta approval — never imply live Graph.
+- Conversas SSE drop: muted “Atualizando a cada 15s…” + poll fallback; no error explosion.
+
+## CRM connection statuses (Phase A)
+
+| Status | Empty / banner behavior |
+|---|---|
+| `not_configured` | Canal form empty; primary Salvar |
+| `credentials_saved` | Masked secrets; CTA Marcar pronto para conectar |
+| `ready_stub` | Success Badge + stub Alert; Simular still available |
+| `live` | Not offered |

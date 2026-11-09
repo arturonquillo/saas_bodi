@@ -13,28 +13,33 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
+import { Toaster } from "@/components/ui/sonner";
+import { cn } from "@/lib/utils";
 import { BrandMark } from "../BrandMark";
 import { COPY } from "../copy";
 import { SkipLink } from "../layout";
 import { useSession } from "../session";
+import { CrmHeaderChrome } from "./CrmHeaderChrome";
 import {
   canOpen,
   currentPageLabel,
+  isConversasPath,
   roleHome,
   roleLabel,
   saasNavSections,
   type NavItem,
+  type NavSection,
 } from "./nav";
 import { NavIcon } from "./NavIcon";
 
 function navActive(pathname: string, href: string) {
-  return pathname === href || pathname.startsWith(`${href}/`);
+  const path = pathname.startsWith("/saas/inbox")
+    ? pathname.replace("/saas/inbox", "/saas/conversas")
+    : pathname;
+  return path === href || path.startsWith(`${href}/`);
 }
 
-/**
- * Outer ACME-style header from saas-starter app/(dashboard)/layout.tsx
- * + nested dashboard shell from app/(dashboard)/dashboard/layout.tsx.
- */
 function UserMenu({ role }: { role: SaasRole | null | undefined }) {
   const { logout, session } = useSession();
   const router = useRouter();
@@ -57,9 +62,14 @@ function UserMenu({ role }: { role: SaasRole | null | undefined }) {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="flex flex-col gap-1">
         <DropdownMenuItem className="cursor-pointer">
-          <Link href="/saas/inbox" className="flex w-full items-center">
+          <Link href="/saas/conversas" className="flex w-full items-center">
             <Home className="mr-2 h-4 w-4" />
-            <span>{COPY.nav.inbox}</span>
+            <span>{COPY.crm.nav_conversas}</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem className="cursor-pointer">
+          <Link href="/saas/crm/perfil" className="flex w-full items-center">
+            <span>{COPY.crm.nav_perfil_crm}</span>
           </Link>
         </DropdownMenuItem>
         <p className="px-2 py-1 text-xs text-gray-500">{roleLabel(role)}</p>
@@ -80,9 +90,10 @@ function UserMenu({ role }: { role: SaasRole | null | undefined }) {
 function Header({ role }: { role: SaasRole | null | undefined }) {
   return (
     <header className="border-b border-gray-200 bg-white">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-        <BrandMark href="/saas/inbox" className="text-gray-900" />
-        <div className="flex items-center space-x-4">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+        <BrandMark href="/saas/conversas" className="text-gray-900" />
+        <div className="flex items-center gap-2 sm:gap-4">
+          <CrmHeaderChrome />
           <UserMenu role={role} />
         </div>
       </div>
@@ -90,32 +101,44 @@ function Header({ role }: { role: SaasRole | null | undefined }) {
   );
 }
 
-function DashboardNav({
-  items,
+function SectionNav({
+  sections,
   pathname,
   onNavigate,
 }: {
-  items: NavItem[];
+  sections: NavSection[];
   pathname: string;
   onNavigate: () => void;
 }) {
   return (
-    <nav className="h-full overflow-y-auto p-4">
-      {items.map((item) => {
-        const active = navActive(pathname, item.href);
-        return (
-          <Link key={item.href} href={item.href} passHref>
-            <Button
-              variant={active ? "secondary" : "ghost"}
-              className={`my-1 w-full justify-start shadow-none ${active ? "bg-gray-100" : ""}`}
-              onClick={onNavigate}
-            >
-              <NavIcon name={item.icon} />
-              {item.label}
-            </Button>
-          </Link>
-        );
-      })}
+    <nav className="h-full overflow-y-auto p-3">
+      {sections.map((section, idx) => (
+        <div key={section.id} className="mb-2">
+          {idx > 0 ? <Separator className="my-3" /> : null}
+          <p className="mb-1 px-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+            {section.label}
+          </p>
+          {section.items.map((item: NavItem) => {
+            const active = navActive(pathname, item.href);
+            return (
+              <Link key={item.href} href={item.href} passHref>
+                <Button
+                  variant="ghost"
+                  className={cn(
+                    "my-0.5 w-full justify-start shadow-none",
+                    active &&
+                      "bg-[color-mix(in_srgb,var(--color-primary)_8%,transparent)] text-gray-900 border-l-[3px] border-l-primary rounded-l-none",
+                  )}
+                  onClick={onNavigate}
+                >
+                  <NavIcon name={item.icon} />
+                  {item.label}
+                </Button>
+              </Link>
+            );
+          })}
+        </div>
+      ))}
     </nav>
   );
 }
@@ -128,8 +151,8 @@ export function SaasChrome({ children }: { children: React.ReactNode }) {
   const loginPage = pathname === "/saas/entrar";
   const pageLabel = currentPageLabel(pathname, role);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { main, adminItems } = saasNavSections(role);
-  const navItems = [...main, ...adminItems];
+  const { sections } = saasNavSections(role);
+  const conversas = isConversasPath(pathname);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -153,12 +176,17 @@ export function SaasChrome({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <section className="flex min-h-screen flex-col bg-gray-50">
+    <section className="flex min-h-screen flex-col bg-[#F4F6F7]">
       <SkipLink />
       <Header role={role} />
+      <Toaster richColors position="top-right" />
 
-      {/* Nested dashboard shell — saas-starter dashboard/layout.tsx */}
-      <div className="mx-auto flex w-full max-w-7xl flex-col min-h-[calc(100dvh-68px)]">
+      <div
+        className={cn(
+          "mx-auto flex w-full flex-col min-h-[calc(100dvh-68px)]",
+          conversas ? "max-w-none" : "max-w-7xl",
+        )}
+      >
         <div className="flex items-center justify-between border-b border-gray-200 bg-white p-4 lg:hidden">
           <span className="font-medium text-gray-900">{pageLabel}</span>
           <Button
@@ -173,18 +201,25 @@ export function SaasChrome({ children }: { children: React.ReactNode }) {
 
         <div className="relative flex h-full flex-1 overflow-hidden">
           <aside
-            className={`absolute inset-y-0 left-0 z-40 w-64 transform border-r border-gray-200 bg-white transition-transform duration-300 ease-in-out lg:relative lg:block lg:translate-x-0 lg:bg-gray-50 ${
-              isSidebarOpen ? "block translate-x-0" : "hidden -translate-x-full"
-            }`}
+            className={cn(
+              "absolute inset-y-0 left-0 z-40 w-64 transform border-r border-[#E5E9EC] bg-[#FAFBFC] transition-transform duration-300 ease-in-out lg:relative lg:block lg:translate-x-0",
+              isSidebarOpen ? "block translate-x-0" : "hidden -translate-x-full",
+            )}
           >
-            <DashboardNav
-              items={navItems}
+            <SectionNav
+              sections={sections}
               pathname={pathname}
               onNavigate={() => setIsSidebarOpen(false)}
             />
           </aside>
 
-          <main id="conteudo" className="flex-1 overflow-y-auto p-0 lg:p-4">
+          <main
+            id="conteudo"
+            className={cn(
+              "flex-1 overflow-y-auto",
+              conversas ? "p-0" : "p-0 lg:p-4",
+            )}
+          >
             {children}
           </main>
         </div>

@@ -1,5 +1,6 @@
-import { InboxScreen } from "@/ui/saas/InboxScreen";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return <InboxScreen />;
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  redirect(`/saas/conversas/${id}`);
 }

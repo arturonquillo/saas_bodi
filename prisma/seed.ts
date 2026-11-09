@@ -1,7 +1,27 @@
+import { createCipheriv, randomBytes } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
+
+function sealSecrets(secrets: Record<string, string>) {
+  const key = Buffer.from(
+    process.env.CREDENTIALS_ENCRYPTION_KEY ??
+      "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+    "base64",
+  );
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  const plaintext = Buffer.from(JSON.stringify(secrets), "utf8");
+  const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return JSON.stringify({
+    alg: "aes-256-gcm",
+    iv: iv.toString("base64"),
+    tag: tag.toString("base64"),
+    ciphertext: ciphertext.toString("base64"),
+  });
+}
 
 const PASSWORD = "Demo@1234";
 const TENANT = "tenant_casa_dos_frios";
@@ -28,15 +48,40 @@ const ids = {
   orcEnviado: "orc_enviado",
   orcRascunho: "orc_rascunho",
   pedido: "ped_separacao",
-  threadCadastro: "wath_cadastro",
-  threadOrcamento: "wath_orcamento",
-  threadInfo: "wath_info",
+  inboxWa: "inx_wa_default",
+  channelWa: "chw_wa_default",
+  teamVendas: "team_vendas",
+  companyMercado: "co_mercado",
+  contactProspecto: "ct_prospecto",
+  contactCliente: "ct_cliente",
+  contactInfo: "ct_info",
+  convCadastro: "cnv_cadastro",
+  convOrcamento: "cnv_orcamento",
+  convInfo: "cnv_info",
 } as const;
 
 async function main() {
   // Wipe in FK-safe order
-  await prisma.whatsappMessage.deleteMany();
-  await prisma.whatsappThread.deleteMany();
+  await prisma.message.deleteMany();
+  await prisma.conversationDraft.deleteMany();
+  await prisma.conversationLabel.deleteMany();
+  await prisma.contactLabel.deleteMany();
+  await prisma.agentPresence.deleteMany();
+  await prisma.agentNotification.deleteMany();
+  await prisma.agentNotificationSetting.deleteMany();
+  await prisma.domainEvent.deleteMany();
+  await prisma.backgroundJob.deleteMany();
+  await prisma.conversation.deleteMany();
+  await prisma.contactInbox.deleteMany();
+  await prisma.channelWhatsapp.deleteMany();
+  await prisma.inboxMember.deleteMany();
+  await prisma.inbox.deleteMany();
+  await prisma.cannedResponse.deleteMany();
+  await prisma.teamMember.deleteMany();
+  await prisma.team.deleteMany();
+  await prisma.label.deleteMany();
+  await prisma.contact.deleteMany();
+  await prisma.company.deleteMany();
   await prisma.notificationOutbox.deleteMany();
   await prisma.vendaStatusHistory.deleteMany();
   await prisma.vendaFaturamento.deleteMany();
@@ -156,11 +201,24 @@ async function main() {
     ],
   });
 
+  await prisma.company.create({
+    data: {
+      id: ids.companyMercado,
+      tenantId: TENANT,
+      cnpjDigits: CLIENTE_CNPJ,
+      cnpjLast4: CLIENTE_CNPJ.slice(-4),
+      cnpjRegistroPendente: false,
+      razaoSocial: "Mercado Exemplo LTDA",
+      nomeFantasia: "Mercado Exemplo",
+    },
+  });
+
   await prisma.cliente.create({
     data: {
       id: ids.clienteRow,
       tenantId: TENANT,
       userId: ids.cliente,
+      companyId: ids.companyMercado,
       cnpjDigits: CLIENTE_CNPJ,
       cnpjLast4: CLIENTE_CNPJ.slice(-4),
       cnpjRegistroPendente: false,
@@ -385,63 +443,244 @@ async function main() {
     ],
   });
 
-  // Inbox threads — one per intent
-  await prisma.whatsappThread.create({
+  // CRM Phase A — default WA inbox + system labels + conversations
+  const sealedSecrets = sealSecrets({
+    api_token: "seed-token-not-for-production",
+    api_secret: "seed-secret-not-for-production",
+    webhook_verify_token: "seed-verify-not-for-production",
+  });
+
+  await prisma.inbox.create({
     data: {
-      id: ids.threadCadastro,
+      id: ids.inboxWa,
       tenantId: TENANT,
-      phoneE164: "+5511933334444",
-      intent: "cadastro",
+      name: "WhatsApp principal",
+      channelType: "whatsapp",
+      greeting: "Olá! Bem-vindo à Casa dos Frios.",
+      lockToSingleConversation: true,
+      vendedorSeeAll: false,
+    },
+  });
+  await prisma.channelWhatsapp.create({
+    data: {
+      id: ids.channelWa,
+      tenantId: TENANT,
+      inboxId: ids.inboxWa,
+      provider: "whatsapp_cloud",
+      phoneE164Display: "+5511988877766",
+      phoneNumberId: "seed_phone_number_id",
+      businessAccountId: "seed_waba_id",
+      secretsCiphertext: sealedSecrets,
+      connectionStatus: "ready_stub",
+      messageTemplatesJson: JSON.stringify([
+        { key: "greeting", body: "Olá {{contact.nome}}, somos a Casa dos Frios." },
+      ]),
+    },
+  });
+  await prisma.inboxMember.createMany({
+    data: [
+      { id: "inm_admin", tenantId: TENANT, inboxId: ids.inboxWa, userId: ids.admin },
+      { id: "inm_vendedor", tenantId: TENANT, inboxId: ids.inboxWa, userId: ids.vendedor },
+    ],
+  });
+
+  const systemLabels = [
+    { id: "lbl_cadastro", title: "intent:cadastro", color: "#7A1F1F" },
+    { id: "lbl_orcamento", title: "intent:orcamento", color: "#C4A35A" },
+    { id: "lbl_info", title: "intent:info_empresa", color: "#1F5C6B" },
+    { id: "lbl_outro", title: "intent:outro", color: "#6B7280" },
+  ];
+  await prisma.label.createMany({
+    data: systemLabels.map((l) => ({
+      id: l.id,
+      tenantId: TENANT,
+      title: l.title,
+      color: l.color,
+      showOnSidebar: true,
+      system: true,
+    })),
+  });
+
+  await prisma.team.create({
+    data: { id: ids.teamVendas, tenantId: TENANT, name: "Vendas" },
+  });
+  await prisma.teamMember.createMany({
+    data: [
+      { id: "tm_admin", tenantId: TENANT, teamId: ids.teamVendas, userId: ids.admin },
+      { id: "tm_vendedor", tenantId: TENANT, teamId: ids.teamVendas, userId: ids.vendedor },
+    ],
+  });
+
+  await prisma.cannedResponse.create({
+    data: {
+      id: "can_saudacao",
+      tenantId: TENANT,
+      shortCode: "saudacao",
+      content: "Olá {{contact.nome}}! Sou da Casa dos Frios, como posso ajudar?",
+    },
+  });
+
+  await prisma.agentNotificationSetting.createMany({
+    data: [
+      { id: "ans_admin", tenantId: TENANT, userId: ids.admin },
+      { id: "ans_vendedor", tenantId: TENANT, userId: ids.vendedor },
+    ],
+  });
+
+  await prisma.contact.createMany({
+    data: [
+      {
+        id: ids.contactProspecto,
+        tenantId: TENANT,
+        nome: "Prospecto Nova Loja",
+        email: "prospecto@novaloja.local",
+        phoneE164: "+5511933334444",
+        cadastroRequestId: ids.cadastroPendente,
+      },
+      {
+        id: ids.contactCliente,
+        tenantId: TENANT,
+        nome: "Contato Mercado Exemplo",
+        email: "cliente@mercadoexemplo.local",
+        phoneE164: "+5511911112222",
+        companyId: ids.companyMercado,
+        clienteId: ids.clienteRow,
+      },
+      {
+        id: ids.contactInfo,
+        tenantId: TENANT,
+        nome: "+5511955556666",
+        phoneE164: "+5511955556666",
+      },
+    ],
+  });
+
+  await prisma.cliente.update({
+    where: { id: ids.clienteRow },
+    data: { primaryContactId: ids.contactCliente },
+  });
+  await prisma.cadastroRequest.update({
+    where: { id: ids.cadastroPendente },
+    data: { contactId: ids.contactProspecto },
+  });
+
+  await prisma.contactInbox.createMany({
+    data: [
+      {
+        id: "ci_prospecto",
+        tenantId: TENANT,
+        contactId: ids.contactProspecto,
+        inboxId: ids.inboxWa,
+        sourceId: "+5511933334444",
+      },
+      {
+        id: "ci_cliente",
+        tenantId: TENANT,
+        contactId: ids.contactCliente,
+        inboxId: ids.inboxWa,
+        sourceId: "+5511911112222",
+      },
+      {
+        id: "ci_info",
+        tenantId: TENANT,
+        contactId: ids.contactInfo,
+        inboxId: ids.inboxWa,
+        sourceId: "+5511955556666",
+      },
+    ],
+  });
+
+  const now = new Date();
+  await prisma.conversation.create({
+    data: {
+      id: ids.convCadastro,
+      tenantId: TENANT,
+      inboxId: ids.inboxWa,
+      contactId: ids.contactProspecto,
+      status: "open",
       cadastroRequestId: ids.cadastroPendente,
-      status: "aberta",
+      lastActivityAt: now,
       messages: {
         create: {
-          id: "wmsg_cad_1",
+          id: "msg_cad_1",
           tenantId: TENANT,
-          direction: "inbound",
-          body: "Olá, quero me cadastrar como atacadista.",
+          messageType: "incoming",
+          content: "Olá, quero me cadastrar como atacadista.",
           simulated: true,
+          deliveryStatus: "delivered",
+        },
+      },
+      labels: {
+        create: {
+          id: "clb_cad",
+          tenantId: TENANT,
+          labelId: "lbl_cadastro",
         },
       },
     },
   });
-  await prisma.whatsappThread.create({
+  await prisma.conversation.create({
     data: {
-      id: ids.threadOrcamento,
+      id: ids.convOrcamento,
       tenantId: TENANT,
-      phoneE164: "+5511911112222",
-      intent: "orcamento",
+      inboxId: ids.inboxWa,
+      contactId: ids.contactCliente,
+      status: "open",
       clienteId: ids.clienteRow,
       orcamentoId: ids.orcEnviado,
-      status: "aberta",
+      assigneeUserId: ids.vendedor,
+      teamId: ids.teamVendas,
+      lastActivityAt: now,
       messages: {
         create: {
-          id: "wmsg_orc_1",
+          id: "msg_orc_1",
           tenantId: TENANT,
-          direction: "inbound",
-          body: "Preciso de preço de linguiça caixa.",
+          messageType: "incoming",
+          content: "Preciso de preço de linguiça caixa.",
           simulated: true,
+          deliveryStatus: "delivered",
+        },
+      },
+      labels: {
+        create: {
+          id: "clb_orc",
+          tenantId: TENANT,
+          labelId: "lbl_orcamento",
         },
       },
     },
   });
-  await prisma.whatsappThread.create({
+  await prisma.conversation.create({
     data: {
-      id: ids.threadInfo,
+      id: ids.convInfo,
       tenantId: TENANT,
-      phoneE164: "+5511955556666",
-      intent: "info_empresa",
-      status: "aberta",
+      inboxId: ids.inboxWa,
+      contactId: ids.contactInfo,
+      status: "resolved",
+      lastActivityAt: now,
       messages: {
         create: {
-          id: "wmsg_info_1",
+          id: "msg_info_1",
           tenantId: TENANT,
-          direction: "inbound",
-          body: "Qual o horário de entrega na zona sul?",
+          messageType: "incoming",
+          content: "Qual o horário de entrega na zona sul?",
           simulated: true,
+          deliveryStatus: "delivered",
+        },
+      },
+      labels: {
+        create: {
+          id: "clb_info",
+          tenantId: TENANT,
+          labelId: "lbl_info",
         },
       },
     },
+  });
+
+  await prisma.cadastroRequest.update({
+    where: { id: ids.cadastroPendente },
+    data: { conversationId: ids.convCadastro },
   });
 
   await prisma.notificationOutbox.create({
@@ -452,6 +691,7 @@ async function main() {
       recipientRole: "customer",
       recipient: "+5511911112222",
       templateKey: "orcamento.status",
+      category: "commerce",
       payloadJson: JSON.stringify({
         orcamento_id: ids.orcEnviado,
         status: "enviado",
@@ -462,7 +702,7 @@ async function main() {
     },
   });
 
-  console.log("Seed OK — tenant casa-dos-frios (password Demo@1234)");
+  console.log("Seed OK — tenant casa-dos-frios CRM Phase A (password Demo@1234)");
 }
 
 main()

@@ -1,5 +1,5 @@
-import { InboxScreen } from "@/ui/saas/InboxScreen";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <InboxScreen />;
+  redirect("/saas/conversas");
 }

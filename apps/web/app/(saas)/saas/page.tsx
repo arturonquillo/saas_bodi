@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function SaasHomePage() {
-  redirect("/saas/inbox");
+  redirect("/saas/conversas");
 }

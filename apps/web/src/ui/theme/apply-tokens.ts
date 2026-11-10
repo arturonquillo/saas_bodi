@@ -1,12 +1,13 @@
 import type { CSSProperties } from "react";
 import type { ThemeTokens } from "@saas-frota/shared";
 import { THEME_CSS_VARS } from "@saas-frota/shared";
+import type { ResolvedColorMode } from "./color-mode";
 
 /** Design locked contrast pair — docs/design/tokens.md */
 const TEXT = "#141A1F";
 const ON_PRIMARY = "#F7F1F0";
 const ON_ACCENT = "#F2F8FA";
-const WHITE = "#FFFFFF";
+const DARK_CANVAS = "#12181C";
 
 function parseHex(hex: string): [number, number, number] | null {
   const h = hex.replace("#", "").trim();
@@ -60,22 +61,24 @@ export function themePassesContrast(tokens: ThemeTokens) {
   return contrastRatio(TEXT, tokens.background) >= 4.5 && contrastRatio(ON_PRIMARY, tokens.primary) >= 4.5;
 }
 
-/** Apply tenant editor-contract vars on Loja/SaaS.
- *  Never assign tenant --color-background to --background or --color-accent to shadcn --accent. */
-export function themeStyle(tokens: ThemeTokens): CSSProperties {
+/**
+ * Apply tenant editor-contract vars on Loja/SaaS.
+ * Never assign tenant --color-background to --background or --color-accent to shadcn --accent.
+ * Surface/text/border stay in CSS so `.dark` can remap them; only editable brand slots go inline.
+ */
+export function themeStyle(tokens: ThemeTokens, resolved: ResolvedColorMode = "light"): CSSProperties {
+  const background =
+    resolved === "dark" ? mix(tokens.background, DARK_CANVAS, 0.88) : tokens.background;
+
   return {
     [THEME_CSS_VARS.marca]: tokens.marca,
     [THEME_CSS_VARS.primary]: tokens.primary,
     [THEME_CSS_VARS.accent]: tokens.accent,
-    [THEME_CSS_VARS.background]: tokens.background,
+    [THEME_CSS_VARS.background]: background,
     [THEME_CSS_VARS.logo_url]: tokens.logo_url ? `url(${tokens.logo_url})` : "none",
     "--color-marca": tokens.primary,
-    "--color-text": TEXT,
     "--color-text-on-primary": ON_PRIMARY,
     "--color-text-on-accent": ON_ACCENT,
-    "--color-surface": mix(tokens.background, WHITE, 0.55),
-    "--color-surface-raised": WHITE,
-    "--color-border": mix(tokens.background, TEXT, 0.12),
     "--brand-accent": tokens.accent,
     "--brand-accent-foreground": ON_ACCENT,
   } as CSSProperties;

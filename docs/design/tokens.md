@@ -27,6 +27,7 @@ Logo: **placeholder slot** until the official asset arrives. Empty `logo_url` �
 | body / UI font | `--font-body` / `--font-ui` | IBM Plex Sans | System |
 
 Do not add editable font family, dark mode, or radius to the MVP theme editor.
+User/system **color mode** (claro / escuro / sistema) is separate from the tenant theme editor — see [shadcn.md](./shadcn.md) § Dark mode.
 
 ### Derived (computed, not editable)
 
@@ -97,7 +98,7 @@ Full table: [`shadcn.md`](./shadcn.md) §2.
 - Primary: buttons, links, Loja prices, SaaS active nav accent bar.
 - Brand accent: cold-steel focus ring, intent chips secondary, WhatsApp CTA outline — never the only status cue.
 - Danger / success / warning: system only.
-- Do not add the `dark` class for tenant theme. Leave shadcn `.dark` unused in MVP.
+- Color mode uses the document `dark` class (shadcn). Tenant brand primary/accent stay; surfaces/text remap under `.dark [data-theme="tenant"]`.
 
 ## What frontend must not improvise
 
@@ -105,4 +106,5 @@ Full table: [`shadcn.md`](./shadcn.md) §2.
 - Tenant `--color-background` as full Loja/SaaS `--background`.
 - Tenant `--color-accent` as shadcn `--accent`.
 - Tenant `--color-primary` as sidebar fill.
-- Extra theme editor fields, dark mode, or a parallel CSS token kit.
+- Extra theme editor fields or a parallel CSS token kit.
+- A second dark palette outside shadcn CSS variables.

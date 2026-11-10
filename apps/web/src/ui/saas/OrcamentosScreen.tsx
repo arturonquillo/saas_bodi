@@ -33,6 +33,7 @@ import {
   legalOrcamentoTargets,
   orcamentoTransitionLabel,
 } from "../order-ui";
+import { DetailNavButton } from "../DetailNavRow";
 import { useSession } from "../session";
 import { ErrorState, FormSkeleton, GateBanner, TableSkeleton } from "../states";
 
@@ -88,22 +89,23 @@ export function OrcamentosListScreen() {
                 </Button>
               </div>
             ) : (
-              <ul className="space-y-4">
+              <ul className="space-y-2">
                 {items.map((o) => (
-                  <li key={o.id} className="flex items-center justify-between gap-4">
-                    <button
-                      type="button"
-                      className="min-w-0 flex-1 text-left"
+                  <li key={o.id}>
+                    <DetailNavButton
+                      className="rounded-md px-2 py-2"
                       onClick={() => router.push(`/saas/orcamentos/${o.id}`)}
+                      meta={
+                        <>
+                          <OrcamentoStatusBadge status={o.status} />
+                          <MoneyCell centavos={docTotal(o.linhas ?? [])} />
+                          <span className="text-sm text-muted-foreground">{formatDate(o.updated_at)}</span>
+                        </>
+                      }
                     >
-                      <p className="font-medium text-gray-900">{o.id}</p>
-                      <p className="text-sm text-gray-500">{clienteDisplay(o)}</p>
-                    </button>
-                    <div className="flex shrink-0 flex-wrap items-center gap-3 text-sm">
-                      <OrcamentoStatusBadge status={o.status} />
-                      <MoneyCell centavos={docTotal(o.linhas ?? [])} />
-                      <span className="text-gray-500">{formatDate(o.updated_at)}</span>
-                    </div>
+                      <p className="font-medium text-foreground">{o.id}</p>
+                      <p className="text-sm text-muted-foreground">{clienteDisplay(o)}</p>
+                    </DetailNavButton>
                   </li>
                 ))}
               </ul>

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { isAdmin } from "@saas-frota/shared";
-import { Filter, MoreHorizontal, PanelRight, Send } from "lucide-react";
+import { Filter, MoreHorizontal, PanelRight, Send, SquareArrowOutUpRight } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -1104,7 +1104,7 @@ export function ConversasScreen() {
                       type="button"
                       role="option"
                       aria-selected={active}
-                      className="min-w-0 flex-1 py-2 text-left"
+                      className="group min-w-0 flex-1 cursor-pointer py-2 text-left"
                       onClick={() => router.push(`/saas/conversas/${row.id}`)}
                     >
                       <div className="flex items-center gap-2">
@@ -1115,13 +1115,18 @@ export function ConversasScreen() {
                         )}
                         <p
                           className={cn(
-                            "truncate text-sm text-gray-900",
+                            "truncate text-sm text-foreground",
                             row.unread && "font-semibold",
                           )}
                         >
                           {title}
                         </p>
-                        <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">
+                        <SquareArrowOutUpRight
+                          aria-hidden
+                          className="ml-auto size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+                          strokeWidth={1.75}
+                        />
+                        <span className="shrink-0 text-[11px] text-muted-foreground">
                           {formatDate(row.last_activity_at ?? row.updated_at)}
                         </span>
                       </div>

@@ -18,6 +18,7 @@ import { apiGet, whatsappLink, type LojaConfigDto } from "../api";
 import { COPY } from "../copy";
 import { SkipLink } from "../layout";
 import { useSession } from "../session";
+import { ColorModeToggle } from "../theme/ColorModeToggle";
 import { LojaChatWidget } from "./LojaChatWidget";
 
 export function StoreChrome({ children }: { children: React.ReactNode }) {
@@ -119,6 +120,9 @@ export function StoreChrome({ children }: { children: React.ReactNode }) {
     return (
       <>
         <SkipLink />
+        <div className="fixed top-3 right-3 z-40">
+          <ColorModeToggle />
+        </div>
         {children}
         <LojaChatWidget />
       </>
@@ -131,17 +135,22 @@ export function StoreChrome({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-[1200px] items-center justify-between gap-3 px-4 md:px-6">
           <BrandMark href="/loja" />
-          <nav className="hidden items-center gap-1 md:flex">{navLinks}</nav>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            aria-label="Menu"
-            onClick={() => setMobileOpen((o) => !o)}
-          >
-            <Menu className="size-5" />
-          </Button>
+          <div className="hidden items-center gap-1 md:flex">
+            <nav className="flex items-center gap-1">{navLinks}</nav>
+            <ColorModeToggle />
+          </div>
+          <div className="flex items-center gap-1 md:hidden">
+            <ColorModeToggle />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label="Menu"
+              onClick={() => setMobileOpen((o) => !o)}
+            >
+              <Menu className="size-5" />
+            </Button>
+          </div>
         </div>
         {mobileOpen ? (
           <nav className="flex flex-col gap-1 border-t border-border px-4 py-3 md:hidden">{navLinks}</nav>

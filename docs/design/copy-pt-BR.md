@@ -278,6 +278,15 @@ Locked strings for MVP. Do not invent alternate status labels.
 | lista_preco | Preço lista |
 | preco_liquido | Preço líquido |
 
+## Aparência (color mode)
+
+| Key | String |
+|---|---|
+| color_mode | Aparência |
+| color_mode_light | Claro |
+| color_mode_dark | Escuro |
+| color_mode_system | Sistema |
+
 ## Shared errors / empty
 
 | Key | String |

@@ -1,6 +1,6 @@
 # Product spec — Casa dos Frios CRM + atacado
 
-Living spec. The **product** agent updates this when behavior changes. MVP brief: `docs/product/mvp.md`. Acceptance: `docs/product/mvp-acceptance.md`. Feature overview: `docs/product/brief.md`. **CRM desk parity:** `docs/product/chatwoot-parity.md` (full Chatwoot inventory + phases). Stack choices belong in `docs/architecture/` once the architect locks them.
+Living spec. The **product** agent updates this when behavior changes. MVP brief: `docs/product/mvp.md`. Acceptance: `docs/product/mvp-acceptance.md`. Feature overview: `docs/product/brief.md`. **CRM desk parity:** `docs/product/chatwoot-parity.md` (full Chatwoot inventory + phases). **Inventory / estoque upgrade:** `docs/product/inventory.md` (product master, movements, Loja projection, desconto vs listas). Stack choices belong in `docs/architecture/` once the architect locks them.
 
 This document **supersedes** the former `saas_frota` wholesale/retail MVP framing. Hard constraints from `AGENTS.md` still apply **unless** this spec explicitly replaces them below.
 
@@ -125,7 +125,7 @@ Transitions:
 
 Rules:
 
-- Lines snapshot SKU name, qty, unit price (atacado list), optional notes.
+- Lines snapshot SKU name, qty, list unit price, optional line `desconto_pct`, **net** unit price, optional notes (see `inventory.md`).
 - `valido_ate` required before `enviado` (default +7 days from send).
 - Accept is blocked if customer cadastro ≠ `aprovado` — vendedor must approve cadastro first (orçamento can stay `enviado`).
 - Notify customer + responsible vendedor on every status change except create→`rascunho`.
@@ -192,12 +192,16 @@ Public, branded for Casa dos Frios (tenant theme).
 
 Phase 2: native app with the same customer capabilities.
 
-## Catalog and stock (thin)
+## Catalog and stock
 
-- One storage ledger: `on_hand`, `reserved`, `available = on_hand - reserved`.
-- Loja is a **projection** (`visivel_loja` + available) — never a second ledger.
-- Admin maintains SKUs (name, sku, `preco_atacado`, qty, visibility). No AI file chat in MVP.
-- Atacado MOQ optional per SKU (`qtd_min_atacado`, default 1).
+Thin MVP shipped list/adjust/visibility; **operators still need full product create + discount**. Authoritative upgrade: **`docs/product/inventory.md`**. Condensed locks (do not reopen):
+
+- **One** storage ledger only: `on_hand`, `reserved`, `available = max(0, on_hand - reserved)`. Loja is a **projection** — never a second ledger / `store_stocks`.
+- SKU master (admin write; vendedor read): `codigo`, `nome`, `descricao?`, `unidade` (`un`\|`kg`\|`cx`\|`pct`\|`lt`), `preco_atacado_centavos` (**sole list / sale price** this phase), `desconto_max_pct` (0–100), `qtd_min_atacado` (default 1), `visivel_loja`, `ativo`.
+- Movements: `adjust` (admin + motivo; signed delta), `reserve` / `release` / `consume` (pedido machine). Opening stock may write `adjust` `estoque_inicial`.
+- Loja lists iff `ativo && visivel_loja`; shows available from the same ledger. Inactive excluded from **new** SaaS line pickers; snapshots on old docs remain.
+- **Listas de preços:** not in this phase — one atacado list field per SKU. **Desconto:** SaaS Orçamento/Pedido **line** `%` (net snapshot); vendedor capped by `desconto_max_pct`; admin may exceed; Loja checkout = list only (no self-discount).
+- No AI file chat; no multi-warehouse; no estoquista role; no varejo price list.
 
 ## Notifications
 
@@ -266,6 +270,11 @@ Also seed: SKUs (carnes/frios lean), one hidden SKU, one zero-available, inbox t
 - NF-e, PIX/payment gateway, returns, partial invoice.
 - Roles estoquista / entregador; courier assignment; multi-warehouse.
 - AI inventory import; varejo/CPF channel; i18n (Help Center multi-locale is parity Phase E).
+- Multi-lista de preços (per customer / channel books); promotional SKU price entity; returns/RMA; product image gallery; fractional stock / UoM conversion.
+
+### Inventory upgrade (post thin MVP)
+
+Full product create/edit, soft `ativo`, units, discount caps, movements UX, Loja projection filters — locked in `docs/product/inventory.md`. Does not reopen CRM pipeline or Chatwoot phases.
 
 ## Open questions
 
@@ -282,5 +291,7 @@ Also seed: SKUs (carnes/frios lean), one hidden SKU, one zero-available, inbox t
 | Loja buy path | Default direct Pedido for aprovado; orçamentos via CRM/WhatsApp |
 | Account / SaaS billing | Out of MVP |
 | Logo | Placeholder |
+| Inventory upgrade | Fields, admin/vendedor matrix, one ledger, Loja projection, desconto vs single lista — `inventory.md` |
+| Price lists vs discount | Single `preco_atacado_centavos`; line % discount on SaaS docs only |
 
-**Blocking open questions:** none for MVP build start. Non-blocking later: Meta WABA ownership, fiscal NF-e provider, native app store accounts.
+**Blocking open questions:** none for MVP build start; none for inventory upgrade architect start. Non-blocking later: Meta WABA ownership, fiscal NF-e provider, native app store accounts, multi-price-lists.

@@ -6,7 +6,7 @@ import { decodeCursor, encodeCursor, parsePaging } from "../http/pagination";
 import { ApiError } from "../http/respond";
 import { newId } from "../ids";
 import { deliverOutboxIds, enqueueNotifications } from "../notifications/outbox-enqueue";
-import { resolveAtacadoLines } from "./lines";
+import { lineCreateData, mapFrozenOrcamentoLines, resolveAtacadoLines } from "./lines";
 import { assertOrcamentoTransition } from "./machines";
 import { createPedidoConfirmado } from "./pedido";
 
@@ -25,7 +25,10 @@ function orcamentoDto(row: {
     skuId: string;
     codigoSnapshot: string;
     nomeSnapshot: string;
+    unidadeSnapshot: string | null;
     qty: number;
+    precoListaCentavos: number;
+    descontoPct: number;
     unitPriceCentavos: number;
     notas: string | null;
   }>;
@@ -53,7 +56,11 @@ function orcamentoDto(row: {
       sku_id: l.skuId,
       codigo: l.codigoSnapshot,
       nome: l.nomeSnapshot,
+      unidade: l.unidadeSnapshot,
       qty: l.qty,
+      preco_lista_centavos: l.precoListaCentavos,
+      desconto_pct: l.descontoPct,
+      preco_unitario_centavos: l.unitPriceCentavos,
       unit_price_centavos: l.unitPriceCentavos,
       notas: l.notas,
     })),
@@ -85,7 +92,7 @@ export async function createOrcamento(
     cliente_id?: string;
     cadastro_request_id?: string;
     channel?: OrcamentoChannel;
-    linhas: Array<{ sku_id: string; qty: number; notas?: string }>;
+    linhas: Array<{ sku_id: string; qty: number; desconto_pct?: number; notas?: string }>;
     valido_ate?: string;
   },
 ) {
@@ -108,8 +115,12 @@ export async function createOrcamento(
     const lines = await resolveAtacadoLines(
       tx,
       session.tenantId,
-      input.linhas.map((l) => ({ sku_id: l.sku_id, qty: l.qty })),
-      { checkAvailable: false },
+      input.linhas.map((l) => ({
+        sku_id: l.sku_id,
+        qty: l.qty,
+        desconto_pct: l.desconto_pct,
+      })),
+      { checkAvailable: false, session },
     );
     await tx.orcamento.create({
       data: {
@@ -122,16 +133,9 @@ export async function createOrcamento(
         validoAte: input.valido_ate ? new Date(input.valido_ate) : null,
         channel: input.channel ?? "saas",
         lines: {
-          create: lines.map((l, idx) => ({
-            id: newId("oln"),
-            tenantId: session.tenantId,
-            skuId: l.skuId,
-            codigoSnapshot: l.codigoSnapshot,
-            nomeSnapshot: l.nomeSnapshot,
-            qty: l.qty,
-            unitPriceCentavos: l.unitPriceCentavos,
-            notas: input.linhas[idx]?.notas ?? null,
-          })),
+          create: lines.map((l, idx) =>
+            lineCreateData(session.tenantId, l, newId("oln"), input.linhas[idx]?.notas ?? null),
+          ),
         },
         history: {
           create: {
@@ -289,7 +293,7 @@ export async function transitionOrcamento(
     const vendedor = await db.user.findUniqueOrThrow({ where: { id: row.vendedorUserId } });
     let outboxIds: string[] = [];
 
-    // Create pedido first (reserves). Then mark orçamento aceito.
+    // Create pedido first (reserves). Copy frozen list/discount/net from orçamento.
     const pedido = await createPedidoConfirmado({
       tenantId: session.tenantId,
       actorUserId: session.userId,
@@ -297,7 +301,7 @@ export async function transitionOrcamento(
       vendedorUserId: row.vendedorUserId,
       channel: "orcamento",
       orcamentoId: row.id,
-      linhas: row.lines.map((l) => ({ sku_id: l.skuId, qty: l.qty })),
+      frozenLines: mapFrozenOrcamentoLines(row.lines),
     });
 
     await db.$transaction(async (tx) => {

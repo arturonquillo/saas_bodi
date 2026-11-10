@@ -1,4 +1,4 @@
-import { availableQty, type CatalogItemDto } from "@saas-frota/shared";
+import { availableQty, type CatalogItemDto, type SkuUnidade } from "@saas-frota/shared";
 import { db } from "../db";
 import { env } from "../env";
 import { decodeCursor, encodeCursor, parsePaging } from "../http/pagination";
@@ -16,6 +16,8 @@ function toItem(row: {
   id: string;
   codigo: string;
   nome: string;
+  descricao: string | null;
+  unidade: SkuUnidade;
   precoAtacadoCentavos: number;
   qtdMinAtacado: number;
   balance: { onHand: number; reserved: number } | null;
@@ -24,7 +26,10 @@ function toItem(row: {
   return {
     id: row.id,
     sku: row.codigo,
+    codigo: row.codigo,
     nome: row.nome,
+    descricao: row.descricao,
+    unidade: row.unidade,
     preco_atacado_centavos: row.precoAtacadoCentavos,
     qtd_min_atacado: row.qtdMinAtacado,
     available,
@@ -39,6 +44,7 @@ export async function getStoreCatalog(slug: string | undefined, url: URL) {
   const rows = await db.sku.findMany({
     where: {
       tenantId: tenant.id,
+      ativo: true,
       visivelLoja: true,
       ...(decoded ? { id: { gt: decoded[0] } } : {}),
     },
@@ -56,7 +62,7 @@ export async function getStoreCatalog(slug: string | undefined, url: URL) {
 export async function getStoreProduct(id: string, slug?: string) {
   const tenant = await resolveTenant(slug);
   const row = await db.sku.findFirst({
-    where: { id, tenantId: tenant.id, visivelLoja: true },
+    where: { id, tenantId: tenant.id, ativo: true, visivelLoja: true },
     include: { balance: true },
   });
   if (!row) throw new ApiError("nao_encontrado", "Não encontrado.");

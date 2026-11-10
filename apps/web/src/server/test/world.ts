@@ -30,6 +30,7 @@ export type TestWorld = {
     oculto: string;
     esgotado: string;
     moq: string;
+    inativo: string;
   };
 };
 
@@ -93,6 +94,7 @@ export async function createWorld(label: string): Promise<TestWorld> {
     oculto: newId("sku"),
     esgotado: newId("sku"),
     moq: newId("sku"),
+    inativo: newId("sku"),
   };
   const clienteId = newId("cli");
   const cadastroPendenteId = newId("cad");
@@ -202,36 +204,60 @@ export async function createWorld(label: string): Promise<TestWorld> {
         tenantId,
         codigo: `VIS-${label}`,
         nome: "Visivel",
+        unidade: "kg",
         precoAtacadoCentavos: 3990,
+        descontoMaxPct: 10,
         qtdMinAtacado: 1,
         visivelLoja: true,
+        ativo: true,
       },
       {
         id: skus.oculto,
         tenantId,
         codigo: `HID-${label}`,
         nome: "Oculto",
+        unidade: "un",
         precoAtacadoCentavos: 800,
+        descontoMaxPct: 0,
         qtdMinAtacado: 1,
         visivelLoja: false,
+        ativo: true,
       },
       {
         id: skus.esgotado,
         tenantId,
         codigo: `OUT-${label}`,
         nome: "Esgotado",
+        unidade: "un",
         precoAtacadoCentavos: 7000,
+        descontoMaxPct: 0,
         qtdMinAtacado: 1,
         visivelLoja: true,
+        ativo: true,
       },
       {
         id: skus.moq,
         tenantId,
         codigo: `MOQ-${label}`,
         nome: "Atacado MOQ",
+        unidade: "cx",
         precoAtacadoCentavos: 14900,
+        descontoMaxPct: 0,
         qtdMinAtacado: 10,
         visivelLoja: true,
+        ativo: true,
+      },
+      {
+        id: skus.inativo,
+        tenantId,
+        codigo: `INA-${label}`,
+        nome: "Inativo",
+        unidade: "un",
+        precoAtacadoCentavos: 1990,
+        descontoMaxPct: 0,
+        qtdMinAtacado: 1,
+        visivelLoja: true,
+        ativo: false,
       },
     ],
   });
@@ -241,7 +267,20 @@ export async function createWorld(label: string): Promise<TestWorld> {
       { skuId: skus.oculto, tenantId, onHand: 20, reserved: 0 },
       { skuId: skus.esgotado, tenantId, onHand: 2, reserved: 2 },
       { skuId: skus.moq, tenantId, onHand: 80, reserved: 0 },
+      { skuId: skus.inativo, tenantId, onHand: 5, reserved: 0 },
     ],
+  });
+  await db.inventoryMovement.create({
+    data: {
+      id: newId("mov"),
+      tenantId,
+      skuId: skus.visivel,
+      type: "adjust",
+      deltaOnHand: 40,
+      deltaReserved: 0,
+      reason: "estoque_inicial",
+      actorUserId: users.admin,
+    },
   });
 
   // Minimal CRM desk for simulate/visibility tests

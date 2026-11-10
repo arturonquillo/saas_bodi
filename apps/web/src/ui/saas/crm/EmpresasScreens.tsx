@@ -26,6 +26,7 @@ import {
 import { apiGet, apiSend, asPage, isApiError, maskFromLast4 } from "../../api";
 import { COPY } from "../../copy";
 import type { CrmContactDto, CrmEmpresaDto } from "../../crm/types";
+import { DetailNavButton } from "../../DetailNavRow";
 import { SaasPage } from "../../layout";
 import { ErrorState, TableSkeleton } from "../../states";
 
@@ -106,20 +107,19 @@ export function EmpresasListScreen() {
                 </Button>
               </div>
             ) : (
-              <ul className="space-y-4">
+              <ul className="space-y-2">
                 {items.map((e) => (
-                  <li key={e.id} className="flex items-center justify-between gap-4">
-                    <button
-                      type="button"
-                      className="min-w-0 flex-1 text-left"
+                  <li key={e.id}>
+                    <DetailNavButton
+                      className="rounded-md px-2 py-2"
                       onClick={() => router.push(`/saas/empresas/${e.id}`)}
                     >
-                      <p className="font-medium text-gray-900">{e.razao_social}</p>
+                      <p className="font-medium text-foreground">{e.razao_social}</p>
                       <p className="text-sm text-muted-foreground">
                         {maskFromLast4(e.cnpj_last4)}
                         {e.nome_fantasia ? ` · ${e.nome_fantasia}` : ""}
                       </p>
-                    </button>
+                    </DetailNavButton>
                   </li>
                 ))}
               </ul>

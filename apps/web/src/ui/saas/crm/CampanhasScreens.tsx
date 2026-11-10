@@ -28,6 +28,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { apiGet, apiSend, asPage, isApiError } from "../../api";
 import { COPY } from "../../copy";
+import { DetailNavLink } from "../../DetailNavRow";
 import { formatDate } from "../../format";
 import {
   campaignCancellable,
@@ -253,25 +254,25 @@ export function CampanhasScreen() {
                 </Button>
               </div>
             ) : (
-              <ul className="space-y-4">
+              <ul className="space-y-2">
                 {items.map((c) => (
-                  <li key={c.id} className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <Link
-                        href={`/saas/crm/campanhas/${c.id}`}
-                        className="font-medium text-gray-900 hover:underline"
-                      >
-                        {c.title}
-                      </Link>
+                  <li key={c.id} className="flex flex-wrap items-center gap-3">
+                    <DetailNavLink
+                      href={`/saas/crm/campanhas/${c.id}`}
+                      className="min-w-0 flex-1 rounded-md px-2 py-2"
+                      meta={
+                        <Badge variant={statusBadgeVariant(String(c.status))}>
+                          {campaignStatusLabel(String(c.status))}
+                        </Badge>
+                      }
+                    >
+                      <p className="font-medium text-foreground">{c.title}</p>
                       <p className="text-sm text-muted-foreground">
                         {campaignKindLabel(String(c.kind))} · {campaignChannelLabel(String(c.channel))}
                         {c.scheduled_at ? ` · ${formatDate(c.scheduled_at)}` : ""}
                       </p>
-                    </div>
+                    </DetailNavLink>
                     <div className="flex items-center gap-2">
-                      <Badge variant={statusBadgeVariant(String(c.status))}>
-                        {campaignStatusLabel(String(c.status))}
-                      </Badge>
                       {campaignDeletable(String(c.status)) ? (
                         <Button
                           type="button"

@@ -30,7 +30,7 @@ export function BrandMark({
 
   if (layout === "hero") {
     return (
-      <Link href={href} className={cn("inline-block no-underline", className)} {...props}>
+      <Link href={href} className={cn("inline-block cursor-pointer no-underline", className)} {...props}>
         {showLogo ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -55,7 +55,7 @@ export function BrandMark({
         href={href}
         aria-label={marca}
         className={cn(
-          "flex min-w-0 items-center gap-2.5 overflow-hidden",
+          "flex min-w-0 cursor-pointer items-center gap-2.5 overflow-hidden",
           iconOnly && "size-8 justify-center gap-0",
           className,
         )}
@@ -81,7 +81,10 @@ export function BrandMark({
   return (
     <Link
       href={href}
-      className={cn("inline-flex items-center gap-2 font-display font-semibold text-inherit no-underline", className)}
+      className={cn(
+        "inline-flex cursor-pointer items-center gap-2 font-display font-semibold text-inherit no-underline",
+        className,
+      )}
       {...props}
     >
       {showLogo ? (

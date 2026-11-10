@@ -262,6 +262,15 @@ Locked strings for MVP. Do not invent alternate status labels.
 | adjust_qty | Ajustar quantidade |
 | motivo | Motivo |
 
+## Aparência (color mode)
+
+| Key | String |
+|---|---|
+| color_mode | Aparência |
+| color_mode_light | Claro |
+| color_mode_dark | Escuro |
+| color_mode_system | Sistema |
+
 ## Shared errors / empty
 
 | Key | String |

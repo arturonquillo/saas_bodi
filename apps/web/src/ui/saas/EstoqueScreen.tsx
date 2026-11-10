@@ -13,6 +13,7 @@ import { COPY } from "../copy";
 import { formatMoney } from "../format";
 import { SaasPage } from "../layout";
 import { useSession } from "../session";
+import { DetailNavButton } from "../DetailNavRow";
 import { ErrorState, FormSkeleton, TableSkeleton } from "../states";
 
 export function EstoqueListScreen() {
@@ -64,31 +65,30 @@ export function EstoqueListScreen() {
                 </p>
               </div>
             ) : (
-              <ul className="space-y-4">
+              <ul className="space-y-2">
                 {items.map((item) => (
-                  <li key={item.id} className="flex items-center justify-between gap-4">
-                    <button
-                      type="button"
-                      className="min-w-0 flex-1 text-left"
+                  <li key={item.id} className="flex items-center justify-between gap-3">
+                    <DetailNavButton
+                      className="min-w-0 flex-1 rounded-md px-2 py-2"
                       onClick={() => router.push(`/saas/estoque/${item.id}`)}
                     >
-                      <p className="font-medium text-gray-900">{item.codigo}</p>
-                      <p className="text-sm text-gray-500">{item.nome}</p>
-                      <p className="mt-1 text-xs text-gray-500">
+                      <p className="font-medium text-foreground">{item.codigo}</p>
+                      <p className="text-sm text-muted-foreground">{item.nome}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
                         {COPY.on_hand}: {item.on_hand} · {COPY.reserved}: {item.reserved} · {COPY.available}:{" "}
                         {item.available} · {formatMoney(item.preco_atacado_centavos)}
                       </p>
-                    </button>
+                    </DetailNavButton>
                     <label className="inline-flex shrink-0 items-center gap-2 text-sm">
                       <input
                         type="checkbox"
-                        className="size-4 rounded border-gray-200"
+                        className="size-4 rounded border-border"
                         checked={item.visivel_loja}
                         disabled={!admin}
                         onChange={(e) => void toggleVisibility(item, e.target.checked)}
                         aria-label={COPY.visivel_loja}
                       />
-                      <span className="text-gray-500">{COPY.visivel_loja}</span>
+                      <span className="text-muted-foreground">{COPY.visivel_loja}</span>
                     </label>
                   </li>
                 ))}

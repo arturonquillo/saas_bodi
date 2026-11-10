@@ -36,6 +36,7 @@ import type {
   CrmConversationDto,
   CrmInboxDto,
 } from "../../crm/types";
+import { DetailNavButton } from "../../DetailNavRow";
 import { SaasPage } from "../../layout";
 import { ErrorState, TableSkeleton } from "../../states";
 import { ContatoMergeDialog } from "./ContatosImportMergeScreens";
@@ -130,31 +131,34 @@ export function ContatosListScreen() {
                 </Button>
               </div>
             ) : (
-              <ul className="space-y-4">
+              <ul className="space-y-2">
                 {items.map((c) => (
                   <li key={c.id}>
-                    <button
-                      type="button"
-                      className="flex w-full items-center gap-3 text-left hover:bg-gray-50 rounded-md p-2 -mx-2"
+                    <DetailNavButton
+                      className="rounded-md px-2 py-2"
                       onClick={() => router.push(`/saas/contatos/${c.id}`)}
+                      meta={
+                        <div className="flex gap-1">
+                          {(c.labels ?? []).slice(0, 2).map((l) => (
+                            <Badge key={l.id} variant="outline" className="text-[10px]">
+                              {displayLabelTitle(l.title)}
+                            </Badge>
+                          ))}
+                        </div>
+                      }
                     >
-                      <Avatar className="size-9">
-                        <AvatarFallback>{initials(c.nome || "?")}</AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium text-gray-900">{c.nome}</p>
-                        <p className="truncate text-sm text-muted-foreground">
-                          {c.phone_e164 || c.email || "—"}
-                        </p>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="size-9">
+                          <AvatarFallback>{initials(c.nome || "?")}</AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <p className="truncate font-medium text-foreground">{c.nome}</p>
+                          <p className="truncate text-sm text-muted-foreground">
+                            {c.phone_e164 || c.email || "—"}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex gap-1">
-                        {(c.labels ?? []).slice(0, 2).map((l) => (
-                          <Badge key={l.id} variant="outline" className="text-[10px]">
-                            {displayLabelTitle(l.title)}
-                          </Badge>
-                        ))}
-                      </div>
-                    </button>
+                    </DetailNavButton>
                   </li>
                 ))}
               </ul>

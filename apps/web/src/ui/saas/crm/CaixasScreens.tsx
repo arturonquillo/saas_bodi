@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { apiGet, apiSend, asPage, isApiError, type UserDto } from "../../api";
 import { COPY } from "../../copy";
+import { DetailNavButton } from "../../DetailNavRow";
 import { connectionBadgeClass, connectionLabel } from "../../crm/labels";
 import { putInboxAtributosObrigatorios } from "../../crm/phase-e";
 import {
@@ -165,30 +166,31 @@ export function CaixasListScreen() {
             {items.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma caixa.</p>
             ) : (
-              <ul className="space-y-4">
+              <ul className="space-y-2">
                 {items.map((inbox) => (
-                  <li key={inbox.id} className="flex items-center justify-between gap-3">
-                    <button
-                      type="button"
-                      className="text-left"
+                  <li key={inbox.id}>
+                    <DetailNavButton
+                      className="rounded-md px-2 py-2"
                       onClick={() => router.push(`/saas/crm/caixas/${inbox.id}`)}
+                      meta={
+                        <>
+                          <Badge variant="outline">{channelTypeLabel(inbox.channel_type)}</Badge>
+                          {inbox.connection_status ? (
+                            <Badge
+                              variant="outline"
+                              className={connectionBadgeClass(inbox.connection_status)}
+                            >
+                              {connectionLabel(inbox.connection_status)}
+                            </Badge>
+                          ) : null}
+                        </>
+                      }
                     >
-                      <p className="font-medium text-gray-900">{inbox.name}</p>
+                      <p className="font-medium text-foreground">{inbox.name}</p>
                       <p className="text-sm text-muted-foreground">
                         {inbox.member_count ?? 0} membros
                       </p>
-                    </button>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">{channelTypeLabel(inbox.channel_type)}</Badge>
-                      {inbox.connection_status ? (
-                        <Badge
-                          variant="outline"
-                          className={connectionBadgeClass(inbox.connection_status)}
-                        >
-                          {connectionLabel(inbox.connection_status)}
-                        </Badge>
-                      ) : null}
-                    </div>
+                    </DetailNavButton>
                   </li>
                 ))}
               </ul>

@@ -114,7 +114,7 @@ export function CatalogScreen() {
                   </Link>
                   <CardHeader className="space-y-1 p-3 pb-1">
                     <CardTitle className="text-sm leading-snug">
-                      <Link href={`/loja/produto/${item.id}`} className="hover:text-primary">
+                      <Link href={`/loja/produto/${item.id}`} className="cursor-pointer hover:text-primary">
                         {item.nome}
                       </Link>
                     </CardTitle>

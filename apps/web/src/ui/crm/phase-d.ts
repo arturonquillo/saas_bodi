@@ -77,7 +77,13 @@ export function isWidgetChannel(type: string | null | undefined) {
   return type === "web_widget";
 }
 
-export function channelStubAlert(type: string | null | undefined) {
+export function channelStubAlert(type: string | null | undefined, connectionStatus?: string | null) {
+  if (type === "whatsapp") {
+    if (connectionStatus === "live") {
+      return "Canal live: inbound via webhook Meta e respostas saem pela Cloud API. Mantenha Verify Token e App Secret alinhados ao app Meta.";
+    }
+    return "WhatsApp Cloud: salve Phone Number ID, WABA ID, Access Token permanente, App Secret e Verify Token. Use Pronto para conectar ou Conectar Meta (live). Simular permanece disponível.";
+  }
   if (type === "web_widget") {
     return "Widget first-party: mensagens entram no desk CRM. Status máximo ready_stub (sem provedor externo “live”).";
   }

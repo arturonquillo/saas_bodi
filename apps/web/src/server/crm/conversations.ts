@@ -9,7 +9,7 @@ import { db } from "../db";
 import { decodeCursor, encodeCursor, parsePaging } from "../http/pagination";
 import { ApiError } from "../http/respond";
 import { newId } from "../ids";
-import { channelSimulateInboundPort, stubChannelSendPort } from "../ports/channel";
+import { channelSendPort, channelSimulateInboundPort } from "../ports/channel";
 import { appendDomainEvent } from "./events";
 import { conversationDto, messageDto } from "./dto";
 import { assertConversationVisible, conversationVisibilityFilter } from "./visibility";
@@ -391,6 +391,7 @@ export async function postMensagem(
   const isPrivate = Boolean(input.private);
   const messageId = newId("msg");
   let deliveryStatus: "queued" | "sent" | "failed" = "queued";
+  let simulated = true;
 
   let content = input.content.trim();
   if (!isPrivate && session.userId && session.userId !== "system") {
@@ -404,7 +405,7 @@ export async function postMensagem(
     const contact = row.contact;
     const to = contact.phoneE164;
     if (to) {
-      const send = await stubChannelSendPort.sendOutgoing({
+      const send = await channelSendPort.sendOutgoing({
         tenantId: session.tenantId,
         inboxId: row.inboxId,
         conversationId,
@@ -413,6 +414,7 @@ export async function postMensagem(
         body: content,
       });
       deliveryStatus = send.deliveryStatus;
+      simulated = send.simulated ?? true;
     } else {
       deliveryStatus = "sent";
     }
@@ -431,7 +433,7 @@ export async function postMensagem(
       contentType: input.content_type ?? "text",
       senderUserId: session.userId === "system" ? null : session.userId,
       deliveryStatus,
-      simulated: true,
+      simulated,
     },
   });
 

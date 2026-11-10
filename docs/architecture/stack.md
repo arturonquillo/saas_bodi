@@ -30,7 +30,7 @@ The workspace package names may still say `@saas-frota/*` from the prior product
 | Theme | CSS variables from tenant `themes` row — names in `docs/design/` when present |
 | Package manager | npm workspaces |
 
-Do **not** add Stripe, Meta Cloud API, live social/SMS/SMTP/telephony providers, unpaid Slack/Captain/IdP live I/O, NF-e/SEFAZ, PIX, or a required SMTP provider. Outbox and channel adapters are stubs (see [ports.md](./ports.md)); Loja widget is first-party. Chatwoot-parity CRM is **native** in this app — do not embed Chatwoot OSS as a sidecar.
+Do **not** add Stripe, live social/SMS/SMTP/telephony providers, unpaid Slack/Captain/IdP live I/O, NF-e/SEFAZ, PIX, or a required SMTP provider. **WhatsApp Cloud API** is allowed when the WA channel is `live` (webhook + Graph send; secrets vaulted). Other channel adapters stay stubs (see [ports.md](./ports.md)); Loja widget is first-party. Chatwoot-parity CRM is **native** in this app — do not embed Chatwoot OSS as a sidecar.
 
 ### CRM runtime add-ons (Phase A–E)
 
@@ -40,7 +40,7 @@ Do **not** add Stripe, Meta Cloud API, live social/SMS/SMTP/telephony providers,
 | Realtime (Loja widget) | Poll `mensagens?after=` + optional widget SSE — **no WebSocket** in D |
 | Jobs | In-process `background_jobs` tick worker (+ E: `sla.evaluate`, `assignment.balanced`, Captain/integration stubs) |
 | WA / channel / integration secrets | AES-256-GCM via `CREDENTIALS_ENCRYPTION_KEY` (+ MFA seal) |
-| Channel / integration ceiling | channels ≤ `ready_stub`; integrations ≤ `connected_stub` (reject `live`) |
+| Channel / integration ceiling | WA ≤ `live` (Meta); other channels ≤ `ready_stub`; integrations ≤ `connected_stub` |
 | Captain | `CaptainAiPort` stub default; live model only if unlock env |
 | Desk IA | saas-starter admin shell + shadcn (design); Loja embed widget; E enterprise config screens |
 
@@ -102,7 +102,9 @@ Copy `.env.example`. No production secrets belong in git.
 | `SESSION_SECRET` | HMAC for session cookies (dev placeholder only) |
 | `NEXT_PUBLIC_DEFAULT_TENANT_SLUG` | `casa-dos-frios` |
 | `CNPJ_REGISTRY_ENABLED` | `false` = port degrades (checksum still runs) |
-| `WHATSAPP_INBOX_MODE` | `simulate` (no Meta webhook until product unlock) |
+| `WHATSAPP_INBOX_MODE` | legacy note; live gated by channel `connection_status` |
+| `PUBLIC_APP_URL` / `WEBHOOK_BASE_URL` | public origin for webhook URL in admin UI |
+| `META_GRAPH_API_BASE_URL` | test override only |
 | `CREDENTIALS_ENCRYPTION_KEY` | base64 32-byte key for WA channel secret slots |
 
 ## Auth cookies
@@ -127,4 +129,4 @@ No subdomain wizard. Public Loja reads `tenant` query **or** `NEXT_PUBLIC_DEFAUL
 - Not three deployables.
 - Not a second stock database for the loja.
 - Not an Account / subscription product in MVP.
-- Not Meta WhatsApp Cloud API or NF-e.
+- Not NF-e/SEFAZ unpaid stacks; WA Cloud only via vaulted live channel.

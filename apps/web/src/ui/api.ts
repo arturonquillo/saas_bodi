@@ -116,7 +116,12 @@ export type DocLineDto = {
   codigo: string;
   nome: string;
   qty: number;
+  /** Legacy alias for net unit (billing). Prefer preco_unitario_centavos. */
   unit_price_centavos: number;
+  preco_lista_centavos?: number;
+  desconto_pct?: number;
+  preco_unitario_centavos?: number;
+  unidade?: string | null;
   notas?: string | null;
 };
 
@@ -206,16 +211,24 @@ export type InboxThreadDetailDto = InboxThreadDto & {
   messages: InboxMessageDto[];
 };
 
+export type SkuUnidadeDto = "un" | "kg" | "cx" | "pct" | "lt";
+
 export type EstoqueItemDto = {
   id: string;
   codigo: string;
   nome: string;
+  descricao?: string | null;
+  unidade?: SkuUnidadeDto;
   on_hand: number;
   reserved: number;
   available: number;
   visivel_loja: boolean;
+  ativo?: boolean;
   preco_atacado_centavos: number;
+  desconto_max_pct?: number;
   qtd_min_atacado: number;
+  created_at?: string;
+  updated_at?: string;
 };
 
 export type UserDto = {
@@ -257,14 +270,39 @@ export type OutboxDto = {
 export type MovementDto = {
   id: string;
   type: MovementType | string;
+  /** Architecture contract: signed for adjust. */
+  qty?: number;
+  motivo?: string | null;
+  actor_user_id?: string | null;
+  pedido_id?: string | null;
+  /** Legacy MVP movement shape. */
   delta_on_hand?: number;
   delta_reserved?: number;
   reason?: string | null;
   created_at?: string;
 };
 
+export function lineNetUnitCentavos(line: DocLineDto) {
+  if (typeof line.preco_unitario_centavos === "number") return line.preco_unitario_centavos;
+  return line.unit_price_centavos;
+}
+
 export function docTotal(linhas: DocLineDto[]) {
-  return linhas.reduce((sum, l) => sum + l.qty * l.unit_price_centavos, 0);
+  return linhas.reduce((sum, l) => sum + l.qty * lineNetUnitCentavos(l), 0);
+}
+
+export function movementQty(m: MovementDto) {
+  if (typeof m.qty === "number") return m.qty;
+  if (typeof m.delta_on_hand === "number") return m.delta_on_hand;
+  return 0;
+}
+
+export function movementMotivo(m: MovementDto) {
+  return m.motivo ?? m.reason ?? null;
+}
+
+export function skuIsActive(item: EstoqueItemDto) {
+  return item.ativo !== false;
 }
 
 /** Alias used by screens; mirrors maskFromLast4. */

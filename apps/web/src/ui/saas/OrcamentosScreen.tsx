@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import type { OrcamentoStatus } from "@saas-frota/shared";
+import { isAdmin, netUnitCentavos, type OrcamentoStatus } from "@saas-frota/shared";
 import type { OrcamentoDto } from "../api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +17,8 @@ import {
   clienteDisplay,
   docTotal,
   isApiError,
+  lineNetUnitCentavos,
+  skuIsActive,
   type CadastroDto,
   type ClienteOption,
   type EstoqueItemDto,
@@ -31,6 +33,7 @@ import {
   legalOrcamentoTargets,
   orcamentoTransitionLabel,
 } from "../order-ui";
+import { useSession } from "../session";
 import { ErrorState, FormSkeleton, GateBanner, TableSkeleton } from "../states";
 
 const selectClass =
@@ -251,10 +254,16 @@ export function OrcamentoDetailScreen() {
                 <div>
                   <p className="font-medium text-gray-900">{l.codigo}</p>
                   <p className="text-sm text-gray-500">{l.nome}</p>
+                  {typeof l.desconto_pct === "number" && l.desconto_pct > 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      {COPY.desconto}: {l.desconto_pct}% · {COPY.lista_preco}:{" "}
+                      {formatMoney(l.preco_lista_centavos ?? l.unit_price_centavos)}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="text-right text-sm">
                   <p className="text-gray-900">
-                    {l.qty} × {formatMoney(l.unit_price_centavos)}
+                    {l.qty} × {formatMoney(lineNetUnitCentavos(l))}
                   </p>
                 </div>
               </li>
@@ -287,17 +296,32 @@ export function OrcamentoDetailScreen() {
   );
 }
 
+type DraftLine = {
+  sku_id: string;
+  qty: number;
+  desconto_pct: number;
+  label: string;
+  preco_lista_centavos: number;
+  desconto_max_pct: number;
+};
+
 export function NovoOrcamentoScreen() {
   const router = useRouter();
+  const { session } = useSession();
+  const admin = isAdmin(session?.saas_role);
   const [clientes, setClientes] = useState<ClienteOption[]>([]);
   const [skus, setSkus] = useState<EstoqueItemDto[]>([]);
   const [clienteId, setClienteId] = useState("");
   const [validoAte, setValidoAte] = useState("");
   const [skuId, setSkuId] = useState("");
   const [qty, setQty] = useState(1);
-  const [linhas, setLinhas] = useState<{ sku_id: string; qty: number; label: string }[]>([]);
+  const [descontoPct, setDescontoPct] = useState(0);
+  const [linhas, setLinhas] = useState<DraftLine[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const selectedSku = skus.find((s) => s.id === skuId);
+  const selectedCap = selectedSku?.desconto_max_pct ?? 0;
 
   useEffect(() => {
     void (async () => {
@@ -310,22 +334,38 @@ export function NovoOrcamentoScreen() {
         setClientes(
           buildClienteOptions({ orcamentos: orcamentos.items, cadastros: cadastros.items }),
         );
-        setSkus(estoque.items);
+        setSkus(estoque.items.filter(skuIsActive));
       } catch {
         setClientes(buildClienteOptions({}));
       }
     })();
   }, []);
 
+  useEffect(() => {
+    if (!admin && selectedCap >= 0) {
+      setDescontoPct((d) => Math.min(d, selectedCap));
+    }
+  }, [selectedCap, admin]);
+
   function addLine() {
     const sku = skus.find((s) => s.id === skuId);
     if (!sku) return;
+    const cap = sku.desconto_max_pct ?? 0;
+    const pct = admin ? Math.max(0, Math.min(100, descontoPct)) : Math.max(0, Math.min(cap, descontoPct));
     setLinhas((prev) => [
       ...prev,
-      { sku_id: sku.id, qty: Math.max(sku.qtd_min_atacado, qty), label: `${sku.codigo} · ${sku.nome}` },
+      {
+        sku_id: sku.id,
+        qty: Math.max(sku.qtd_min_atacado, qty),
+        desconto_pct: pct,
+        label: `${sku.codigo} · ${sku.nome}`,
+        preco_lista_centavos: sku.preco_atacado_centavos,
+        desconto_max_pct: cap,
+      },
     ]);
     setSkuId("");
     setQty(1);
+    setDescontoPct(0);
   }
 
   async function submit(e: React.FormEvent) {
@@ -340,7 +380,11 @@ export function NovoOrcamentoScreen() {
       const orc = await apiSend<OrcamentoDto>("/api/saas/orcamentos", "POST", {
         cliente_id: clienteId || undefined,
         valido_ate: validoAte || undefined,
-        linhas: linhas.map(({ sku_id, qty: q }) => ({ sku_id, qty: q })),
+        linhas: linhas.map(({ sku_id, qty: q, desconto_pct }) => ({
+          sku_id,
+          qty: q,
+          desconto_pct,
+        })),
       });
       router.push(`/saas/orcamentos/${orc.id}`);
     } catch (err) {
@@ -406,7 +450,7 @@ export function NovoOrcamentoScreen() {
                   <option value="none">—</option>
                   {skus.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.codigo} · {s.nome}
+                      {s.codigo} · {s.nome} · {formatMoney(s.preco_atacado_centavos)} · disp. {s.available}
                     </option>
                   ))}
                 </select>
@@ -424,31 +468,60 @@ export function NovoOrcamentoScreen() {
                   className="w-24"
                 />
               </div>
-              <Button type="button" variant="outline" onClick={addLine} disabled={!skuId}>
+              <div>
+                <Label htmlFor="desconto" className="mb-2">
+                  {COPY.desconto}
+                </Label>
+                <Input
+                  id="desconto"
+                  type="number"
+                  min={0}
+                  max={admin ? 100 : selectedCap}
+                  value={descontoPct}
+                  onChange={(e) => setDescontoPct(Number(e.target.value) || 0)}
+                  className="w-24"
+                  disabled={!skuId || (!admin && selectedCap === 0)}
+                />
+                {skuId ? (
+                  <p className="mt-1 text-xs text-muted-foreground">{COPY.desconto_cap_hint(selectedCap)}</p>
+                ) : null}
+              </div>
+              <Button type="button" variant="outline" className="cursor-pointer" onClick={addLine} disabled={!skuId}>
                 {COPY.add_line}
               </Button>
             </div>
             {linhas.length ? (
               <ul className="space-y-4">
-                {linhas.map((l, i) => (
-                  <li key={`${l.sku_id}-${i}`} className="flex items-center justify-between gap-2">
-                    <span className="text-sm text-gray-900">
-                      {l.label} × {l.qty}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setLinhas((p) => p.filter((_, j) => j !== i))}
-                    >
-                      Remover
-                    </Button>
-                  </li>
-                ))}
+                {linhas.map((l, i) => {
+                  const net = netUnitCentavos(l.preco_lista_centavos, l.desconto_pct);
+                  return (
+                    <li key={`${l.sku_id}-${i}`} className="flex items-center justify-between gap-2">
+                      <div className="min-w-0 text-sm">
+                        <p className="text-gray-900">
+                          {l.label} × {l.qty}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {l.desconto_pct > 0
+                            ? `${COPY.desconto} ${l.desconto_pct}% · ${COPY.lista_preco} ${formatMoney(l.preco_lista_centavos)} → ${COPY.preco_liquido} ${formatMoney(net)}`
+                            : `${COPY.preco_liquido}: ${formatMoney(net)}`}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="cursor-pointer"
+                        onClick={() => setLinhas((p) => p.filter((_, j) => j !== i))}
+                      >
+                        Remover
+                      </Button>
+                    </li>
+                  );
+                })}
               </ul>
             ) : null}
             {error ? <p className="text-sm text-red-500">{error}</p> : null}
-            <Button type="submit" className="bg-primary text-white hover:bg-primary/90" disabled={busy}>
+            <Button type="submit" className="cursor-pointer bg-primary text-white hover:bg-primary/90" disabled={busy}>
               {COPY.criar_orcamento}
             </Button>
           </form>

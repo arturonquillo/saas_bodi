@@ -7,10 +7,14 @@ import { fail, handleError, ok } from "@/server/http/respond";
 const createSchema = z.object({
   codigo: z.string().min(1),
   nome: z.string().min(1),
+  descricao: z.string().max(500).nullable().optional(),
+  unidade: z.enum(["un", "kg", "cx", "pct", "lt"]).optional(),
   preco_atacado_centavos: z.number().int().nonnegative(),
+  desconto_max_pct: z.number().int().min(0).max(100).optional(),
   qtd_min_atacado: z.number().int().positive().optional(),
   on_hand: z.number().int().nonnegative().optional(),
   visivel_loja: z.boolean().optional(),
+  ativo: z.boolean().optional(),
 });
 
 export async function GET(req: Request) {

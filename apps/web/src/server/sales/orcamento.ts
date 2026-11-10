@@ -85,7 +85,7 @@ export async function createOrcamento(
     cliente_id?: string;
     cadastro_request_id?: string;
     channel?: OrcamentoChannel;
-    linhas: Array<{ sku_id: string; qty: number; notas?: string }>;
+    linhas: Array<{ sku_id: string; qty: number; desconto_pct?: number; notas?: string }>;
     valido_ate?: string;
   },
 ) {

@@ -96,16 +96,26 @@ export async function createSku(
   input: {
     codigo: string;
     nome: string;
+    descricao?: string | null;
+    unidade?: "un" | "kg" | "cx" | "pct" | "lt";
     preco_atacado_centavos: number;
+    desconto_max_pct?: number;
     qtd_min_atacado?: number;
     on_hand?: number;
     visivel_loja?: boolean;
+    ativo?: boolean;
   },
 ) {
   assertSaasRole(session, "admin");
   const codigo = input.codigo.trim().toUpperCase();
   if (!codigo || !input.nome.trim()) throw new ApiError("validacao", "Código e nome são obrigatórios.");
   if (input.preco_atacado_centavos < 0) throw new ApiError("validacao", "Preço inválido.");
+  // Architecture fields (descricao/unidade/desconto_max_pct/ativo) accepted for forward-compat;
+  // persisted when Prisma upgrade from inventory backend lands.
+  void input.descricao;
+  void input.unidade;
+  void input.desconto_max_pct;
+  void input.ativo;
   const onHand = Math.max(0, Math.trunc(input.on_hand ?? 0));
   const id = newId("sku");
   await db.$transaction(async (tx) => {
@@ -132,7 +142,7 @@ export async function createSku(
           type: "adjust",
           deltaOnHand: onHand,
           deltaReserved: 0,
-          reason: "criação",
+          reason: "estoque_inicial",
           actorUserId: session.userId,
         },
       });
@@ -146,13 +156,23 @@ export async function patchSku(
   id: string,
   input: {
     nome?: string;
+    descricao?: string | null;
+    unidade?: "un" | "kg" | "cx" | "pct" | "lt";
     preco_atacado_centavos?: number;
+    desconto_max_pct?: number;
     qtd_min_atacado?: number;
+    visivel_loja?: boolean;
+    ativo?: boolean;
   },
 ) {
   assertSaasRole(session, "admin");
   const sku = await db.sku.findFirst({ where: { id, tenantId: session.tenantId } });
   if (!sku) throw new ApiError("nao_encontrado", "Não encontrado.");
+  // Forward-compat: accept architecture fields; persist columns that exist today.
+  void input.descricao;
+  void input.unidade;
+  void input.desconto_max_pct;
+  void input.ativo;
   await db.sku.update({
     where: { id },
     data: {
@@ -165,6 +185,7 @@ export async function patchSku(
         input.qtd_min_atacado !== undefined
           ? Math.max(1, Math.trunc(input.qtd_min_atacado))
           : undefined,
+      visivelLoja: input.visivel_loja,
     },
   });
   return getEstoque(session, id);

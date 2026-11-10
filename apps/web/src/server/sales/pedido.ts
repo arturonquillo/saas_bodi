@@ -156,7 +156,10 @@ export async function createPedidoConfirmado(input: {
 
 export async function createSaasPedido(
   session: SessionContext,
-  input: { cliente_id: string; linhas: Array<{ sku_id: string; qty: number }> },
+  input: {
+    cliente_id: string;
+    linhas: Array<{ sku_id: string; qty: number; desconto_pct?: number }>;
+  },
 ) {
   assertSaasRole(session, "admin", "vendedor");
   const row = await createPedidoConfirmado({

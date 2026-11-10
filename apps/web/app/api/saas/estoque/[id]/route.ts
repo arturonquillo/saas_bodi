@@ -6,8 +6,13 @@ import { fail, handleError, ok } from "@/server/http/respond";
 
 const patchSchema = z.object({
   nome: z.string().min(1).optional(),
+  descricao: z.string().max(500).nullable().optional(),
+  unidade: z.enum(["un", "kg", "cx", "pct", "lt"]).optional(),
   preco_atacado_centavos: z.number().int().nonnegative().optional(),
+  desconto_max_pct: z.number().int().min(0).max(100).optional(),
   qtd_min_atacado: z.number().int().positive().optional(),
+  visivel_loja: z.boolean().optional(),
+  ativo: z.boolean().optional(),
 });
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {

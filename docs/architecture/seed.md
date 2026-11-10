@@ -133,9 +133,9 @@ Additive on top of Phase A+B seed:
 |---|---|
 | **Campaign** one_off | ≥1 `draft` targeting a system or demo label; `inbox_id` = default WA; `template_key` present in channel stub templates; **do not** auto-send on boot |
 | **Campaign** ongoing | optional `draft` with `display_status=awaiting_widget` |
-| **Portal** | one enabled portal, slug e.g. `casa-dos-frios-ajuda`, locale `pt-BR` |
-| **Category** | ≥1 category |
-| **Article** | ≥1 `published` + ≥1 `draft` (public API must 404 the draft) |
+| **Portal** | one enabled portal, slug `casa-dos-frios-ajuda`, locale `pt-BR`, `enabled=true` |
+| **Category** | operador-saas, estoque, campanhas-tema, loja (pt-BR names) |
+| **Article** | published operator + Loja guides (login, conversas, cadastros, orçamentos/pedidos, produto/preço, desconto, ajuste, campanhas, tema, Loja cadastro/pedidos/WhatsApp) + ≥1 `draft` (public API 404) |
 | **Reports** | no mandatory snapshot rows; seed conversations/CSAT from A/B enough for overview queries |
 
 Seed must **not** enqueue `campaign.send_batch` on boot. Outbox seed rows remain `category=commerce` unless an explicit demo campaign row is added (prefer none).

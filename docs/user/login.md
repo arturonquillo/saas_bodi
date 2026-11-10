@@ -17,6 +17,8 @@ Papéis MVP: **admin** e **vendedor**. O papel vem da membership no servidor —
 
 Sair: use a ação de logout do chrome SaaS (invalida o cookie da superfície).
 
+Guia in-app (após login): menu **Guia** → `/saas/guia`, ou portal público `/ajuda/casa-dos-frios-ajuda`.
+
 ## Loja (clientes CNPJ)
 
 1. Abra `/loja/entrar`.

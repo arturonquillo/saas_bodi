@@ -69,6 +69,7 @@ const COMERCIO_NAV: NavItem[] = [
   { href: "/saas/vendas", label: COPY.nav.vendas, icon: "vendas" },
   { href: "/saas/estoque", label: COPY.nav.estoque, icon: "estoque" },
   { href: "/saas/avisos", label: COPY.nav.avisos, icon: "avisos" },
+  { href: "/saas/guia", label: COPY.nav_guia, icon: "ajuda" },
 ];
 
 const CRM_CONFIG_NAV: NavItem[] = [
@@ -287,6 +288,7 @@ export function canOpen(role: SaasRole | null | undefined, path: string) {
   if (normalized.startsWith("/saas/vendas")) return true;
   if (normalized.startsWith("/saas/estoque")) return true;
   if (normalized.startsWith("/saas/avisos")) return true;
+  if (normalized.startsWith("/saas/guia")) return true;
 
   if (BOTH_CRM_PATHS.some((p) => normalized === p || normalized.startsWith(`${p}/`))) {
     return true;
@@ -359,6 +361,7 @@ export function currentPageLabel(pathname: string, role: SaasRole | null | undef
   if (pathname.startsWith("/saas/tema")) return COPY.nav.tema;
   if (pathname.startsWith("/saas/configuracao")) return COPY.nav.configuracao;
   if (pathname.startsWith("/saas/avisos")) return COPY.nav.avisos;
+  if (pathname.startsWith("/saas/guia")) return COPY.nav_guia;
   return COPY.crm.nav_conversas;
 }
 

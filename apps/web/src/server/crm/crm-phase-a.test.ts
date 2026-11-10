@@ -120,7 +120,7 @@ describe("CRM Phase A core flows", () => {
     expect(err?.code).toBe("nao_encontrado");
   });
 
-  it("WA channel secrets never returned plaintext; live rejected", async () => {
+  it("WA channel secrets never returned plaintext; live needs Meta ids", async () => {
     const admin = sessionOf(world, "admin");
     await putChannel(admin, world.inboxId, {
       api_token: "super-secret-token",
@@ -134,11 +134,18 @@ describe("CRM Phase A core flows", () => {
     expect(ch.api_token).toBe("••••••••");
     expect(JSON.stringify(ch)).not.toContain("super-secret-token");
 
-    const live = await catchApi(() =>
+    const liveMissingIds = await catchApi(() =>
       putChannel(admin, world.inboxId, { connection_status: "live" }),
     );
-    // Phase D lock: live → 501 nao_implementado for all channel types
-    expect(live?.code).toBe("nao_implementado");
+    expect(liveMissingIds?.code).toBe("validacao");
+
+    await putChannel(admin, world.inboxId, {
+      phone_number_id: "pnid",
+      business_account_id: "waba",
+      connection_status: "live",
+    });
+    const liveCh = await getChannel(admin, world.inboxId);
+    expect(liveCh.connection_status).toBe("live");
 
     const row = await db.channelWhatsapp.findFirstOrThrow({
       where: { inboxId: world.inboxId },

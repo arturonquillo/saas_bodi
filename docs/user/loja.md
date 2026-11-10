@@ -44,7 +44,7 @@ A Loja pode embutir o widget da caixa website. Bootstrap:
 
 Token seed: `wt_casa_dos_frios_demo`. Mensagens caem na mesa `/saas/conversas` (mesma Conversation). Origem do browser precisa estar em `allowed_origins` da caixa.
 
-Portal de ajuda público (seed Phase C): path `/ajuda/casa-dos-frios-ajuda` (slug do portal).
+**Ajuda in-app:** link **Ajuda** no header/rodapé da Loja → `/ajuda/casa-dos-frios-ajuda` (portal seed Phase C). Operadores usam `/saas/guia` (mesmos artigos publicados).
 
 ## Contas para testar
 

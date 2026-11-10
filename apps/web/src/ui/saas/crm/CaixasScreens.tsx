@@ -492,6 +492,19 @@ export function CaixaDetailScreen() {
     }
   }
 
+  async function markLive() {
+    setBusy(true);
+    try {
+      const saved = await putCanal(id, { connection_status: "live" });
+      setChannel(saved);
+      toast.success(COPY.crm.canal_live_ok);
+    } catch (err) {
+      toast.error(isApiError(err) ? err.message : COPY.save_fail);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function saveTemplates() {
     setBusy(true);
     try {
@@ -783,7 +796,19 @@ export function CaixaDetailScreen() {
             <Badge variant="outline" className={connectionBadgeClass(conn)}>
               {connectionLabel(conn)}
             </Badge>
-            {conn === "credentials_saved" || conn === "ready_stub" ? (
+            {channelType === "whatsapp" &&
+            (conn === "credentials_saved" || conn === "not_configured") ? (
+              <Button
+                type="button"
+                size="sm"
+                disabled={busy}
+                onClick={() => void markReady()}
+              >
+                {COPY.crm.canal_mark_ready}
+              </Button>
+            ) : null}
+            {channelType !== "whatsapp" &&
+            (conn === "credentials_saved" || conn === "ready_stub") ? (
               <Button
                 type="button"
                 size="sm"
@@ -791,6 +816,16 @@ export function CaixaDetailScreen() {
                 onClick={() => void markReady()}
               >
                 {COPY.crm.canal_mark_ready}
+              </Button>
+            ) : null}
+            {channelType === "whatsapp" && conn !== "live" ? (
+              <Button
+                type="button"
+                size="sm"
+                disabled={busy}
+                onClick={() => void markLive()}
+              >
+                {COPY.crm.canal_mark_live}
               </Button>
             ) : null}
             {(channelType === "api" || channelType === "web_widget") && (
@@ -806,8 +841,23 @@ export function CaixaDetailScreen() {
             )}
           </div>
           <Alert>
-            <AlertDescription>{channelStubAlert(channelType)}</AlertDescription>
+            <AlertDescription>{channelStubAlert(channelType, conn)}</AlertDescription>
           </Alert>
+
+          {channelType === "whatsapp" && channel?.webhook_url ? (
+            <Alert>
+              <AlertTitle>{COPY.crm.canal_webhook_url}</AlertTitle>
+              <AlertDescription className="space-y-2">
+                <p className="text-sm text-muted-foreground">{COPY.crm.canal_webhook_hint}</p>
+                <code className="block break-all text-xs">{channel.webhook_url}</code>
+                {channel.webhook_url_global ? (
+                  <p className="text-xs text-muted-foreground">
+                    Alternativa global: <code>{channel.webhook_url_global}</code>
+                  </p>
+                ) : null}
+              </AlertDescription>
+            </Alert>
+          ) : null}
 
           {rotatedToken ? (
             <Alert>
@@ -851,7 +901,7 @@ export function CaixaDetailScreen() {
                         />
                       </div>
                       <div>
-                        <Label htmlFor="phone_number_id">Phone number ID</Label>
+                        <Label htmlFor="phone_number_id">Phone Number ID (Meta)</Label>
                         <Input
                           id="phone_number_id"
                           name="phone_number_id"
@@ -861,7 +911,9 @@ export function CaixaDetailScreen() {
                         />
                       </div>
                       <div>
-                        <Label htmlFor="business_account_id">Business account ID</Label>
+                        <Label htmlFor="business_account_id">
+                          WhatsApp Business Account ID (WABA)
+                        </Label>
                         <Input
                           id="business_account_id"
                           name="business_account_id"
@@ -875,12 +927,16 @@ export function CaixaDetailScreen() {
                         changeSecrets={changeSecrets}
                         onChangeSecrets={setChangeSecrets}
                         fields={[
-                          { id: "api_token", name: "api_token", label: "API token" },
-                          { id: "api_secret", name: "api_secret", label: "API secret" },
+                          {
+                            id: "api_token",
+                            name: "api_token",
+                            label: "Access Token permanente",
+                          },
+                          { id: "api_secret", name: "api_secret", label: "App Secret (webhook)" },
                           {
                             id: "webhook_verify_token",
                             name: "webhook_verify_token",
-                            label: "Webhook verify token",
+                            label: "Verify Token (webhook)",
                           },
                         ]}
                       />

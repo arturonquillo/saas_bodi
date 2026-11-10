@@ -30,9 +30,9 @@ MVP threat notes. Blockers if a PR ships the failure mode.
 
 ## WhatsApp stub confused with production
 
-**Risk:** Someone wires Meta Cloud API webhooks or outbound Graph calls to “finish” inbox/outbox without a product decision.
+**Risk:** Tokens leak in logs; webhook without signature; non-WA channels marked live.
 
-**Rule:** `ChannelSimulateInboundPort` + `StubChannelSendPort` + `StubOutboxTransport` are the adapters. Connection status must not reach `live` until product unlocks Meta. Acceptance proves **rows**, not provider HTTP. Tests assert no Graph host egress from WA adapters.
+**Rule:** WA may be `live` only with sealed secrets + IDs; webhook POSTs require `X-Hub-Signature-256` (App Secret). Never log Access Token / App Secret. Non-WA channels reject `live`. Outbox commerce remains stub. Tests mock Graph HTTP (no unpaid network in CI).
 
 ## Simulated inbox abuse
 

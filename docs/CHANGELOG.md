@@ -3,6 +3,24 @@
 Registro vivo do que já entrou na tip de produto/demo. Entradas mais novas no topo.  
 Convenção: ao shippar feature, acrescente uma entrada **no mesmo PR** (ver [docs/README.md](./README.md#documentação-viva)).
 
+## 2026-11-10 — WhatsApp Meta Cloud API (live)
+
+- Webhook público `GET/POST /api/webhooks/whatsapp` (+ `/api/webhooks/whatsapp/:inboxId`): challenge Meta + inbound → mesa Conversas; assinatura `X-Hub-Signature-256`.
+- Outbound: respostas do agente em caixas WA com `connection_status=live` usam Graph Cloud API (mockável nos testes).
+- Admin Caixas → Canal: Phone Number ID, WABA ID, Access Token, App Secret, Verify Token; botão **Conectar Meta (live)**; URL do webhook na UI.
+- Somente WhatsApp pode ir a `live` (exige segredos + IDs); demais canais continuam ≤ `ready_stub`.
+- Docs: `docs/user/conectar-whatsapp.md`; Guia seed **Conectar WhatsApp**; `.env.example` com `PUBLIC_APP_URL`.
+- Seed demo permanece `ready_stub` (sem token Meta real).
+
+## 2026-11-10 — Guia do usuário in-app (Central de Ajuda)
+
+- SaaS: nav + menu **Guia** → `/saas/guia` (artigos publicados do portal seed; admin e vendedor).
+- Loja: link **Ajuda** no header/rodapé → `/ajuda/casa-dos-frios-ajuda`.
+- Portal público com tema + toggle de aparência (dark mode).
+- Seed: categorias Operador / Estoque / Campanhas-tema / Loja + artigos pt-BR (login, conversas, cadastros, orçamentos/pedidos, produto/preço, desconto, ajuste, campanhas, tema, Loja cadastro/pedidos/WhatsApp) + rascunho interno.
+- `docs/user/` aponta a superfície web como guia do usuário; Markdown do repo permanece nota de mantenedor.
+- Deploy test3: precisa tip + `migrate` + `seed` para os artigos aparecerem.
+
 ## 2026-11-10 — test3: inventário + dark mode
 
 - Demo tip `cursor/test3-inventory-dark-8325` @ `202ad23` (merge PR #33 inventário + PR #30 dark mode) em https://test3.lecrunch.com.br.
@@ -48,7 +66,7 @@ Comércio MVP pré-existente permanece: cadastro CNPJ, Orçamento → Pedido →
 | **Dark mode** (SaaS + Loja, toggle persistente) | Shipped (demo test3) | Tip merge inventário+dark; ver entradas acima |
 | **Inventário completo** (CRUD produto, preço/desconto, controle full) | Shipped (backend + SaaS UI) | Ver `docs/user/estoque.md` |
 | Account (billing / white-label) | Fora do MVP | Não misturar no nav operacional |
-| Meta WhatsApp Cloud live | Bloqueado até unlock pago | UI “Pronto para conectar” |
+| Meta WhatsApp Cloud live | Shipped (conectar com credenciais Meta) | Ver `docs/user/conectar-whatsapp.md` |
 
 ## Antes de A–E (baseline pivot)
 

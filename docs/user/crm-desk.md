@@ -1,6 +1,6 @@
 # CRM desk — Conversas e configuração
 
-O desk CRM é a mesa Chatwoot-parity nativa do SaaS (não é sidecar Chatwoot OSS). WhatsApp permanece **Pronto para conectar** (credenciais + simular; sem Meta live até unlock).
+O desk CRM é a mesa Chatwoot-parity nativa do SaaS (não é sidecar Chatwoot OSS). WhatsApp pode ir de **Pronto para conectar** (`ready_stub`) a **Conectado (live)** com Meta Cloud API — ver [conectar-whatsapp.md](./conectar-whatsapp.md).
 
 Home pós-login: `/saas/conversas`. Legacy `/saas/inbox` redireciona.
 
@@ -21,7 +21,7 @@ Home pós-login: `/saas/conversas`. Legacy `/saas/inbox` redireciona.
 
 1. Abra `/saas/conversas` — lista + thread + rail de contato/comércio.
 2. Filtre por status (`open` / `pending` / `snoozed` / `resolved`), assignee, labels.
-3. Responda (stub de entrega no WA) ou note privada.
+3. Responda (Cloud API se WA `live`; senão stub) ou note privada.
 4. Aplique labels de intent (Cadastro, Orçamento, …) e use deep-links para cadastro/orçamento.
 5. Admin: **Simular mensagem** para gerar inbound de demo (telefone E.164, corpo, label opcional).
 
@@ -61,7 +61,9 @@ Cadastros · Orçamentos · Pedidos · Vendas · [Estoque](./estoque.md) · Avis
 | `/saas/crm/notificacoes` | A/B | |
 | `/saas/crm/perfil` | A/B | |
 | `/saas/crm/campanhas` | C | Envio stub; não dispara no boot |
-| `/saas/crm/central-ajuda` | C | Portal público seed |
+| `/saas/crm/central-ajuda` | C | Autoria do portal (admin) |
+| `/saas/guia` | C | Guia do usuário (artigos publicados; todos os papéis) |
+| `/ajuda/casa-dos-frios-ajuda` | C | Portal público (Loja + link externo) |
 | `/saas/crm/relatorios` | C | |
 | `/saas/crm/modelos-email` | D | Stub |
 | `/saas/crm/sla` | E | Políticas FRT/NRT/RT |
@@ -75,7 +77,7 @@ Cadastros · Orçamentos · Pedidos · Vendas · [Estoque](./estoque.md) · Avis
 
 ## Canal WhatsApp
 
-Em **Caixas** → canal WhatsApp: status máximo operacional no MVP = `ready_stub` (“Pronto para conectar”). Preencha campos Meta-shaped se for testar UI; **não** há Graph/webhook live. Mensagens públicas registram entrega stub; use **Simular** para inbound.
+Em **Caixas** → canal WhatsApp: salve Phone Number ID, WABA, Access Token, App Secret e Verify Token. Fluxo: `not_configured` → `credentials_saved` → `ready_stub` → `live` (**Conectar Meta**). Webhook: `/api/webhooks/whatsapp` ou `/api/webhooks/whatsapp/:inboxId`. Guia completo: [conectar-whatsapp.md](./conectar-whatsapp.md).
 
 ## Widget Loja (Phase D)
 
@@ -83,6 +85,6 @@ Inbox widget seed (`Loja — chat`) alimenta a **mesma** mesa de Conversas. Toke
 
 ## O que não fazer
 
-- Esperar envio real Meta / SMTP / redes sociais.
+- Esperar envio real SMTP / redes sociais / SMS (permanecem stub). WhatsApp live exige credenciais Meta válidas + webhook.
 - Tratar Contact sozinho como autorização de Pedido — o gate é **Cliente aprovado**.
 - Misturar chrome de Account/assinatura no nav SaaS.

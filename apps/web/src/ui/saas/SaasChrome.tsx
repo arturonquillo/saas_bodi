@@ -4,7 +4,7 @@ import type { SaasRole } from "@saas-frota/shared";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Home, LogOut, Menu } from "lucide-react";
+import { BookOpen, Home, LogOut, Menu } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -71,6 +71,12 @@ function UserMenu({ role }: { role: SaasRole | null | undefined }) {
         <DropdownMenuItem className="cursor-pointer">
           <Link href="/saas/crm/perfil" className="flex w-full items-center">
             <span>{COPY.crm.nav_perfil_crm}</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem className="cursor-pointer">
+          <Link href="/saas/guia" className="flex w-full items-center">
+            <BookOpen className="mr-2 h-4 w-4" />
+            <span>{COPY.nav_guia}</span>
           </Link>
         </DropdownMenuItem>
         <p className="px-2 py-1 text-xs text-muted-foreground">{roleLabel(role)}</p>

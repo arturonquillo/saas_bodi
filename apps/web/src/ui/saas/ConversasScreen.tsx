@@ -1,10 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { isAdmin } from "@saas-frota/shared";
-import { Filter, MoreHorizontal, PanelRight, Send, SquareArrowOutUpRight } from "lucide-react";
+import {
+  ChevronsLeft,
+  ChevronsRight,
+  Filter,
+  MoreHorizontal,
+  PanelRight,
+  PanelRightClose,
+  PanelRightOpen,
+  Send,
+  SquareArrowOutUpRight,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -83,6 +93,14 @@ import type {
 import { formatDate } from "../format";
 import { useSession } from "../session";
 import { ErrorState } from "../states";
+import {
+  CONTATO_WIDTH_DEFAULT,
+  CONTATO_WIDTH_MIN,
+  FILTER_RAIL_WIDTH,
+  LAYOUT_KEYS,
+  usePersistedBool,
+  usePersistedListWidth,
+} from "./layout-prefs";
 
 type DeskFilter = {
   status?: ConversationStatus | "";
@@ -370,15 +388,15 @@ function ContextRail({
 
   return (
     <ScrollArea className="h-full">
-      <div className="space-y-4 p-4">
-        <div>
+      <div className="min-w-0 space-y-4 overflow-x-hidden p-4">
+        <div className="min-w-0">
           <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
             Contato
           </p>
-          <p className="mt-1 font-medium text-gray-900">{contact?.nome ?? "—"}</p>
-          <p className="text-sm text-muted-foreground">{contact?.phone_e164 ?? "—"}</p>
+          <p className="mt-1 break-words font-medium text-foreground">{contact?.nome ?? "—"}</p>
+          <p className="break-all text-sm text-muted-foreground">{contact?.phone_e164 ?? "—"}</p>
           {contact?.email ? (
-            <p className="text-sm text-muted-foreground">{contact.email}</p>
+            <p className="break-all text-sm text-muted-foreground">{contact.email}</p>
           ) : null}
           {contact?.id ? (
             <Button variant="link" className="h-auto px-0" asChild>
@@ -387,7 +405,7 @@ function ContextRail({
           ) : null}
         </div>
         <Separator />
-        <div>
+        <div className="min-w-0">
           <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
             Labels
           </p>
@@ -396,26 +414,26 @@ function ContextRail({
               <span className="text-sm text-muted-foreground">—</span>
             ) : (
               detail.labels!.map((l) => (
-                <Badge key={l.id} variant="outline" className="gap-1">
+                <Badge key={l.id} variant="outline" className="max-w-full gap-1">
                   <span
-                    className="size-2 rounded-full"
+                    className="size-2 shrink-0 rounded-full"
                     style={{ background: l.color || "var(--color-primary)" }}
                   />
-                  {displayLabelTitle(l.title)}
+                  <span className="truncate">{displayLabelTitle(l.title)}</span>
                 </Badge>
               ))
             )}
           </div>
         </div>
         <Separator />
-        <div>
+        <div className="min-w-0">
           <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
             Atribuição
           </p>
-          <p className="mt-1 text-sm">
+          <p className="mt-1 break-words text-sm">
             {detail.assignee_nome ?? detail.assignee_user_id ?? "—"}
           </p>
-          <p className="text-sm text-muted-foreground">
+          <p className="break-words text-sm text-muted-foreground">
             {COPY.crm.team}: {detail.team_nome ?? detail.team_id ?? "—"}
           </p>
           {detail.bot_agent_bot_id ? (
@@ -425,7 +443,7 @@ function ContextRail({
           ) : null}
         </div>
         <Separator />
-        <div className="space-y-2">
+        <div className="min-w-0 space-y-2">
           <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
             {COPY.crm.atributos_title}
           </p>
@@ -434,10 +452,10 @@ function ContextRail({
           ) : (
             <>
               {attrDefs.map((def) => (
-                <div key={def.id}>
-                  <Label className="text-xs">{def.attribute_display_name}</Label>
+                <div key={def.id} className="min-w-0">
+                  <Label className="text-xs break-words">{def.attribute_display_name}</Label>
                   <Input
-                    className="mt-1 h-8"
+                    className="mt-1 h-8 min-w-0"
                     value={attrValues[def.attribute_key] ?? ""}
                     onChange={(e) =>
                       setAttrValues((prev) => ({
@@ -455,7 +473,7 @@ function ContextRail({
           )}
         </div>
         <Separator />
-        <div className="space-y-2">
+        <div className="min-w-0 space-y-2">
           <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
             {COPY.crm.nav_captain}
           </p>
@@ -473,9 +491,9 @@ function ContextRail({
           ) : (
             <ul className="space-y-2">
               {captainSuggestions.map((s) => (
-                <li key={s.id} className="rounded-md border border-border p-2 text-sm">
+                <li key={s.id} className="min-w-0 rounded-md border border-border p-2 text-sm">
                   <p className="text-xs text-muted-foreground">{s.mode}</p>
-                  <p className="mt-1 text-gray-900">
+                  <p className="mt-1 break-words whitespace-pre-wrap text-foreground">
                     {(s.proposal ?? s.proposal_json)?.reply_text ||
                       JSON.stringify(s.proposal ?? s.proposal_json ?? {})}
                   </p>
@@ -510,13 +528,15 @@ function ContextRail({
           )}
         </div>
         <Separator />
-        <div className="space-y-2">
+        <div className="min-w-0 space-y-2">
           <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
             Comércio
           </p>
           {!hasCliente ? (
-            <Alert>
-              <AlertDescription>{COPY.crm.commerce_gate}</AlertDescription>
+            <Alert className="min-w-0">
+              <AlertDescription className="break-words whitespace-normal">
+                {COPY.crm.commerce_gate}
+              </AlertDescription>
             </Alert>
           ) : null}
           {detail.cadastro_request_id ? (
@@ -573,8 +593,51 @@ export function ConversasScreen() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [updatedSince, setUpdatedSince] = useState<string | undefined>();
+  const [filtersRailOpen, setFiltersRailOpen] = usePersistedBool(
+    LAYOUT_KEYS.conversasFiltersOpen,
+    true,
+  );
+  const [contatoOpen, setContatoOpen] = usePersistedBool(
+    LAYOUT_KEYS.conversasContatoOpen,
+    true,
+  );
+  const [listWidth, setListWidth] = usePersistedListWidth();
+  const resizingRef = useRef<{ startX: number; startW: number } | null>(null);
+  const [isResizingList, setIsResizingList] = useState(false);
+  const [isXl, setIsXl] = useState(false);
 
   usePresenceHeartbeat(selectedId);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1280px)");
+    const apply = () => setIsXl(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
+  useEffect(() => {
+    if (!isResizingList) return;
+    const onMove = (e: MouseEvent) => {
+      const start = resizingRef.current;
+      if (!start) return;
+      setListWidth(start.startW + (e.clientX - start.startX));
+    };
+    const onUp = () => {
+      resizingRef.current = null;
+      setIsResizingList(false);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [isResizingList, setListWidth]);
 
   const loadMeta = useCallback(async () => {
     const [inboxPage, labelPage, teamPage, cannedPage, macroPage, filterPage, attrPage] =
@@ -1218,6 +1281,24 @@ export function ConversasScreen() {
               >
                 <PanelRight className="size-4" />
               </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="hidden xl:inline-flex"
+                onClick={() => setContatoOpen((v) => !v)}
+                aria-pressed={contatoOpen}
+                aria-label={
+                  contatoOpen ? COPY.layout.ocultar_contato : COPY.layout.mostrar_contato
+                }
+                title={contatoOpen ? COPY.layout.ocultar_contato : COPY.layout.mostrar_contato}
+              >
+                {contatoOpen ? (
+                  <PanelRightClose className="size-4" />
+                ) : (
+                  <PanelRightOpen className="size-4" />
+                )}
+              </Button>
               <Select
                 value={String(detail.status)}
                 onValueChange={(v) => void patchConversation({ status: v })}
@@ -1417,30 +1498,127 @@ export function ConversasScreen() {
   );
 
   return (
-    <div className="flex h-[calc(100dvh-68px)] min-h-[480px] w-full bg-[#F4F6F7]">
-      <aside className="hidden w-[220px] shrink-0 border-r border-[#E5E9EC] bg-card xl:block">
-        {filterPane}
+    <div
+      className={cn(
+        "flex h-[calc(100dvh-68px)] min-h-[480px] w-full bg-muted/40",
+        isResizingList && "select-none",
+      )}
+    >
+      <aside
+        className={cn(
+          "relative hidden shrink-0 border-r border-border bg-card transition-[width] duration-200 xl:block",
+          filtersRailOpen ? "overflow-hidden" : "overflow-visible",
+        )}
+        style={{ width: filtersRailOpen ? FILTER_RAIL_WIDTH : 40 }}
+      >
+        {filtersRailOpen ? (
+          <div className="flex h-full flex-col">
+            <div className="flex items-center justify-end border-b border-border px-1 py-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8 cursor-pointer"
+                onClick={() => setFiltersRailOpen(false)}
+                aria-label={COPY.layout.recolher_filtros}
+                title={COPY.layout.recolher}
+              >
+                <ChevronsLeft className="size-4" />
+              </Button>
+            </div>
+            <div className="min-h-0 flex-1">{filterPane}</div>
+          </div>
+        ) : (
+          <div className="flex h-full flex-col items-center gap-2 py-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-8 cursor-pointer"
+              onClick={() => setFiltersRailOpen(true)}
+              aria-label={COPY.layout.expandir_filtros}
+              title={COPY.layout.expandir}
+            >
+              <ChevronsRight className="size-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-8 cursor-pointer"
+              onClick={() => setFiltersRailOpen(true)}
+              aria-label={COPY.crm.conversas_filters}
+              title={COPY.crm.conversas_filters}
+            >
+              <Filter className="size-4" />
+            </Button>
+          </div>
+        )}
       </aside>
 
       <div
         className={cn(
-          "w-full shrink-0 border-r border-[#E5E9EC] md:w-[40%] xl:w-[320px]",
+          "relative w-full shrink-0 border-r border-border bg-card",
           selectedId ? "hidden md:block" : "block",
+          !isXl && "md:w-[40%]",
         )}
+        style={isXl ? { width: listWidth } : undefined}
       >
         {listPane}
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={COPY.layout.redimensionar_lista}
+          title={COPY.layout.redimensionar_lista}
+          className={cn(
+            "absolute inset-y-0 right-0 z-10 hidden w-1.5 cursor-col-resize xl:block",
+            "hover:bg-primary/30",
+            isResizingList && "bg-primary/40",
+          )}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            resizingRef.current = { startX: e.clientX, startW: listWidth };
+            setIsResizingList(true);
+          }}
+        />
       </div>
 
       <div className={cn("min-w-0 flex-1", !selectedId ? "hidden md:block" : "block")}>
         {threadPane}
       </div>
 
-      <aside className="hidden w-[280px] shrink-0 border-l border-[#E5E9EC] bg-card xl:block">
-        {contextRail}
-      </aside>
+      {contatoOpen ? (
+        <aside
+          className="hidden min-w-0 shrink-0 overflow-hidden border-l border-border bg-card xl:block"
+          style={{
+            width: CONTATO_WIDTH_DEFAULT,
+            minWidth: CONTATO_WIDTH_MIN,
+          }}
+        >
+          <div className="flex h-full min-w-0 flex-col">
+            <div className="flex items-center justify-between gap-2 border-b border-border px-2 py-1">
+              <p className="truncate px-1 text-xs font-medium text-muted-foreground uppercase">
+                {COPY.crm.conversas_details}
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8 shrink-0 cursor-pointer"
+                onClick={() => setContatoOpen(false)}
+                aria-label={COPY.layout.ocultar_contato}
+                title={COPY.layout.ocultar_contato}
+              >
+                <PanelRightClose className="size-4" />
+              </Button>
+            </div>
+            <div className="min-h-0 min-w-0 flex-1 overflow-hidden">{contextRail}</div>
+          </div>
+        </aside>
+      ) : null}
 
       <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
-        <SheetContent side="left" className="w-[280px] p-0">
+        <SheetContent side="left" className="w-[min(100vw,280px)] p-0 sm:max-w-[280px]">
           <SheetHeader className="border-b px-4 py-3">
             <SheetTitle>{COPY.crm.conversas_filters}</SheetTitle>
           </SheetHeader>
@@ -1449,7 +1627,7 @@ export function ConversasScreen() {
       </Sheet>
 
       <Sheet open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <SheetContent side="right" className="w-[320px] p-0">
+        <SheetContent side="right" className="w-[min(100vw,360px)] p-0 sm:max-w-[360px]">
           <SheetHeader className="border-b px-4 py-3">
             <SheetTitle>{COPY.crm.conversas_details}</SheetTitle>
           </SheetHeader>

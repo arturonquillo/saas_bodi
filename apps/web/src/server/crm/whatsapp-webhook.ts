@@ -144,7 +144,7 @@ export async function ingestMetaWhatsappPayload(input: {
       }
 
       const phoneNumberId = value.metadata?.phone_number_id?.trim();
-      let channel =
+      const channel =
         (phoneNumberId ? await findWhatsappChannelByPhoneNumberId(phoneNumberId) : null) ??
         (input.inboxIdHint ? await findWhatsappChannelByInboxId(input.inboxIdHint) : null);
 

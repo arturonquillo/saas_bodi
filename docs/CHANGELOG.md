@@ -3,6 +3,12 @@
 Registro vivo do que já entrou na tip de produto/demo. Entradas mais novas no topo.  
 Convenção: ao shippar feature, acrescente uma entrada **no mesmo PR** (ver [docs/README.md](./README.md#documentação-viva)).
 
+## 2026-11-10 — SaaS layout comfort (panes)
+
+- Nav SaaS: recolhe para trilho de ícones (persistido).
+- Conversas: filtros e Contato recolhíveis; lista redimensionável; Contato com min-width + wrap (sem clip).
+- Prefs em `localStorage` (`sf-saas-layout:*`); mobile sheets intactos.
+
 ## 2026-11-10 — SaaS UX amigável (hierarquia + helpers)
 
 - `SaasPage` aceita `description` (pt-BR, uma linha) nas telas não óbvias: Caixas/Canal, Estoque, Orçamentos/Pedidos/Vendas, Cadastros, Configuração, Tema, Avisos.

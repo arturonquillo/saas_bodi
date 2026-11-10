@@ -127,6 +127,18 @@ export const COPY = {
   intent_outro: "Outro",
   outbox_stub_note: "Registrado (stub).",
 
+  layout: {
+    recolher: "Recolher",
+    expandir: "Expandir",
+    recolher_menu: "Recolher menu",
+    expandir_menu: "Expandir menu",
+    recolher_filtros: "Recolher filtros",
+    expandir_filtros: "Expandir filtros",
+    ocultar_contato: "Ocultar contato",
+    mostrar_contato: "Mostrar contato",
+    redimensionar_lista: "Redimensionar lista",
+  },
+
   crm: {
     nav_conversas: "Conversas",
     nav_contatos: "Contatos",

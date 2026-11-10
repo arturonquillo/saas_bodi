@@ -3,6 +3,16 @@
 Registro vivo do que já entrou na tip de produto/demo. Entradas mais novas no topo.  
 Convenção: ao shippar feature, acrescente uma entrada **no mesmo PR** (ver [docs/README.md](./README.md#documentação-viva)).
 
+## 2026-11-10 — test3: inventário + dark mode
+
+- Demo tip `cursor/test3-inventory-dark-8325` @ `202ad23` (merge PR #33 inventário + PR #30 dark mode) em https://test3.lecrunch.com.br.
+- Verificado: `/saas/estoque`, toggle de tema no header SaaS/Loja, `/loja`; widget Origin test3 restaurado pós-seed.
+
+## 2026-11-10 — Dark mode + affordances clicáveis
+
+- SaaS + Loja: `ColorModeToggle` persistente no chrome; tokens/tema escuros.
+- Listas/navegação: `DetailNavButton` / cursor pointer em controles clicáveis.
+
 ## 2026-11-10 — Inventário / Estoque UI + backend
 
 - SaaS UI: lista/busca, **Novo produto**, editar master, toggles `ativo`/`visivel_loja`, **Ajustar quantidade**, histórico de movimentos; vendedor somente leitura no estoque.
@@ -35,7 +45,7 @@ Comércio MVP pré-existente permanece: cadastro CNPJ, Orçamento → Pedido →
 
 | Tema | Estado | Notas |
 |---|---|---|
-| **Dark mode** (SaaS + Loja, toggle persistente) | Ainda não shipped | Preferência de produto; atualizar `docs/user/` + design tokens quando pousar |
+| **Dark mode** (SaaS + Loja, toggle persistente) | Shipped (demo test3) | Tip merge inventário+dark; ver entradas acima |
 | **Inventário completo** (CRUD produto, preço/desconto, controle full) | Shipped (backend + SaaS UI) | Ver `docs/user/estoque.md` |
 | Account (billing / white-label) | Fora do MVP | Não misturar no nav operacional |
 | Meta WhatsApp Cloud live | Bloqueado até unlock pago | UI “Pronto para conectar” |

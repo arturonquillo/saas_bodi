@@ -4,6 +4,8 @@ Multi-tenant-ready SaaS for Brazilian **wholesale distributors**, branded first 
 
 Product source of truth: `docs/product/spec.md`. MVP brief: `docs/product/mvp.md`. Acceptance: `docs/product/mvp-acceptance.md`. Overview: `docs/product/brief.md`. Open questions needed to build are locked in the spec — do not reopen them in implementation.
 
+**Living docs:** operator guides (`docs/user/`), dev runbook (`docs/dev/`), and `docs/CHANGELOG.md` must stay current. When shipping a feature, update those docs in the **same PR** (index policy: `docs/README.md`). Do not leave tip ahead of the guides.
+
 ## Specialists (use these)
 
 | Invoke | Owns |

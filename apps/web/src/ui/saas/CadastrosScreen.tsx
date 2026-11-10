@@ -12,6 +12,7 @@ import { COPY } from "../copy";
 import { formatDate } from "../format";
 import { SaasPage } from "../layout";
 import { CadastroStatusBadge, NotifyAlert } from "../order-ui";
+import { DetailNavButton } from "../DetailNavRow";
 import { ErrorState, FormSkeleton, TableSkeleton } from "../states";
 
 const textareaClass =
@@ -56,22 +57,23 @@ export function CadastrosListScreen() {
                 </p>
               </div>
             ) : (
-              <ul className="space-y-4">
+              <ul className="space-y-2">
                 {items.map((c) => (
-                  <li key={c.id} className="flex items-center justify-between gap-4">
-                    <button
-                      type="button"
-                      className="min-w-0 flex-1 text-left"
+                  <li key={c.id}>
+                    <DetailNavButton
+                      className="rounded-md px-2 py-2"
                       onClick={() => router.push(`/saas/cadastros/${c.id}`)}
+                      meta={
+                        <>
+                          <CadastroStatusBadge status={c.status} />
+                          <span className="text-sm text-muted-foreground">{c.source}</span>
+                          <span className="text-sm text-muted-foreground">{formatDate(c.updated_at)}</span>
+                        </>
+                      }
                     >
-                      <p className="font-medium text-gray-900">{c.razao_social}</p>
-                      <p className="text-sm text-gray-500">{maskFromLast4(c.cnpj_last4)}</p>
-                    </button>
-                    <div className="flex shrink-0 flex-wrap items-center gap-3 text-sm">
-                      <CadastroStatusBadge status={c.status} />
-                      <span className="text-gray-500">{c.source}</span>
-                      <span className="text-gray-500">{formatDate(c.updated_at)}</span>
-                    </div>
+                      <p className="font-medium text-foreground">{c.razao_social}</p>
+                      <p className="text-sm text-muted-foreground">{maskFromLast4(c.cnpj_last4)}</p>
+                    </DetailNavButton>
                   </li>
                 ))}
               </ul>

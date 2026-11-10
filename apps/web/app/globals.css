@@ -146,6 +146,73 @@
   --sidebar-ring: var(--color-accent);
 }
 
+/* Casa dos Frios dark shell — same brand primary/accent, cool steel surfaces. */
+.dark {
+  --background: #12181c;
+  --foreground: #e8eef1;
+  --card: #1b2429;
+  --card-foreground: #e8eef1;
+  --popover: #1b2429;
+  --popover-foreground: #e8eef1;
+  --primary: #9a3a3a;
+  --primary-foreground: #f7f1f0;
+  --secondary: #222b31;
+  --secondary-foreground: #e8eef1;
+  --muted: #222b31;
+  --muted-foreground: #9aa7b0;
+  --accent: #222b31;
+  --accent-foreground: #e8eef1;
+  --destructive: #f07070;
+  --destructive-foreground: #1a1010;
+  --border: #2a343b;
+  --input: #2a343b;
+  --ring: #3d7f8f;
+  --chart-1: #9a3a3a;
+  --chart-2: #3d7f8f;
+  --chart-3: #9aa7b0;
+  --chart-4: #2a343b;
+  --chart-5: #e8eef1;
+  --sidebar-background: #161d22;
+  --sidebar-foreground: #e8eef1;
+  --sidebar-primary: #9a3a3a;
+  --sidebar-primary-foreground: #f7f1f0;
+  --sidebar-accent: #222b31;
+  --sidebar-accent-foreground: #e8eef1;
+  --sidebar-border: #2a343b;
+  --sidebar-ring: #3d7f8f;
+}
+
+.dark [data-theme="tenant"][data-density="comfortable"],
+.dark [data-theme="tenant"][data-density="compact"] {
+  --background: #12181c;
+  --foreground: var(--color-text);
+  --primary: var(--color-primary);
+  --primary-foreground: var(--color-text-on-primary);
+  --card: var(--color-surface-raised);
+  --card-foreground: var(--color-text);
+  --popover: var(--color-surface-raised);
+  --popover-foreground: var(--color-text);
+  --muted: var(--color-surface);
+  --muted-foreground: var(--color-text-muted);
+  --secondary: var(--color-surface);
+  --secondary-foreground: var(--color-text);
+  --accent: var(--color-surface);
+  --accent-foreground: var(--color-text);
+  --destructive: var(--color-danger);
+  --destructive-foreground: var(--color-text-on-primary);
+  --border: var(--color-border);
+  --input: var(--color-border);
+  --ring: var(--color-accent);
+  --sidebar-background: #161d22;
+  --sidebar-foreground: var(--color-text);
+  --sidebar-primary: var(--color-primary);
+  --sidebar-primary-foreground: var(--color-text-on-primary);
+  --sidebar-accent: color-mix(in srgb, var(--color-primary) 18%, transparent);
+  --sidebar-accent-foreground: var(--color-text);
+  --sidebar-border: var(--color-border);
+  --sidebar-ring: var(--color-accent);
+}
+
 @layer base {
   *,
   ::after,

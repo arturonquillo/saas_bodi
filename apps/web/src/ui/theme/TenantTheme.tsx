@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ThemeTokens } from "@saas-frota/shared";
 import { apiGet } from "../api";
 import { themeStyle } from "./apply-tokens";
+import { useColorMode } from "./ColorModeProvider";
 
 type ThemeCtx = {
   tokens: ThemeTokens | null;
@@ -23,6 +24,7 @@ export function TenantTheme({
   children: React.ReactNode;
   density: "comfortable" | "compact";
 }) {
+  const { resolved } = useColorMode();
   const [tokens, setTokens] = useState<ThemeTokens | null>(null);
 
   const refresh = useCallback(async () => {
@@ -46,7 +48,7 @@ export function TenantTheme({
         className="min-h-dvh bg-background text-foreground"
         data-theme="tenant"
         data-density={density}
-        style={tokens ? themeStyle(tokens) : undefined}
+        style={tokens ? themeStyle(tokens, resolved) : undefined}
       >
         {children}
       </div>

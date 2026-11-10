@@ -10,6 +10,7 @@ import { formatDate, formatMoney } from "../format";
 import { StoreMain } from "../layout";
 import { OrcamentoStatusBadge, PedidoStatusBadge } from "../order-ui";
 import { useSession } from "../session";
+import { DetailNavLink } from "../DetailNavRow";
 import { EmptyState, ErrorState, FormSkeleton } from "../states";
 
 export function MeusDocsScreen() {
@@ -98,20 +99,20 @@ export function MeusDocsScreen() {
                 <p className="text-sm text-muted-foreground">{COPY.orcamentos_empty}</p>
               ) : (
                 orcamentos.map((o) => (
-                  <Link
+                  <DetailNavLink
                     key={o.id}
                     href={`/loja/orcamentos/${o.id}`}
-                    className="flex items-center justify-between gap-3 border-b border-border py-3 hover:bg-muted/40"
+                    className="border-b border-border py-3"
+                    meta={
+                      <>
+                        <span className="text-sm tabular-nums">{formatMoney(docTotal(o.linhas))}</span>
+                        <OrcamentoStatusBadge status={o.status} />
+                      </>
+                    }
                   >
-                    <div>
-                      <p className="font-medium">{o.id}</p>
-                      <p className="text-xs text-muted-foreground">{formatDate(o.updated_at)}</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm tabular-nums">{formatMoney(docTotal(o.linhas))}</span>
-                      <OrcamentoStatusBadge status={o.status} />
-                    </div>
-                  </Link>
+                    <p className="font-medium">{o.id}</p>
+                    <p className="text-xs text-muted-foreground">{formatDate(o.updated_at)}</p>
+                  </DetailNavLink>
                 ))
               )}
             </div>
@@ -121,20 +122,20 @@ export function MeusDocsScreen() {
                 <p className="text-sm text-muted-foreground">{COPY.pedidos_empty}</p>
               ) : (
                 pedidos.map((p) => (
-                  <Link
+                  <DetailNavLink
                     key={p.id}
                     href={`/loja/pedidos/${p.id}`}
-                    className="flex items-center justify-between gap-3 border-b border-border py-3 hover:bg-muted/40"
+                    className="border-b border-border py-3"
+                    meta={
+                      <>
+                        <span className="text-sm tabular-nums">{formatMoney(docTotal(p.linhas))}</span>
+                        <PedidoStatusBadge status={p.status} />
+                      </>
+                    }
                   >
-                    <div>
-                      <p className="font-medium">{p.id}</p>
-                      <p className="text-xs text-muted-foreground">{formatDate(p.updated_at)}</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm tabular-nums">{formatMoney(docTotal(p.linhas))}</span>
-                      <PedidoStatusBadge status={p.status} />
-                    </div>
-                  </Link>
+                    <p className="font-medium">{p.id}</p>
+                    <p className="text-xs text-muted-foreground">{formatDate(p.updated_at)}</p>
+                  </DetailNavLink>
                 ))
               )}
             </div>

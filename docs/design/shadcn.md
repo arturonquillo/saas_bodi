@@ -19,7 +19,16 @@ Surface chrome: [`visual.md`](./visual.md), [`loja.md`](./loja.md), [`saas-desk.
 
 Seed: primary `#7A1F1F`, accent `#1F5C6B`, background `#EEF2F4`.
 
-`--font-sans` → IBM Plex Sans. `--font-display` → Archivo for titles/hero. No Inter/Geist/Fraunces as product face. No tenant dark mode in MVP.
+`--font-sans` → IBM Plex Sans. `--font-display` → Archivo for titles/hero. No Inter/Geist/Fraunces as product face.
+
+### Dark mode (Loja + SaaS)
+
+- System-aware default (`sistema`) + user toggle **Aparência**: Claro · Escuro · Sistema.
+- Persist in `localStorage` key `sf-color-mode` and cookie `sf-color-mode`.
+- Apply `dark` on `<html>` (shadcn). Boot script on `/loja` and `/saas` avoids flash.
+- Brand primary/accent stay Casa dos Frios; canvas/card/sidebar/text remap to cool steel dark variants in `globals.css` / `design-tokens.css`.
+- Toggle lives in Store + SaaS chrome headers (and auth screens when chrome is hidden).
+- Theme editor still edits light tenant slots only; dark is color-mode, not an editor field.
 
 ---
 

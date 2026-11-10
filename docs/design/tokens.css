@@ -76,6 +76,18 @@
   --color-warning: #b45309;
 }
 
+.dark [data-theme="tenant"] {
+  --color-background: color-mix(in srgb, var(--color-primary) 10%, #12181c);
+  --color-text: #e8eef1;
+  --color-text-muted: #9aa7b0;
+  --color-surface: #161d22;
+  --color-surface-raised: #1b2429;
+  --color-border: #2a343b;
+  --color-danger: #f07070;
+  --color-success: #3dba78;
+  --color-warning: #e0a04a;
+}
+
 [data-density="comfortable"] {
   --font-size-body: 16px;
   --font-size-small: 14px;

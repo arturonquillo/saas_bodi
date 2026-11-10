@@ -44,7 +44,7 @@ export function SaasPage({
   return (
     <section className="flex-1 p-4 lg:p-8">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-lg font-medium text-gray-900 lg:text-2xl">{title}</h1>
+        <h1 className="text-lg font-medium text-foreground lg:text-2xl">{title}</h1>
         {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
       </div>
       {children}
@@ -83,7 +83,7 @@ export function ListHeader({
     <div className="mb-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg font-medium text-gray-900 lg:text-2xl">{title}</h1>
+          <h1 className="text-lg font-medium text-foreground lg:text-2xl">{title}</h1>
           {subtitle ? <p className="mt-1 text-sm text-gray-500">{subtitle}</p> : null}
         </div>
         {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
@@ -114,7 +114,7 @@ export function FormWrap({ children, className }: { children: React.ReactNode; c
 export function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="space-y-3 py-4 first:pt-0">
-      <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
+      <h2 className="text-sm font-semibold text-foreground">{title}</h2>
       {children}
     </section>
   );
@@ -132,7 +132,7 @@ export function AuthStage({
     <main
       id="conteudo"
       className={cn(
-        "flex min-h-[100dvh] flex-col justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8",
+        "flex min-h-[100dvh] flex-col justify-center bg-background px-4 py-12 sm:px-6 lg:px-8",
         className,
       )}
     >
@@ -196,7 +196,7 @@ export function QtyStepper({
 
 export function CrumbLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <Link href={href} className="text-muted-foreground hover:text-primary">
+    <Link href={href} className="cursor-pointer text-muted-foreground hover:text-primary hover:underline">
       {children}
     </Link>
   );

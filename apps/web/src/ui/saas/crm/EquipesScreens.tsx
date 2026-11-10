@@ -26,6 +26,7 @@ import {
 import { apiGet, apiSend, asPage, isApiError, type UserDto } from "../../api";
 import { COPY } from "../../copy";
 import type { CrmTeamDto } from "../../crm/types";
+import { DetailNavButton } from "../../DetailNavRow";
 import { SaasPage } from "../../layout";
 import { ErrorState, TableSkeleton } from "../../states";
 
@@ -94,19 +95,20 @@ export function EquipesListScreen() {
                 </Button>
               </div>
             ) : (
-              <ul className="space-y-4">
+              <ul className="space-y-2">
                 {items.map((t) => (
-                  <li key={t.id} className="flex items-center justify-between gap-3">
-                    <button
-                      type="button"
-                      className="text-left font-medium text-gray-900"
+                  <li key={t.id}>
+                    <DetailNavButton
+                      className="rounded-md px-2 py-2"
                       onClick={() => router.push(`/saas/crm/equipes/${t.id}`)}
+                      meta={
+                        <span className="text-sm text-muted-foreground">
+                          {t.member_count ?? t.member_ids?.length ?? 0} membros
+                        </span>
+                      }
                     >
-                      {t.name}
-                    </button>
-                    <span className="text-sm text-muted-foreground">
-                      {t.member_count ?? t.member_ids?.length ?? 0} membros
-                    </span>
+                      <p className="font-medium text-foreground">{t.name}</p>
+                    </DetailNavButton>
                   </li>
                 ))}
               </ul>

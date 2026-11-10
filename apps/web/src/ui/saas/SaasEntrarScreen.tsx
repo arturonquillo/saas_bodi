@@ -14,7 +14,7 @@ export function SaasEntrarScreen() {
         <div className="flex justify-center">
           <BrandMark href="/saas/entrar" fallback={COPY.marca} />
         </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-foreground">
           {COPY.login_title_saas}
         </h2>
       </div>
@@ -24,16 +24,16 @@ export function SaasEntrarScreen() {
         <div className="mt-6">
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300" />
+              <div className="w-full border-t border-border" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="bg-gray-50 px-2 text-gray-500">Casa dos Frios</span>
+              <span className="bg-background px-2 text-muted-foreground">Casa dos Frios</span>
             </div>
           </div>
           <div className="mt-6">
             <Link
               href="/loja"
-              className="flex w-full justify-center rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+              className="flex w-full cursor-pointer justify-center rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground shadow-sm hover:bg-muted"
             >
               Ir para a loja
             </Link>

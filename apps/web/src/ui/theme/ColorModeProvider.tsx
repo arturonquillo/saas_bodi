@@ -18,7 +18,7 @@ type ColorModeCtx = {
 };
 
 const Ctx = createContext<ColorModeCtx>({
-  mode: "light",
+  mode: "system",
   resolved: "light",
   setMode: () => {},
 });
@@ -28,7 +28,7 @@ export function useColorMode() {
 }
 
 export function ColorModeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setModeState] = useState<ColorMode>("light");
+  const [mode, setModeState] = useState<ColorMode>("system");
   const [resolved, setResolved] = useState<ResolvedColorMode>("light");
   const [ready, setReady] = useState(false);
 

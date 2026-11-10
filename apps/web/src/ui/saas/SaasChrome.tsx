@@ -20,6 +20,7 @@ import { BrandMark } from "../BrandMark";
 import { COPY } from "../copy";
 import { SkipLink } from "../layout";
 import { useSession } from "../session";
+import { ColorModeToggle } from "../theme/ColorModeToggle";
 import { CrmHeaderChrome } from "./CrmHeaderChrome";
 import {
   canOpen,
@@ -72,7 +73,7 @@ function UserMenu({ role }: { role: SaasRole | null | undefined }) {
             <span>{COPY.crm.nav_perfil_crm}</span>
           </Link>
         </DropdownMenuItem>
-        <p className="px-2 py-1 text-xs text-gray-500">{roleLabel(role)}</p>
+        <p className="px-2 py-1 text-xs text-muted-foreground">{roleLabel(role)}</p>
         <DropdownMenuItem
           className="cursor-pointer"
           onClick={() => {
@@ -89,11 +90,12 @@ function UserMenu({ role }: { role: SaasRole | null | undefined }) {
 
 function Header({ role }: { role: SaasRole | null | undefined }) {
   return (
-    <header className="border-b border-gray-200 bg-white">
+    <header className="border-b border-border bg-card">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-        <BrandMark href="/saas/conversas" className="text-gray-900" />
+        <BrandMark href="/saas/conversas" className="text-foreground" />
         <div className="flex items-center gap-2 sm:gap-4">
           <CrmHeaderChrome />
+          <ColorModeToggle />
           <UserMenu role={role} />
         </div>
       </div>
@@ -125,9 +127,9 @@ function SectionNav({
                 <Button
                   variant="ghost"
                   className={cn(
-                    "my-0.5 w-full justify-start shadow-none",
+                    "my-0.5 w-full cursor-pointer justify-start shadow-none",
                     active &&
-                      "bg-[color-mix(in_srgb,var(--color-primary)_8%,transparent)] text-gray-900 border-l-[3px] border-l-primary rounded-l-none",
+                      "rounded-l-none border-l-[3px] border-l-primary bg-[color-mix(in_srgb,var(--color-primary)_8%,transparent)] text-foreground",
                   )}
                   onClick={onNavigate}
                 >
@@ -168,15 +170,22 @@ export function SaasChrome({ children }: { children: React.ReactNode }) {
   }, [status, loginPage, pathname, role, router]);
 
   if (loginPage) {
-    return <>{children}</>;
+    return (
+      <>
+        <div className="fixed top-3 right-3 z-40">
+          <ColorModeToggle />
+        </div>
+        {children}
+      </>
+    );
   }
 
   if (status === "loading") {
-    return <div className="min-h-screen bg-gray-50" aria-busy="true" />;
+    return <div className="min-h-screen bg-background" aria-busy="true" />;
   }
 
   return (
-    <section className="flex min-h-screen flex-col bg-[#F4F6F7]">
+    <section className="flex min-h-screen flex-col bg-background">
       <SkipLink />
       <Header role={role} />
       <Toaster richColors position="top-right" />
@@ -187,8 +196,8 @@ export function SaasChrome({ children }: { children: React.ReactNode }) {
           conversas ? "max-w-none" : "max-w-7xl",
         )}
       >
-        <div className="flex items-center justify-between border-b border-gray-200 bg-white p-4 lg:hidden">
-          <span className="font-medium text-gray-900">{pageLabel}</span>
+        <div className="flex items-center justify-between border-b border-border bg-card p-4 lg:hidden">
+          <span className="font-medium text-foreground">{pageLabel}</span>
           <Button
             className="-mr-3"
             variant="ghost"
@@ -202,7 +211,7 @@ export function SaasChrome({ children }: { children: React.ReactNode }) {
         <div className="relative flex h-full flex-1 overflow-hidden">
           <aside
             className={cn(
-              "absolute inset-y-0 left-0 z-40 w-64 transform border-r border-[#E5E9EC] bg-[#FAFBFC] transition-transform duration-300 ease-in-out lg:relative lg:block lg:translate-x-0",
+              "absolute inset-y-0 left-0 z-40 w-64 transform border-r border-sidebar-border bg-sidebar transition-transform duration-300 ease-in-out lg:relative lg:block lg:translate-x-0",
               isSidebarOpen ? "block translate-x-0" : "hidden -translate-x-full",
             )}
           >

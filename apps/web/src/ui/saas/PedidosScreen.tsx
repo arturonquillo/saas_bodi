@@ -32,6 +32,7 @@ import {
   legalPedidoTargets,
   pedidoTransitionLabel,
 } from "../order-ui";
+import { DetailNavButton } from "../DetailNavRow";
 import { useSession } from "../session";
 import { ErrorState, FormSkeleton, GateBanner, TableSkeleton } from "../states";
 
@@ -87,22 +88,23 @@ export function PedidosListScreen() {
                 </Button>
               </div>
             ) : (
-              <ul className="space-y-4">
+              <ul className="space-y-2">
                 {items.map((p) => (
-                  <li key={p.id} className="flex items-center justify-between gap-4">
-                    <button
-                      type="button"
-                      className="min-w-0 flex-1 text-left"
+                  <li key={p.id}>
+                    <DetailNavButton
+                      className="rounded-md px-2 py-2"
                       onClick={() => router.push(`/saas/pedidos/${p.id}`)}
+                      meta={
+                        <>
+                          <PedidoStatusBadge status={p.status} />
+                          <MoneyCell centavos={docTotal(p.linhas)} />
+                          <span className="text-sm text-muted-foreground">{formatDate(p.updated_at)}</span>
+                        </>
+                      }
                     >
-                      <p className="font-medium text-gray-900">{p.id}</p>
-                      <p className="text-sm text-gray-500">{p.cliente_id}</p>
-                    </button>
-                    <div className="flex shrink-0 flex-wrap items-center gap-3 text-sm">
-                      <PedidoStatusBadge status={p.status} />
-                      <MoneyCell centavos={docTotal(p.linhas)} />
-                      <span className="text-gray-500">{formatDate(p.updated_at)}</span>
-                    </div>
+                      <p className="font-medium text-foreground">{p.id}</p>
+                      <p className="text-sm text-muted-foreground">{p.cliente_id}</p>
+                    </DetailNavButton>
                   </li>
                 ))}
               </ul>

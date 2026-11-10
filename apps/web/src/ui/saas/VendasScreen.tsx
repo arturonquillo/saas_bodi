@@ -12,6 +12,7 @@ import { COPY } from "../copy";
 import { formatDate } from "../format";
 import { SaasPage } from "../layout";
 import { NotifyAlert, VendaStatusBadge, legalVendaTargets, vendaTransitionLabel } from "../order-ui";
+import { DetailNavButton } from "../DetailNavRow";
 import { ErrorState, FormSkeleton, TableSkeleton } from "../states";
 
 export function VendasListScreen() {
@@ -53,21 +54,22 @@ export function VendasListScreen() {
                 </p>
               </div>
             ) : (
-              <ul className="space-y-4">
+              <ul className="space-y-2">
                 {items.map((v) => (
-                  <li key={v.id} className="flex items-center justify-between gap-4">
-                    <button
-                      type="button"
-                      className="min-w-0 flex-1 text-left"
+                  <li key={v.id}>
+                    <DetailNavButton
+                      className="rounded-md px-2 py-2"
                       onClick={() => router.push(`/saas/vendas/${v.id}`)}
+                      meta={
+                        <>
+                          <VendaStatusBadge status={v.status} />
+                          <span className="text-sm text-muted-foreground">{formatDate(v.updated_at)}</span>
+                        </>
+                      }
                     >
-                      <p className="font-medium text-gray-900">{v.id}</p>
-                      <p className="text-sm text-gray-500">Pedido: {v.pedido_id}</p>
-                    </button>
-                    <div className="flex shrink-0 flex-wrap items-center gap-3 text-sm">
-                      <VendaStatusBadge status={v.status} />
-                      <span className="text-gray-500">{formatDate(v.updated_at)}</span>
-                    </div>
+                      <p className="font-medium text-foreground">{v.id}</p>
+                      <p className="text-sm text-muted-foreground">Pedido: {v.pedido_id}</p>
+                    </DetailNavButton>
                   </li>
                 ))}
               </ul>

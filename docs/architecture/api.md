@@ -43,25 +43,29 @@ Illegal transition by **role** while the state would be legal for someone else �
 |---|---|---|---|
 | GET | `/api/loja/tema` | public | tenant tokens |
 | GET | `/api/loja/config` | public | `loja_modo`, `whatsapp_comercial` (masked/wa link inputs) |
-| GET | `/api/loja/catalogo` | public | projection: `visivel_loja` + `available` + `preco_atacado` |
-| GET | `/api/loja/produtos/:id` | public | 404 if hidden |
+| GET | `/api/loja/catalogo` | public | projection: `ativo && visivel_loja` + `available` + list price ([inventory.md](./inventory.md)) |
+| GET | `/api/loja/produtos/:id` | public | 404 if inactive or hidden |
 | POST | `/api/loja/cadastro` | public, rate-limit | creates CadastroRequest `pendente` |
 | POST | `/api/loja/login` | public | customer membership |
 | POST | `/api/loja/whatsapp-cta` | public, optional | may enqueue simulated inbound for demo; rate-limited |
 
-Catalog item:
+Catalog item (projection DTO — [inventory.md](./inventory.md)):
 
 ```ts
 {
   id: string
-  sku: string
+  codigo: string
   nome: string
+  descricao: string | null
+  unidade: "un" | "kg" | "cx" | "pct" | "lt"
   preco_atacado_centavos: number
   qtd_min_atacado: number
   available: number
   sem_estoque: boolean
 }
 ```
+
+Legacy response field `sku` may alias `codigo` during FE migrate.
 
 ## Loja — customer session
 
@@ -77,7 +81,7 @@ Catalog item:
 | GET | `/api/loja/pedidos/:id` | own |
 | POST | `/api/loja/pedidos` | Cliente `aprovado` + `loja_modo=pedido_direto` |
 
-`POST /api/loja/pedidos` body: `{ linhas: { sku_id, qty }[] }`. Server creates Pedido `confirmado`, freezes atacado prices, reserves stock, assigns `default_vendedor_user_id`. Reject guest, prospect, MOQ, hidden SKU, insufficient available, client `unit_price`.
+`POST /api/loja/pedidos` body: `{ linhas: { sku_id, qty }[] }` — **no** `desconto_pct`. Server creates Pedido `confirmado`, freezes list price (`desconto_pct = 0`, net = list), reserves stock, assigns `default_vendedor_user_id`. Reject guest, prospect, MOQ, inactive/hidden SKU, insufficient available, client unit price / discount.
 
 `POST .../orcamentos/:id/transicao` with `aceito` runs cadastro gate; on success creates Pedido `confirmado`.
 
@@ -538,21 +542,23 @@ Do not invent ad-hoc BFF routes outside this map — extend architecture first.
 
 `POST .../transicao` body: `{ para: <Status> }`. Side effects only after matrix + stock + cadastro checks succeed in one transaction: history + outbox + movements.
 
-Direct Pedido create: `{ cliente_id, linhas: { sku_id, qty }[] }`.
+Direct Pedido create: `{ cliente_id, linhas: { sku_id, qty, desconto_pct? }[] }`. Orçamento create lines same shape. Server freezes `preco_lista_centavos` + `desconto_pct` + net; vendedor cannot exceed SKU `desconto_max_pct`; admin may; inactive SKU rejected on new lines. Full discount rules: [inventory.md](./inventory.md).
 
 ## SaaS — catalog / stock
 
-| Method | Path | Authz |
-|---|---|---|
-| GET | `/api/saas/estoque` | admin, vendedor (read) |
-| GET | `/api/saas/estoque/:id` | same |
-| GET | `/api/saas/estoque/:id/movimentos` | same |
-| POST | `/api/saas/estoque` | admin (create SKU + balance) |
-| PATCH | `/api/saas/estoque/:id` | admin |
-| POST | `/api/saas/estoque/:id/ajuste` | admin |
-| PATCH | `/api/saas/estoque/:id/visibilidade` | admin |
+Canonical contract: [inventory.md](./inventory.md).
 
-Estoque returns `on_hand`, `reserved`, `available` (computed), `visivel_loja`, `preco_atacado_centavos`. No second qty field. No import/AI routes in MVP.
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| GET | `/api/saas/estoque` | admin, vendedor | `?q=` código/nome; filters `ativo`, `visivel_loja`; page |
+| POST | `/api/saas/estoque` | **admin** | full master + optional `on_hand`; balance + opening `adjust` if `on_hand > 0` |
+| GET | `/api/saas/estoque/:id` | admin, vendedor | master + ledger (includes inactive) |
+| PATCH | `/api/saas/estoque/:id` | **admin** | master + `ativo` + `visivel_loja`; never ledger qty |
+| POST | `/api/saas/estoque/:id/ajuste` | **admin** | `{ delta_on_hand ≠ 0, motivo }`; reject `on_hand < reserved` |
+| GET | `/api/saas/estoque/:id/movimentos` | admin, vendedor | newest first |
+| PATCH | `/api/saas/estoque/:id/visibilidade` | **admin** | optional alias `{ visivel_loja }` — prefer PATCH master |
+
+Estoque DTO: `codigo`, `nome`, `descricao`, `unidade`, `preco_atacado_centavos`, `desconto_max_pct`, `qtd_min_atacado`, `visivel_loja`, `ativo`, `on_hand`, `reserved`, `available` (computed). No second qty field. No import/AI routes. Duplicate `codigo` → **409** `conflito`.
 
 ## Session DTO
 

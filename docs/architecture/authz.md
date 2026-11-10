@@ -1,6 +1,6 @@
 # Authz
 
-Enforced in `apps/web/src/server/authz/`. UI only hides what the API already denies. Never trust client `role`, `unit_price`, `available`, or `tenant_id`.
+Enforced in `apps/web/src/server/authz/`. UI only hides what the API already denies. Never trust client `role`, `unit_price` / net / list price, `desconto_pct` beyond cap rules, `available`, ledger qty, or `tenant_id`. Inventory detail: [inventory.md](./inventory.md).
 
 ## Surfaces
 
@@ -37,7 +37,9 @@ MVP has no `subscription_status` check. Seed tenant is always operational. Do no
 | Simulate WhatsApp inbound | yes | no |
 | Cadastro approve / refuse | yes | yes |
 | Orçamento / Pedido / Venda transitions (per product matrix) | yes | yes |
-| SKU create / stock adjust / visibility | yes | read (+ lines from catalog when creating docs) |
+| SKU create / edit / `ativo` / `visivel_loja` / stock adjust | yes | **read only** (+ pick `ativo` SKUs into docs) |
+| Line discount ≤ `desconto_max_pct` | yes | yes |
+| Line discount &gt; `desconto_max_pct` | yes | **no** (403) |
 | Outbox read (`category=commerce`) | yes | yes |
 
 Fulfillment statuses (`em_separacao`, `despachado`, `entregue`) are operated by **admin and vendedor** — no dedicated warehouse/courier roles.
@@ -179,10 +181,10 @@ On cadastro `aprovado`: upsert Company by CNPJ; upsert/link Contact; set `Contac
 
 | Action | Guest | Prospect (`pendente`) | Cliente `aprovado` |
 |---|---|---|---|
-| Catalog / theme / CTA | yes | yes | yes |
+| Catalog / theme / CTA | yes (projection `ativo && visivel_loja`) | yes | yes |
 | Submit cadastro | yes | — | — |
 | Login | — | yes | yes |
-| Create Pedido / checkout | no | **no** | yes (if `loja_modo=pedido_direto`) |
+| Create Pedido / checkout | no | **no** | yes (if `loja_modo=pedido_direto`); list price only — no self-discount |
 | Accept/refuse own Orçamento `enviado` | no | no* | yes |
 | List own orçamentos/pedidos | no | own orçamentos if any | yes |
 
@@ -209,6 +211,7 @@ requireClienteAprovado(clienteId: string)
 assertTenantScope(row.tenant_id, session.tenantId)
 assertConversationVisible(session, conversation)
 assertInboxMember(session, inboxId) // when needed for channel reads
+assertDescontoPermitido(session, sku, desconto_pct) // admin may exceed desconto_max_pct; vendedor ≤ cap
 ```
 
 Domain services call these; UI does not re-implement authorization.

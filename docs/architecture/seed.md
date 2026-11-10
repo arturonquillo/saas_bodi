@@ -64,12 +64,15 @@ Shared password: `Demo@1234`. All `ativo=true`.
 
 ## SKUs (minimum, carnes/frios lean)
 
-| `codigo` | MOQ | `visivel_loja` | Ledger | Purpose |
-|---|---|---|---|---|
-| `PICANHA-KG` | 1 | true | available &gt; 0 | happy path |
-| `LINGUICA-CX` | **5** | true | available ≥ 5 | MOQ |
-| `OCULTO-INTERNO` | 1 | **false** | any | hidden from Loja |
-| `ESGOTADO-VITRINE` | 1 | true | **available = 0** | cannot buy |
+Inventory upgrade fields: [inventory.md](./inventory.md). All seed SKUs need `unidade`, `desconto_max_pct`, `ativo`.
+
+| `codigo` | `unidade` | MOQ | `desconto_max_pct` | `visivel_loja` | `ativo` | Ledger | Purpose |
+|---|---|---|---|---|---|---|---|
+| `PICANHA-KG` | `kg` | 1 | **10** | true | true | available &gt; 0 | happy path + vendedor discount demo |
+| `LINGUICA-CX` | `cx` | **5** | 0 | true | true | available ≥ 5 | MOQ |
+| `OCULTO-INTERNO` | `un` | 1 | 0 | **false** | true | any | hidden from Loja |
+| `ESGOTADO-VITRINE` | `un` | 1 | 0 | true | true | **available = 0** | cannot buy |
+| `INATIVO-DEMO` | `un` | 1 | 0 | true | **false** | any | excluded from Loja + new line pickers |
 
 Suggested balances:
 
@@ -79,8 +82,11 @@ Suggested balances:
 | `LINGUICA-CX` | 30 | 0 | 30 |
 | `OCULTO-INTERNO` | 10 | 0 | 10 |
 | `ESGOTADO-VITRINE` | 3 | 3 | 0 |
+| `INATIVO-DEMO` | 5 | 0 | 5 |
 
 `reserved` must match open Pedidos in `confirmado` / `em_separacao`.
+
+Seed ≥1 opening `InventoryMovement` `adjust` with `motivo = estoque_inicial` on a SKU with `on_hand > 0` (e.g. `PICANHA-KG`) so SaaS detail **Movimentos** is demoable.
 
 ## CRM desk (Phase A — Chatwoot-parity)
 

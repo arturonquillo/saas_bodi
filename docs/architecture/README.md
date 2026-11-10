@@ -8,6 +8,7 @@ This set **supersedes** the former `saas_frota` dual-channel / Account / AI-impo
 |---|---|
 | [stack.md](./stack.md) | Runtime, folders, how to run — **stack locked here** |
 | [data-model.md](./data-model.md) | Entities, indexes, Orçamento → Pedido → Venda machines, stock, CRM Phase A+ |
+| [inventory.md](./inventory.md) | Full inventory upgrade — SKU master, one ledger, discount freeze, Loja projection, API map |
 | [api.md](./api.md) | Endpoints, authz notes, error envelope, CRM Phase A–E surface |
 | [openapi.yaml](./openapi.yaml) | Machine-readable HTTP contract (subset; types in `packages/shared` are canonical) |
 | [authz.md](./authz.md) | RBAC (`admin` \| `vendedor`), cadastro gate, CRM visibility, sessions |
@@ -28,7 +29,7 @@ This set **supersedes** the former `saas_frota` dual-channel / Account / AI-impo
 | **Cadastro B2B** | Solicitação CNPJ → Cliente; approval gate; Contact/Company link | SaaS + Loja |
 | **CRM desk** | Conversation / Contact / Inbox + Phase B–E (power, growth, omnichannel stubs, enterprise/AI stubs) + Loja widget | SaaS + Loja widget |
 | **Sales pipeline** | Orçamento → Pedido de venda → Venda/Faturamento | SaaS + Loja (own docs) |
-| **Catalog / Stock** | One ledger (`on_hand`/`reserved`); Loja projection | SaaS + Loja |
+| **Catalog / Stock** | One ledger (`on_hand`/`reserved`); SKU CRUD + discount cap; Loja projection (`ativo && visivel_loja`) — [inventory.md](./inventory.md) | SaaS + Loja |
 | **Notifications** | `notification_outbox` stub (email/WhatsApp); category discriminator | SaaS (read) |
 | **Jobs / realtime** | Domain events, SSE, background job tick | SaaS |
 | **Theme** | Brand tokens consumed by SaaS + Loja | both |
@@ -37,7 +38,7 @@ This set **supersedes** the former `saas_frota` dual-channel / Account / AI-impo
 ## Non-negotiables
 
 - Every operational row has `tenant_id`; authenticated APIs take tenant from the session only.
-- One inventory ledger; Loja never owns a second stock table.
+- One inventory ledger; Loja never owns a second stock table. Full SKU/discount contracts: [inventory.md](./inventory.md) (product: `docs/product/inventory.md`).
 - Cadastro `aprovado` required before Pedido create / Orçamento→Pedido / Venda (`Cliente` gate — Contact alone never authorizes).
 - One CRM desk: Conversation model replaces parallel `whatsapp_threads` writes after Phase A migration.
 - Outbox + WA / non-WA / voice channels stay stubs — no Meta Cloud API, no social/SMS/SMTP/telephony providers, no unpaid Slack/Captain/IdP live I/O; credentials encrypted; channel/integration status ≤ `ready_stub` / `connected_stub`. Loja widget is first-party onto the same Conversation desk.

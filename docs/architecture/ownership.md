@@ -22,8 +22,8 @@ Legacy `(conta)` / Account paths are **not** owned for MVP — do not extend the
 
 ## Do not conflict
 
-- **Stock qty** — only `inventory_balances` + `inventory_movements`. Loja UI reads `GET /api/loja/catalogo` (projection). Never a `store_stock` table or client-side ledger.
-- **Prices** — server freezes `preco_atacado_centavos` into document lines. Client may display; client must not submit a trusted unit price.
+- **Stock qty** — only `inventory_balances` + `inventory_movements`. Loja UI reads `GET /api/loja/catalogo` (projection `ativo && visivel_loja`). Never a `store_stock` table or client-side ledger. Contracts: [inventory.md](./inventory.md).
+- **Prices / discount** — one list price `preco_atacado_centavos`; SaaS line `desconto_pct` with cap; server freezes list + discount + net. Client must not submit a trusted unit/net price. No price-list entity this phase.
 - **Roles** — session + membership (`admin` \| `vendedor`). Client must not send `saas_role`.
 - **Theme** — one `themes` row per tenant. Loja and SaaS GET the same tokens.
 - **Cadastro gate** — Pedido / Venda / Orçamento→Pedido only when Cliente (or linked cadastro) is `aprovado`. Enforced in domain, not only UI.

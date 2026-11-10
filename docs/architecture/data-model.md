@@ -281,7 +281,18 @@ See [jobs-realtime.md](./jobs-realtime.md). Both tenant-scoped. Phase A writes e
 
 ### OrcamentoLine
 
-Snapshot: `sku_id`, `codigo_snapshot`, `nome_snapshot`, `qty`, `unit_price_centavos` (frozen `preco_atacado`), `notas?`. Client unit prices discarded.
+Snapshot at freeze (see [inventory.md](./inventory.md)):
+
+| Column | Notes |
+|---|---|
+| `sku_id`, `codigo_snapshot`, `nome_snapshot`, `unidade_snapshot?` | |
+| `qty` | MOQ checked |
+| `preco_lista_centavos` | SKU `preco_atacado_centavos` at freeze |
+| `desconto_pct` | 0–100; default 0; Loja path always 0 |
+| `preco_unitario_centavos` | **net** after discount (billing); legacy name `unit_price_centavos` during migrate |
+| `notas?` | |
+
+Client unit prices / net discarded. Server computes net via half-up % → centavos ([inventory.md](./inventory.md)).
 
 ### PedidoVenda
 
@@ -297,7 +308,7 @@ Snapshot: `sku_id`, `codigo_snapshot`, `nome_snapshot`, `qty`, `unit_price_centa
 
 ### PedidoLine
 
-Same snapshot pattern as orçamento lines. Server sets unit price from SKU `preco_atacado_centavos` (+ MOQ check).
+Same snapshot pattern as OrçamentoLine (list + `desconto_pct` + net). Accept Orçamento → Pedido **copies** frozen discount fields. Direct SaaS Pedido may set `desconto_pct` under cap rules; Loja Pedido always `desconto_pct = 0`. MOQ + `ativo` checked on new lines.
 
 ### VendaFaturamento (stub)
 
@@ -317,20 +328,26 @@ No NF-e number, SEFAZ protocol, or payment columns.
 
 ### Sku
 
+Full field contract: [inventory.md](./inventory.md). Summary:
+
 | Column | Type | Notes |
 |---|---|---|
 | `tenant_id` | fk | |
-| `codigo` | string | unique per tenant |
+| `codigo` | string | unique per tenant; trim + uppercase |
 | `nome` | string | |
-| `preco_atacado_centavos` | int | MVP list price |
-| `qtd_min_atacado` | int | default 1 |
-| `visivel_loja` | bool | projection filter |
+| `descricao` | string? | max 500 |
+| `unidade` | `un` \| `kg` \| `cx` \| `pct` \| `lt` | default `un`; no conversion |
+| `preco_atacado_centavos` | int ≥ 0 | sole list price |
+| `desconto_max_pct` | int 0–100 | default 0; vendedor line-discount cap |
+| `qtd_min_atacado` | int ≥ 1 | default 1 |
+| `visivel_loja` | bool | default true |
+| `ativo` | bool | default true; soft-active |
 
-No `preco_varejo` required for MVP (may omit or leave unused).
+No `preco_varejo` sales channel. No price-list table. No hard delete when movements/lines exist.
 
 ### InventoryBalance — **the only ledger**
 
-1:1 with Sku. Loja does not have another quantity table.
+1:1 with Sku. Loja does not have another quantity table. Detail: [inventory.md](./inventory.md).
 
 | Column | Type | Notes |
 |---|---|---|
@@ -342,7 +359,7 @@ No `preco_varejo` required for MVP (may omit or leave unused).
 
 ### InventoryMovement
 
-Append-only. Types in MVP: `reserve` \| `release` \| `consume` \| `adjust`. No `import_apply`.
+Append-only. Types: `reserve` \| `release` \| `consume` \| `adjust`. No `import_apply`. Adjust requires non-empty `motivo` + `actor_user_id`. Opening stock on create with `on_hand > 0` writes one `adjust` (`motivo = estoque_inicial`).
 
 ### NotificationOutbox
 
@@ -402,9 +419,9 @@ Illegal transition by **role** → **403**. Illegal **state** → **409**. Neith
 - **reserve**: `reserved += qty`; fail whole tx if any line `qty > available` or MOQ fail.
 - **release**: `reserved -= qty`.
 - **consume**: `on_hand -= qty`, `reserved -= qty`.
-- **adjust**: admin only; reason required; reject if new `on_hand < reserved`.
+- **adjust**: admin only; `motivo` required; `delta ≠ 0`; reject if new `on_hand < reserved`.
 
-Loja projection: SKU listed iff `visivel_loja`; shown qty = `available`. Zero available → cannot buy. Toggling visibility does not touch ledger.
+Loja projection: SKU listed iff `ativo && visivel_loja`; shown qty = `available`. Zero available → cannot buy. Toggling `visivel_loja` / `ativo` does not touch ledger. Full rules: [inventory.md](./inventory.md).
 
 ## Indexes
 
@@ -428,7 +445,7 @@ Loja projection: SKU listed iff `visivel_loja`; shown qty = `available`. Zero av
 | `orcamentos` | `(tenant_id, status)`; `(tenant_id, cliente_id)` |
 | `pedidos_venda` | `(tenant_id, status)`; `(tenant_id, cliente_id)`; unique `orcamento_id` |
 | `vendas_faturamento` | `(tenant_id, status)`; partial unique non-cancelled per `pedido_id` |
-| `skus` | unique `(tenant_id, codigo)`; `(tenant_id, visivel_loja)` |
+| `skus` | unique `(tenant_id, codigo)`; `(tenant_id, ativo, visivel_loja)` |
 | `inventory_balances` | `(tenant_id)` |
 | `inventory_movements` | `(tenant_id, sku_id, created_at)` |
 | `notification_outbox` | `(tenant_id, status)`; `(tenant_id, category, status)` |
@@ -892,6 +909,7 @@ Inbox `channel_type` enum adds `voice`.
 ## What must not exist (MVP + parity)
 
 - Second stock / `store_stocks` table.
+- Price-list / promo-list entities (single `preco_atacado_centavos` + line `desconto_pct` only — [inventory.md](./inventory.md)).
 - Meta webhook tables as **source of truth** for messages (stub simulate + outbox only until unlock).
 - Parallel write path to legacy `whatsapp_threads` after Conversation migration.
 - Live provider webhook receiver tables that call Graph/Twilio/IMAP in Phase D/E.

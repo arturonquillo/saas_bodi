@@ -1,4 +1,5 @@
 import type { ApiErrorCode } from "./errors";
+import type { SkuUnidade } from "./inventory";
 import type { CanalAviso } from "./subscription";
 import type { SaasRole, Surface } from "./roles";
 import type { CadastroStatus, LojaModo, WhatsappIntent } from "./sales-status";
@@ -20,8 +21,12 @@ export type SessionDto = {
 
 export type CatalogItemDto = {
   id: string;
+  /** Prefer `codigo`; `sku` kept as alias during FE migrate. */
   sku: string;
+  codigo: string;
   nome: string;
+  descricao: string | null;
+  unidade: SkuUnidade;
   preco_atacado_centavos: number;
   qtd_min_atacado: number;
   available: number;

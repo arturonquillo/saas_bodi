@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { SKU_UNIDADES } from "@saas-frota/shared";
 import { requireSaasRole } from "@/server/authz/gates";
 import { createSku, listEstoque } from "@/server/inventory/service";
 import { readJson } from "@/server/http/request";
@@ -8,7 +9,7 @@ const createSchema = z.object({
   codigo: z.string().min(1),
   nome: z.string().min(1),
   descricao: z.string().max(500).nullable().optional(),
-  unidade: z.enum(["un", "kg", "cx", "pct", "lt"]).optional(),
+  unidade: z.enum(SKU_UNIDADES).optional(),
   preco_atacado_centavos: z.number().int().nonnegative(),
   desconto_max_pct: z.number().int().min(0).max(100).optional(),
   qtd_min_atacado: z.number().int().positive().optional(),

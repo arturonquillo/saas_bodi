@@ -4,13 +4,16 @@ export type MovementType = (typeof MOVEMENT_TYPES)[number];
 export const SKU_UNIDADES = ["un", "kg", "cx", "pct", "lt"] as const;
 export type SkuUnidade = (typeof SKU_UNIDADES)[number];
 
-/** Half-up discount to integer centavos (architecture lock). */
-export function discountCentavos(precoListaCentavos: number, descontoPct: number) {
-  const gross = Math.max(0, Math.trunc(precoListaCentavos));
-  const pct = Math.min(100, Math.max(0, Math.trunc(descontoPct)));
-  return Math.floor((gross * pct + 50) / 100);
+/** Half-up discount to integer centavos, then net floored at 0. */
+export function netUnitFromDesconto(precoListaCentavos: number, descontoPct: number): number {
+  const gross = Math.trunc(precoListaCentavos);
+  const pct = Math.trunc(descontoPct);
+  if (gross < 0 || pct < 0) return 0;
+  const discountCentavos = Math.floor((gross * pct + 50) / 100);
+  return Math.max(0, gross - discountCentavos);
 }
 
+/** UI alias for netUnitFromDesconto. */
 export function netUnitCentavos(precoListaCentavos: number, descontoPct: number) {
-  return Math.max(0, Math.trunc(precoListaCentavos) - discountCentavos(precoListaCentavos, descontoPct));
+  return netUnitFromDesconto(precoListaCentavos, descontoPct);
 }

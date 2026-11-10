@@ -12,6 +12,9 @@ const createSchema = z.object({
         sku_id: z.string().min(1),
         qty: z.number().int().positive(),
         desconto_pct: z.number().int().min(0).max(100).optional(),
+        preco_lista_centavos: z.never().optional(),
+        preco_unitario_centavos: z.never().optional(),
+        unit_price_centavos: z.never().optional(),
       }),
     )
     .min(1),

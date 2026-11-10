@@ -30,9 +30,13 @@ describe("seed contract casa-dos-frios", () => {
     const skus = await db.sku.findMany({ where: { tenantId: tenant.id } });
     const byCode = Object.fromEntries(skus.map((s) => [s.codigo, s]));
     expect(byCode["PICANHA-KG"]).toBeTruthy();
+    expect(byCode["PICANHA-KG"]?.descontoMaxPct).toBe(10);
+    expect(byCode["PICANHA-KG"]?.unidade).toBe("kg");
     expect(byCode["LINGUICA-CX"]?.qtdMinAtacado).toBe(5);
+    expect(byCode["LINGUICA-CX"]?.unidade).toBe("cx");
     expect(byCode["OCULTO-INTERNO"]?.visivelLoja).toBe(false);
     expect(byCode["ESGOTADO-VITRINE"]?.visivelLoja).toBe(true);
+    expect(byCode["INATIVO-DEMO"]?.ativo).toBe(false);
 
     const balPicanha = await db.inventoryBalance.findUniqueOrThrow({
       where: { skuId: byCode["PICANHA-KG"]!.id },
@@ -43,6 +47,16 @@ describe("seed contract casa-dos-frios", () => {
     expect(balPicanha.onHand).toBe(40);
     expect(balPicanha.reserved).toBe(5);
     expect(availableQty(balEsg.onHand, balEsg.reserved)).toBe(0);
+
+    const opening = await db.inventoryMovement.findFirst({
+      where: {
+        tenantId: tenant.id,
+        skuId: byCode["PICANHA-KG"]!.id,
+        type: "adjust",
+        reason: "estoque_inicial",
+      },
+    });
+    expect(opening).toBeTruthy();
 
     const inbox = await db.inbox.findFirst({
       where: { tenantId: tenant.id, channelType: "whatsapp" },

@@ -41,8 +41,10 @@ A UI esconde ações ilegais; a API reforça.
 ### Ajuste e movimentos
 
 - Ajuste: `{ delta_on_hand ≠ 0, motivo }` → movimento `adjust` + atualiza `on_hand`.
+- Abrir estoque na criação com `on_hand > 0` grava movimento `adjust` / `estoque_inicial`.
 - Tipos no histórico: Ajuste, Reserva, Liberação, Consumo.
 - Pedido confirmado / cancelado / despachado continua reservando / liberando / consumindo o **mesmo** ledger.
+- `available = max(0, on_hand − reserved)` — só calculado, nunca coluna de ledger.
 
 ## Desconto em Orçamento / Pedido
 
@@ -50,7 +52,7 @@ Nas telas **Novo orçamento** e **Novo pedido**:
 
 1. Escolha um SKU ativo (picker mostra preço lista e disponível).
 2. Informe quantidade e, se permitido, **Desconto (%)**.
-3. Preview mostra lista → líquido (arredondamento half-up para centavo no servidor quando o backend upgrade estiver ativo).
+3. Preview mostra lista → líquido; o servidor congela lista/desconto/líquido (half-up para centavo).
 4. Vendedor não ultrapassa `desconto_max_pct`; admin pode.
 
 A Loja **não** tem UI de desconto — sempre preço de lista.
@@ -71,7 +73,7 @@ Catálogo público lista SKU **somente se** `ativo && visivel_loja`. Quantidade 
 
 ## Seed demo
 
-`PICANHA-KG`, `LINGUICA-CX`, `OCULTO-INTERNO`, `ESGOTADO-VITRINE`, e (com upgrade de seed) `INATIVO-DEMO` + `desconto_max_pct` em pelo menos um SKU. Contas: [contas-seed.md](./contas-seed.md) quando presente na tip.
+`PICANHA-KG` (kg, desconto máx. 10%), `LINGUICA-CX` (MOQ 5), `OCULTO-INTERNO`, `ESGOTADO-VITRINE`, `INATIVO-DEMO`. Contas: [contas-seed.md](./contas-seed.md) quando presente na tip.
 
 ## Fora desta fase
 

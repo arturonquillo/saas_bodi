@@ -217,18 +217,18 @@ export type EstoqueItemDto = {
   id: string;
   codigo: string;
   nome: string;
-  descricao?: string | null;
-  unidade?: SkuUnidadeDto;
+  descricao: string | null;
+  unidade: SkuUnidadeDto;
   on_hand: number;
   reserved: number;
   available: number;
   visivel_loja: boolean;
-  ativo?: boolean;
+  ativo: boolean;
   preco_atacado_centavos: number;
-  desconto_max_pct?: number;
+  desconto_max_pct: number;
   qtd_min_atacado: number;
-  created_at?: string;
-  updated_at?: string;
+  created_at: string;
+  updated_at: string;
 };
 
 export type UserDto = {

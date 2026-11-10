@@ -16,6 +16,10 @@ const createSchema = z.object({
         qty: z.number().int().positive(),
         desconto_pct: z.number().int().min(0).max(100).optional(),
         notas: z.string().optional(),
+        // Reject client price spoofing — strip if present via omit below
+        preco_lista_centavos: z.never().optional(),
+        preco_unitario_centavos: z.never().optional(),
+        unit_price_centavos: z.never().optional(),
       }),
     )
     .min(1),

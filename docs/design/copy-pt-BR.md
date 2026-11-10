@@ -210,8 +210,12 @@ Locked strings for MVP. Do not invent alternate status labels.
 | canal_not_configured | Não configurado |
 | canal_credentials_saved | Credenciais salvas |
 | canal_ready_stub | Pronto para conectar |
+| canal_live | Conectado (live) |
 | canal_mark_ready | Marcar pronto para conectar |
-| canal_stub_alert | Envio e recebimento reais aguardam integração Meta aprovada. Você pode salvar credenciais e simular mensagens. |
+| canal_mark_live | Conectar Meta (live) |
+| canal_stub_alert | Salve Phone Number ID, WABA ID, Access Token, App Secret e Verify Token. Depois marque Pronto ou Conectar Meta (live). |
+| canal_live_alert | Canal live: inbound via webhook Meta e respostas saem pela Cloud API. |
+| canal_webhook_url | URL do webhook (Meta) |
 | canal_secrets_change | Alterar |
 | canal_templates | Modelos (cache stub) |
 | notificacoes_empty | Nenhuma notificação. |

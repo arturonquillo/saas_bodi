@@ -98,10 +98,11 @@ interface ChannelCredentialsVaultPort {
 
 Behavior:
 
-- Admin “simular mensagem” / seed / optional Loja CTA → `ChannelSimulateInboundPort` (upsert Contact + ContactInbox + Conversation + Message; apply intent label).
-- Agent outgoing messages → `StubChannelSendPort` marks `delivery_status=sent` without Meta HTTP.
-- `WHATSAPP_INBOX_MODE=simulate` (no Meta webhook receiver).
+- Admin “simular mensagem” / seed / optional Loja CTA → `ChannelSimulateInboundPort` (upsert Contact + ContactInbox + Conversation + Message; apply intent label). Meta webhook uses the same port with `simulated=false`.
+- Agent outgoing messages → `channelSendPort`: Meta Cloud Graph when WA `connection_status=live` (mocked in tests); otherwise stub marks `delivery_status=sent`.
+- Public webhook: `GET/POST /api/webhooks/whatsapp` (+ optional `/:inboxId`) — verify challenge + `X-Hub-Signature-256`.
 - `ChannelCredentialsVaultPort` uses AES-256-GCM + `CREDENTIALS_ENCRYPTION_KEY` ([crm-chatwoot-parity.md](./crm-chatwoot-parity.md)).
+- Only WhatsApp may set `live` (requires phone_number_id, business_account_id, api_token, api_secret, webhook_verify_token). Other channels ≤ `ready_stub`.
 
 ## Jobs / egress
 
@@ -218,7 +219,7 @@ Behavior:
 
 | Port | Status |
 |---|---|
-| Meta Cloud API inbound/outbound | forbidden until product approves paid integration |
+| Meta Cloud API inbound/outbound | allowed when WA channel `connection_status=live` + vaulted secrets; mock in CI |
 | Live FB / IG / TikTok / X / Telegram / LINE APIs | Phase D **stubs only** (`ready_stub`); forbidden live I/O |
 | Twilio / Bandwidth SMS send | Phase D stubs only |
 | SMTP / IMAP / Google / Microsoft mail live | Phase D config stubs only; stub outbox enough |

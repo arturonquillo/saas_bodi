@@ -69,6 +69,8 @@ export function connectionLabel(status: string | null | undefined) {
       return COPY.crm.canal_credentials_saved;
     case "ready_stub":
       return COPY.crm.canal_ready_stub;
+    case "live":
+      return COPY.crm.canal_live;
     default:
       return status ?? COPY.crm.canal_not_configured;
   }
@@ -80,6 +82,8 @@ export function connectionBadgeClass(status: string | null | undefined) {
       return "border-[var(--color-warning)]/50 text-[var(--color-warning)]";
     case "ready_stub":
       return "border-emerald-500/40 text-emerald-700";
+    case "live":
+      return "border-emerald-600/60 text-emerald-800 dark:text-emerald-300";
     default:
       return "border-border text-muted-foreground";
   }

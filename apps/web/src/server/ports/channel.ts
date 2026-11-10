@@ -9,7 +9,9 @@ import { db } from "../db";
 import { appendDomainEvent } from "../crm/events";
 import { inboxIsOpen } from "../crm/hours";
 import { newId } from "../ids";
+import { channelCredentialsVault } from "./credentials-vault";
 import { ensureJobWorkerStarted, jobEnqueuePort } from "./jobs";
+import { metaWhatsappHttpPort } from "./meta-whatsapp";
 
 const INTENT_TO_LABEL: Record<WhatsappIntent, SystemIntentLabel> = {
   cadastro: "intent:cadastro",
@@ -45,7 +47,7 @@ export const channelSimulateInboundPort: ChannelSimulateInboundPort = {
         data: {
           id: newId("ct"),
           tenantId: input.tenantId,
-          nome: input.phoneE164,
+          nome: input.contactNome?.trim() || input.phoneE164,
           phoneE164: input.phoneE164,
         },
       });
@@ -55,6 +57,11 @@ export const channelSimulateInboundPort: ChannelSimulateInboundPort = {
         aggregateType: "contact",
         aggregateId: contact.id,
         payload: { contact_id: contact.id, created: true },
+      });
+    } else if (input.contactNome?.trim() && contact.nome === contact.phoneE164) {
+      await db.contact.update({
+        where: { id: contact.id },
+        data: { nome: input.contactNome.trim() },
       });
     }
 
@@ -150,6 +157,7 @@ export const channelSimulateInboundPort: ChannelSimulateInboundPort = {
       }
     }
 
+    const simulated = input.simulated !== false;
     const messageId = newId("msg");
     await db.message.create({
       data: {
@@ -161,11 +169,12 @@ export const channelSimulateInboundPort: ChannelSimulateInboundPort = {
         content: input.body,
         contentType: "text",
         deliveryStatus: "delivered",
-        simulated: true,
+        simulated,
+        // provider id stored only in domain event payload (no schema column)
       },
     });
 
-    // Greeting (new) / OOOH (outside hours) auto-replies
+    // Greeting (new) / OOOH (outside hours) auto-replies — stub delivery unless channel is live
     const openNow = await inboxIsOpen(input.tenantId, inbox.id, now);
     const autoBody = !openNow
       ? inbox.oooMessage
@@ -173,17 +182,35 @@ export const channelSimulateInboundPort: ChannelSimulateInboundPort = {
         ? inbox.greeting
         : null;
     if (autoBody?.trim()) {
+      const autoMsgId = newId("msg");
+      const waChannel = await db.channelWhatsapp.findFirst({
+        where: { tenantId: input.tenantId, inboxId: inbox.id },
+      });
+      let autoDelivery: "queued" | "sent" | "failed" = "sent";
+      let autoSimulated = true;
+      if (waChannel?.connectionStatus === "live" && !simulated) {
+        const send = await channelSendPort.sendOutgoing({
+          tenantId: input.tenantId,
+          inboxId: inbox.id,
+          conversationId: conversation.id,
+          messageId: autoMsgId,
+          toE164: input.phoneE164,
+          body: autoBody.trim(),
+        });
+        autoDelivery = send.deliveryStatus;
+        autoSimulated = send.simulated ?? false;
+      }
       await db.message.create({
         data: {
-          id: newId("msg"),
+          id: autoMsgId,
           tenantId: input.tenantId,
           conversationId: conversation.id,
           messageType: "outgoing",
           private: false,
           content: autoBody.trim(),
           contentType: "text",
-          deliveryStatus: "sent",
-          simulated: true,
+          deliveryStatus: autoDelivery,
+          simulated: autoSimulated,
         },
       });
     }
@@ -227,6 +254,8 @@ export const channelSimulateInboundPort: ChannelSimulateInboundPort = {
         inbox_id: inbox.id,
         message_id: messageId,
         message_type: "incoming",
+        simulated,
+        provider_message_id: input.providerMessageId ?? null,
       },
     });
 
@@ -261,7 +290,60 @@ export const channelSimulateInboundPort: ChannelSimulateInboundPort = {
 export const stubChannelSendPort: ChannelSendPort = {
   async sendOutgoing() {
     // No Meta HTTP — mark as sent.
-    return { deliveryStatus: "sent" };
+    return { deliveryStatus: "sent", simulated: true };
+  },
+};
+
+/**
+ * WhatsApp outbound: Meta Cloud API when channel `connection_status=live` and
+ * credentials are present; otherwise stub (ready_stub / simulate).
+ * Never logs access tokens.
+ */
+export const channelSendPort: ChannelSendPort = {
+  async sendOutgoing(input) {
+    const channel = await db.channelWhatsapp.findFirst({
+      where: { tenantId: input.tenantId, inboxId: input.inboxId },
+    });
+    if (!channel || channel.connectionStatus !== "live") {
+      return stubChannelSendPort.sendOutgoing(input);
+    }
+    if (!channel.phoneNumberId || !channel.secretsCiphertext) {
+      return { deliveryStatus: "failed", simulated: false };
+    }
+    let secrets: Record<string, string>;
+    try {
+      secrets = await channelCredentialsVault.open(channel.secretsCiphertext);
+    } catch {
+      return { deliveryStatus: "failed", simulated: false };
+    }
+    const accessToken = secrets.api_token;
+    if (!accessToken) {
+      return { deliveryStatus: "failed", simulated: false };
+    }
+    const result = await metaWhatsappHttpPort.sendText({
+      accessToken,
+      phoneNumberId: channel.phoneNumberId,
+      toE164: input.toE164,
+      body: input.body,
+      clientMessageId: input.messageId,
+    });
+    if (!result.ok) {
+      return { deliveryStatus: "failed", simulated: false };
+    }
+    await appendDomainEvent(db, {
+      tenantId: input.tenantId,
+      type: "message.delivered_provider",
+      aggregateType: "message",
+      aggregateId: input.messageId,
+      payload: {
+        conversation_id: input.conversationId,
+        inbox_id: input.inboxId,
+        message_id: input.messageId,
+        provider_message_id: result.providerMessageId,
+        provider: "whatsapp_cloud",
+      },
+    });
+    return { deliveryStatus: "sent", simulated: false };
   },
 };
 

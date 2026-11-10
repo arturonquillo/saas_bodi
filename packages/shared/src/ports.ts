@@ -47,6 +47,10 @@ export type ChannelSimulateInboundPort = {
     phoneE164: string;
     body: string;
     intentLabel?: SystemIntentLabel;
+    /** false for Meta Cloud webhook; true (default) for admin simulate / stubs */
+    simulated?: boolean;
+    contactNome?: string;
+    providerMessageId?: string;
   }) => Promise<{ conversationId: string; messageId: string; contactId: string }>;
 };
 
@@ -58,7 +62,7 @@ export type ChannelSendPort = {
     messageId: string;
     toE164: string;
     body: string;
-  }) => Promise<{ deliveryStatus: "queued" | "sent" | "failed" }>;
+  }) => Promise<{ deliveryStatus: "queued" | "sent" | "failed"; simulated?: boolean }>;
 };
 
 export type ChannelCredentialsVaultPort = {

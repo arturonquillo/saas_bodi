@@ -1,12 +1,14 @@
 import {
-  CHANNEL_CONNECTION_MAX_PHASE_D,
+  CHANNEL_CONNECTION_MAX_NON_WA,
   CHANNEL_TYPES,
   INTERACTIVE_CHANNEL_TYPES,
   INTERACTIVE_CONTENT_TYPES,
   SOCIAL_CHANNEL_TYPES,
+  WA_LIVE_REQUIRED_SECRET_KEYS,
   type ChannelType,
   type WaConnectionStatus,
 } from "@saas-frota/shared";
+import { publicWhatsappWebhookUrl } from "./whatsapp-webhook";
 import type { SessionContext } from "../authz/session";
 import { assertSaasRole } from "../authz/gates";
 import { db } from "../db";
@@ -66,15 +68,56 @@ export function assertInteractiveContentAllowed(
   }
 }
 
-function rejectLive(status?: WaConnectionStatus) {
+function normalizeConnectionStatus(
+  status: string | undefined,
+): WaConnectionStatus | undefined {
+  if (!status) return undefined;
+  // Alias product wording "connected" → schema enum `live`
+  if (status === "connected") return "live";
+  return status as WaConnectionStatus;
+}
+
+/** Non-WhatsApp channels cannot go live. WhatsApp may — validated in putWhatsappChannel. */
+function rejectLiveNonWhatsapp(status?: WaConnectionStatus) {
   if (status === "live") {
     throw new ApiError(
       "nao_implementado",
-      "Status live não está disponível até a integração do provedor ser liberada.",
+      "Status live não está disponível para este canal (somente WhatsApp Cloud API).",
     );
   }
-  if (status && STATUS_RANK[status] > STATUS_RANK[CHANNEL_CONNECTION_MAX_PHASE_D]) {
+  if (status && STATUS_RANK[status] > STATUS_RANK[CHANNEL_CONNECTION_MAX_NON_WA]) {
     throw new ApiError("validacao", "Status de conexão acima de ready_stub não permitido.");
+  }
+}
+
+async function assertWhatsappLiveReady(input: {
+  phoneNumberId: string | null | undefined;
+  businessAccountId: string | null | undefined;
+  secretsCiphertext: string | null | undefined;
+}) {
+  if (!input.phoneNumberId?.trim()) {
+    throw new ApiError("validacao", "Phone Number ID é obrigatório para status live.");
+  }
+  if (!input.businessAccountId?.trim()) {
+    throw new ApiError(
+      "validacao",
+      "WhatsApp Business Account ID é obrigatório para status live.",
+    );
+  }
+  if (!input.secretsCiphertext) {
+    throw new ApiError(
+      "validacao",
+      "Credenciais Meta (Access Token, App Secret, Verify Token) são obrigatórias para live.",
+    );
+  }
+  const secrets = await channelCredentialsVault.open(input.secretsCiphertext);
+  for (const key of WA_LIVE_REQUIRED_SECRET_KEYS) {
+    if (!secrets[key]?.trim()) {
+      throw new ApiError(
+        "validacao",
+        `Segredo obrigatório ausente para live: ${key}.`,
+      );
+    }
   }
 }
 
@@ -436,7 +479,12 @@ async function getChannelDto(tenantId: string, inboxId: string, channelType: str
     case "whatsapp": {
       const channel = await db.channelWhatsapp.findFirst({ where: { tenantId, inboxId } });
       if (!channel) throw new ApiError("nao_encontrado", "Não encontrado.");
-      return { channel_type: "whatsapp" as const, ...channelDto(channel) };
+      return {
+        channel_type: "whatsapp" as const,
+        ...channelDto(channel),
+        webhook_url: publicWhatsappWebhookUrl(inboxId),
+        webhook_url_global: "/api/webhooks/whatsapp",
+      };
     }
     case "web_widget": {
       const channel = await db.channelWebsiteWidget.findFirst({ where: { tenantId, inboxId } });
@@ -543,8 +591,15 @@ export async function putChannel(
   assertSaasRole(session, "admin");
   const inbox = await db.inbox.findFirst({ where: { id: inboxId, tenantId: session.tenantId } });
   if (!inbox) throw new ApiError("nao_encontrado", "Não encontrado.");
-  const status = input.connection_status as WaConnectionStatus | undefined;
-  rejectLive(status);
+  const status = normalizeConnectionStatus(
+    input.connection_status === undefined ? undefined : String(input.connection_status),
+  );
+  if (status !== undefined) {
+    input = { ...input, connection_status: status };
+  }
+  if (inbox.channelType !== "whatsapp") {
+    rejectLiveNonWhatsapp(status);
+  }
 
   switch (inbox.channelType) {
     case "whatsapp":
@@ -601,8 +656,24 @@ async function putWhatsappChannel(
   let connectionStatus =
     (input.connection_status as WaConnectionStatus | undefined) ?? channel.connectionStatus;
   const nextSecrets = secretsCiphertext === undefined ? channel.secretsCiphertext : secretsCiphertext;
+  const nextPhoneNumberId =
+    input.phone_number_id === undefined
+      ? channel.phoneNumberId
+      : (input.phone_number_id as string | null);
+  const nextBusinessAccountId =
+    input.business_account_id === undefined
+      ? channel.businessAccountId
+      : (input.business_account_id as string | null);
+
   if (nextSecrets && connectionStatus === "not_configured") {
     connectionStatus = "credentials_saved";
+  }
+  if (connectionStatus === "live") {
+    await assertWhatsappLiveReady({
+      phoneNumberId: nextPhoneNumberId,
+      businessAccountId: nextBusinessAccountId,
+      secretsCiphertext: nextSecrets,
+    });
   }
   await db.channelWhatsapp.update({
     where: { id: channel.id },
@@ -957,7 +1028,7 @@ async function putVoiceChannel(
   });
   if (!channel) throw new ApiError("nao_encontrado", "Não encontrado.");
   const status = input.connection_status as WaConnectionStatus | undefined;
-  rejectLive(status);
+  rejectLiveNonWhatsapp(status);
   let secretsCiphertext: string | null | undefined = undefined;
   if (input.secrets && typeof input.secrets === "object") {
     secretsCiphertext = await sealSecretsMerge(

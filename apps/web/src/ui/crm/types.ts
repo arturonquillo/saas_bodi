@@ -150,6 +150,8 @@ export type CrmCanalDto = {
   channel_type: ChannelTypeD | string;
   connection_status: WaConnectionStatus | string;
   secrets_present?: boolean;
+  webhook_url?: string | null;
+  webhook_url_global?: string | null;
   provider?: string | null;
   phone_e164_display?: string | null;
   phone_number_id?: string | null;

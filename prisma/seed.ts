@@ -1011,11 +1011,11 @@ Home pós-login: **/saas/conversas**. Lista + thread + painel de contato/comérc
 ## Fluxo diário
 
 1. Filtre por status (aberta / pendente / adiada / resolvida), responsável e labels.
-2. Responda na thread (entrega WhatsApp é **stub** — sem Meta ao vivo).
+2. Responda na thread — se o canal WhatsApp estiver **live**, a entrega usa Meta Cloud API; em stub, a entrega é simulada.
 3. Use notas privadas, labels e respostas rápidas.
 4. Acompanhe cadastro/orçamento pelos atalhos do contato.
 
-Admin pode **Simular mensagem** na caixa WhatsApp para gerar inbound de demo.
+Admin pode **Simular mensagem** na caixa WhatsApp para demo, ou conectar Meta (ver artigo **Conectar WhatsApp**).
 
 O widget da Loja cai na **mesma** mesa de Conversas.`,
         html: `<h2>Mesa de atendimento</h2>
@@ -1023,19 +1023,76 @@ O widget da Loja cai na **mesma** mesa de Conversas.`,
 <h2>Fluxo diário</h2>
 <ol>
 <li>Filtre por status (aberta / pendente / adiada / resolvida), responsável e labels.</li>
-<li>Responda na thread (entrega WhatsApp é <strong>stub</strong> — sem Meta ao vivo).</li>
+<li>Responda na thread — se o canal WhatsApp estiver <strong>live</strong>, a entrega usa Meta Cloud API; em stub, a entrega é simulada.</li>
 <li>Use notas privadas, labels e respostas rápidas.</li>
 <li>Acompanhe cadastro/orçamento pelos atalhos do contato.</li>
 </ol>
-<p>Admin pode <strong>Simular mensagem</strong> na caixa WhatsApp para gerar inbound de demo.</p>
+<p>Admin pode <strong>Simular mensagem</strong> na caixa WhatsApp para demo, ou conectar Meta (ver artigo <strong>Conectar WhatsApp</strong>).</p>
 <p>O widget da Loja cai na <strong>mesma</strong> mesa de Conversas.</p>`,
+      }),
+      helpArticle({
+        id: "art_conectar_whatsapp",
+        categoryId: "hcat_operador",
+        title: "Conectar WhatsApp",
+        slug: "conectar-whatsapp",
+        position: 2,
+        md: `## Objetivo
+
+Ligar a caixa WhatsApp do CRM à **Meta Cloud API** (envio e recebimento reais).
+
+## Valores que você cola do Meta Business
+
+1. **Phone Number ID**
+2. **WhatsApp Business Account ID (WABA)**
+3. **Access Token permanente** (não use o token de 24h em produção)
+4. **App Secret** (assinatura do webhook)
+5. **Verify Token** (você escolhe; igual no Meta e no CRM)
+
+## Passos no SaaS
+
+1. Abra **CRM → Caixas → WhatsApp → Canal**.
+2. Preencha telefone E.164, Phone Number ID, WABA e os três segredos → **Salvar**.
+3. Copie a **URL do webhook** exibida (ex.: \`/api/webhooks/whatsapp/inx_wa_default\`).
+4. No Meta Developer → WhatsApp → Configuration: cole a URL + Verify Token → Verify and Save.
+5. Assine o campo **messages**.
+6. No CRM clique **Conectar Meta (live)**.
+7. Teste: mensagem do celular → aparece em **/saas/conversas**; resposta do agente sai pela Cloud API.
+
+**Simular mensagem** continua útil sem Meta. Outros canais (e-mail, SMS, redes) seguem em stub.
+
+## Segurança
+
+Tokens nunca são mostrados de novo em texto claro. O webhook valida \`X-Hub-Signature-256\` com o App Secret.`,
+        html: `<h2>Objetivo</h2>
+<p>Ligar a caixa WhatsApp do CRM à <strong>Meta Cloud API</strong> (envio e recebimento reais).</p>
+<h2>Valores que você cola do Meta Business</h2>
+<ol>
+<li><strong>Phone Number ID</strong></li>
+<li><strong>WhatsApp Business Account ID (WABA)</strong></li>
+<li><strong>Access Token permanente</strong> (não use o token de 24h em produção)</li>
+<li><strong>App Secret</strong> (assinatura do webhook)</li>
+<li><strong>Verify Token</strong> (você escolhe; igual no Meta e no CRM)</li>
+</ol>
+<h2>Passos no SaaS</h2>
+<ol>
+<li>Abra <strong>CRM → Caixas → WhatsApp → Canal</strong>.</li>
+<li>Preencha telefone E.164, Phone Number ID, WABA e os três segredos → <strong>Salvar</strong>.</li>
+<li>Copie a <strong>URL do webhook</strong> exibida (ex.: <code>/api/webhooks/whatsapp/inx_wa_default</code>).</li>
+<li>No Meta Developer → WhatsApp → Configuration: cole a URL + Verify Token → Verify and Save.</li>
+<li>Assine o campo <strong>messages</strong>.</li>
+<li>No CRM clique <strong>Conectar Meta (live)</strong>.</li>
+<li>Teste: mensagem do celular → aparece em <strong>/saas/conversas</strong>; resposta do agente sai pela Cloud API.</li>
+</ol>
+<p><strong>Simular mensagem</strong> continua útil sem Meta. Outros canais (e-mail, SMS, redes) seguem em stub.</p>
+<h2>Segurança</h2>
+<p>Tokens nunca são mostrados de novo em texto claro. O webhook valida <code>X-Hub-Signature-256</code> com o App Secret.</p>`,
       }),
       helpArticle({
         id: "art_cadastros",
         categoryId: "hcat_operador",
         title: "Cadastros CNPJ",
         slug: "cadastros-cnpj",
-        position: 2,
+        position: 3,
         md: `## Onde fica
 
 **/saas/cadastros** — fila de solicitações da Loja.

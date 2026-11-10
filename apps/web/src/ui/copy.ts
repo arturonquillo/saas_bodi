@@ -218,9 +218,17 @@ export const COPY = {
     canal_not_configured: "Não configurado",
     canal_credentials_saved: "Credenciais salvas",
     canal_ready_stub: "Pronto para conectar",
+    canal_live: "Conectado (live)",
     canal_mark_ready: "Marcar pronto para conectar",
+    canal_mark_live: "Conectar Meta (live)",
+    canal_live_ok: "WhatsApp conectado (live).",
     canal_stub_alert:
-      "Envio e recebimento reais aguardam integração Meta aprovada. Você pode salvar credenciais e simular mensagens.",
+      "Salve Phone Number ID, WABA ID, Access Token, App Secret e Verify Token. Depois marque Pronto ou Conectar Meta (live). Simular ainda funciona em stub.",
+    canal_live_alert:
+      "Canal live: inbound via webhook Meta e respostas saem pela Cloud API. Mantenha o Verify Token e o App Secret alinhados ao app Meta.",
+    canal_webhook_url: "URL do webhook (Meta)",
+    canal_webhook_hint:
+      "No Meta Developer → WhatsApp → Configuration, cole esta URL e o Verify Token. Após o challenge, ative o campo messages.",
     canal_secrets_change: "Alterar",
     canal_templates: "Modelos (cache stub)",
     canal_rotate_token: "Rotacionar token",

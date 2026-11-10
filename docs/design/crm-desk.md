@@ -17,7 +17,7 @@ Design for the SaaS conversation desk that replaces the simulated WhatsApp inbox
 
 1. Triage and reply to WhatsApp-led demand without leaving `/saas`.
 2. Assign / label / link commerce (cadastro, orçamento) from the thread context rail.
-3. Keep channel “Pronto para conectar” honest — credentials + simulate, no Meta send.
+3. Keep channel status honest — stub until **Conectar Meta (live)**; then webhook + Cloud API.
 
 ### Primary goal
 
@@ -29,7 +29,7 @@ Design for the SaaS conversation desk that replaces the simulated WhatsApp inbox
 - Evolve `/saas/inbox` → `/saas/conversas` (redirect legacy).
 - No parallel CSS kit; no Chatwoot-cloned custom chrome.
 - Tenant theme tints actions + active nav only.
-- WA connection status max Phase A: `ready_stub` (“Pronto para conectar”).
+- WA connection status: up to `live` when Meta credentials + webhook are set; UI shows Pronto / Conectado.
 - Cadastro / pipeline gates unchanged; CRM **links**, does not replace commerce.
 - Zero Account / billing chrome.
 

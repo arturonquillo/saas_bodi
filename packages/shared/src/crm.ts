@@ -80,10 +80,23 @@ export const WA_CONNECTION_STATUSES = [
 ] as const;
 export type WaConnectionStatus = (typeof WA_CONNECTION_STATUSES)[number];
 
-/** Phase A–E max reachable channel status — API rejects `live`. */
-export const WA_CONNECTION_MAX_PHASE_A: WaConnectionStatus = "ready_stub";
+/**
+ * WhatsApp Cloud may reach `live` when Meta credentials are complete.
+ * Other channels remain capped at `ready_stub` (API rejects `live`).
+ */
+export const WA_CONNECTION_MAX: WaConnectionStatus = "live";
+/** @deprecated Prefer WA_CONNECTION_MAX — historical Phase A name. */
+export const WA_CONNECTION_MAX_PHASE_A: WaConnectionStatus = "live";
 export const CHANNEL_CONNECTION_MAX_PHASE_D: WaConnectionStatus = "ready_stub";
 export const CHANNEL_CONNECTION_MAX_PHASE_E: WaConnectionStatus = "ready_stub";
+export const CHANNEL_CONNECTION_MAX_NON_WA: WaConnectionStatus = "ready_stub";
+
+/** Secret keys required inside sealed WA vault JSON for `live`. */
+export const WA_LIVE_REQUIRED_SECRET_KEYS = [
+  "api_token",
+  "api_secret",
+  "webhook_verify_token",
+] as const;
 
 export const INTEGRATION_PROVIDERS = [
   "slack",

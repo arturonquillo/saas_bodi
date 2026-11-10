@@ -19,6 +19,7 @@ Os arquivos abaixo são **notas de mantenedor / QA** (espelho do produto). Atual
 | [Login e contas seed](./login.md) | Entrar no SaaS e na Loja; cookies; contas de demo |
 | [Contas seed](./contas-seed.md) | Tabela completa de e-mails, papéis e o que cada conta pode fazer |
 | [CRM desk](./crm-desk.md) | Conversas, caixas, config Chatwoot-parity (fases A–E) |
+| [Conectar WhatsApp](./conectar-whatsapp.md) | Meta Cloud API: webhook, credenciais, status live |
 | [Estoque](./estoque.md) | Ledger único, CRUD admin, desconto de linha, projeção Loja |
 | [Loja](./loja.md) | Vitrine pública, cadastro CNPJ, compra, widget |
 

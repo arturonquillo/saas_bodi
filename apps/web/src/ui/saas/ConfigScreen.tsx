@@ -76,8 +76,8 @@ export function ConfigScreen() {
   }
 
   return (
-    <SaasPage title={COPY.config_title}>
-      <Card className="mb-8">
+    <SaasPage title={COPY.config_title} description={COPY.config_page_desc}>
+      <Card className="mb-8 shadow-sm">
         <CardHeader>
           <CardTitle>Dados da empresa</CardTitle>
         </CardHeader>
@@ -126,7 +126,7 @@ export function ConfigScreen() {
         </CardContent>
       </Card>
 
-      <Card className="mb-8">
+      <Card className="mb-8 shadow-sm">
         <CardHeader>
           <CardTitle>Operação</CardTitle>
         </CardHeader>

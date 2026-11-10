@@ -1056,21 +1056,42 @@ export function ConversasScreen() {
           </div>
         ) : rows.length === 0 ? (
           <div className="flex flex-col items-center gap-3 px-4 py-12 text-center">
-            <p className="text-sm font-medium">
-              {filter.status || filter.assignee || filter.inbox_id || filter.label
-                ? COPY.crm.conversas_empty_filter
-                : COPY.crm.conversas_empty}
-            </p>
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => setFilter({})}>
-                {COPY.crm.conversas_clear_filters}
-              </Button>
-              {admin ? (
-                <Button type="button" size="sm" onClick={() => setSimOpen(true)}>
-                  {COPY.simulate_message}
+            {filter.status || filter.assignee || filter.inbox_id || filter.label ? (
+              <>
+                <p className="text-sm font-medium text-foreground">{COPY.crm.conversas_empty_filter}</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="cursor-pointer"
+                  onClick={() => setFilter({})}
+                >
+                  {COPY.crm.conversas_clear_filters}
                 </Button>
-              ) : null}
-            </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-medium text-foreground">{COPY.crm.conversas_empty}</p>
+                <p className="max-w-xs text-sm text-muted-foreground">{COPY.crm.conversas_empty_body}</p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {admin ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="cursor-pointer"
+                      onClick={() => setSimOpen(true)}
+                    >
+                      {COPY.simulate_message}
+                    </Button>
+                  ) : null}
+                  {admin ? (
+                    <Button type="button" variant="outline" size="sm" asChild>
+                      <Link href="/saas/crm/caixas">{COPY.crm.nav_caixas}</Link>
+                    </Button>
+                  ) : null}
+                </div>
+              </>
+            )}
           </div>
         ) : (
           <ul role="listbox" aria-label={COPY.crm.conversas_title}>

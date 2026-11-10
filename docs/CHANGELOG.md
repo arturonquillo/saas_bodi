@@ -3,6 +3,14 @@
 Registro vivo do que já entrou na tip de produto/demo. Entradas mais novas no topo.  
 Convenção: ao shippar feature, acrescente uma entrada **no mesmo PR** (ver [docs/README.md](./README.md#documentação-viva)).
 
+## 2026-11-10 — SaaS UX amigável (hierarquia + helpers)
+
+- `SaasPage` aceita `description` (pt-BR, uma linha) nas telas não óbvias: Caixas/Canal, Estoque, Orçamentos/Pedidos/Vendas, Cadastros, Configuração, Tema, Avisos.
+- Cards/listas Level-1 (`shadow-sm` + `bg-card`); faixas `bg-muted/40` em filtros/status; `EmptyState` com body + CTA onde o brief pede.
+- Conversas: chrome intacto; empty zero com body + simular/caixas; filtro vazio só limpa filtros.
+- Guia / Usuários / Contatos·Empresas·Labels·Equipes·Respostas sem essay de página.
+- Preferência: desk menos flat, dark mode e cursor pointer mantidos.
+
 ## 2026-11-10 — WhatsApp Meta Cloud API (live)
 
 - Webhook público `GET/POST /api/webhooks/whatsapp` (+ `/api/webhooks/whatsapp/:inboxId`): challenge Meta + inbound → mesa Conversas; assinatura `X-Hub-Signature-256`.
@@ -65,6 +73,7 @@ Comércio MVP pré-existente permanece: cadastro CNPJ, Orçamento → Pedido →
 |---|---|---|
 | **Dark mode** (SaaS + Loja, toggle persistente) | Shipped (demo test3) | Tip merge inventário+dark; ver entradas acima |
 | **Inventário completo** (CRUD produto, preço/desconto, controle full) | Shipped (backend + SaaS UI) | Ver `docs/user/estoque.md` |
+| **SaaS UX amigável** (depth + helpers) | Shipped (UI) | Ver entrada acima + `docs/design/saas-ux-amigavel.md` |
 | Account (billing / white-label) | Fora do MVP | Não misturar no nav operacional |
 | Meta WhatsApp Cloud live | Shipped (conectar com credenciais Meta) | Ver `docs/user/conectar-whatsapp.md` |
 

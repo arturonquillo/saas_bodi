@@ -13,7 +13,7 @@ import { formatDate } from "../format";
 import { SaasPage } from "../layout";
 import { CadastroStatusBadge, NotifyAlert } from "../order-ui";
 import { DetailNavButton } from "../DetailNavRow";
-import { ErrorState, FormSkeleton, TableSkeleton } from "../states";
+import { EmptyState, ErrorState, FormSkeleton, TableSkeleton } from "../states";
 
 const textareaClass =
   "border-input placeholder:text-muted-foreground flex min-h-[80px] w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm";
@@ -38,24 +38,23 @@ export function CadastrosListScreen() {
   }, [load]);
 
   return (
-    <SaasPage title={COPY.cadastros_title}>
+    <SaasPage title={COPY.cadastros_title} description={COPY.cadastros_page_desc}>
       {status === "loading" ? (
         <TableSkeleton />
       ) : status === "error" ? (
         <ErrorState onRetry={() => void load()} />
       ) : (
-        <Card className="mb-8">
+        <Card className="mb-8 shadow-sm">
           <CardHeader>
             <CardTitle>{COPY.cadastros_title}</CardTitle>
           </CardHeader>
           <CardContent>
             {items.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <h3 className="mb-2 text-lg font-semibold text-gray-900">{COPY.cadastros_empty}</h3>
-                <p className="max-w-sm text-sm text-gray-500">
-                  Solicitações de cadastro da loja ou do WhatsApp aparecerão aqui.
-                </p>
-              </div>
+              <EmptyState
+                title={COPY.cadastros_empty}
+                body={COPY.cadastros_empty_body}
+                art="pedidos"
+              />
             ) : (
               <ul className="space-y-2">
                 {items.map((c) => (
@@ -147,20 +146,20 @@ export function CadastroDetailScreen() {
       title={item.razao_social}
       actions={<CadastroStatusBadge status={item.status} />}
     >
-      <p className="mb-6 text-sm text-gray-500">
-        <Link href="/saas/cadastros" className="hover:text-gray-900">
+      <p className="mb-6 text-sm text-muted-foreground">
+        <Link href="/saas/cadastros" className="cursor-pointer hover:text-foreground hover:underline">
           ← {COPY.cadastros_title}
         </Link>
       </p>
 
-      <Card className="mb-8">
+      <Card className="mb-8 shadow-sm">
         <CardHeader>
           <CardTitle>Dados do cliente</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
           <p>
-            <span className="text-gray-500">{COPY.cnpj}: </span>
-            <span className="text-gray-900">{maskFromLast4(item.cnpj_last4)}</span>
+            <span className="text-muted-foreground">{COPY.cnpj}: </span>
+            <span className="text-foreground">{maskFromLast4(item.cnpj_last4)}</span>
           </p>
           {item.cnpj_registro_pendente ? (
             <p className="inline-flex rounded-md border border-[var(--color-warning)]/40 px-2 py-0.5 text-xs font-medium text-[var(--color-warning)]">
@@ -168,36 +167,36 @@ export function CadastroDetailScreen() {
             </p>
           ) : null}
           <p>
-            <span className="text-gray-500">{COPY.contato}: </span>
-            <span className="text-gray-900">{item.contato_nome}</span>
+            <span className="text-muted-foreground">{COPY.contato}: </span>
+            <span className="text-foreground">{item.contato_nome}</span>
           </p>
           <p>
-            <span className="text-gray-500">{COPY.email}: </span>
-            <span className="text-gray-900">{item.email}</span>
+            <span className="text-muted-foreground">{COPY.email}: </span>
+            <span className="text-foreground">{item.email}</span>
           </p>
           <p>
-            <span className="text-gray-500">{COPY.whatsapp}: </span>
-            <span className="text-gray-900">{item.whatsapp}</span>
+            <span className="text-muted-foreground">{COPY.whatsapp}: </span>
+            <span className="text-foreground">{item.whatsapp}</span>
           </p>
           <p>
-            <span className="text-gray-500">Origem: </span>
-            <span className="text-gray-900">{item.source}</span>
+            <span className="text-muted-foreground">Origem: </span>
+            <span className="text-foreground">{item.source}</span>
           </p>
           {item.motivo_recusa ? (
             <p>
-              <span className="text-gray-500">{COPY.refuse_reason}: </span>
-              <span className="text-gray-900">{item.motivo_recusa}</span>
+              <span className="text-muted-foreground">{COPY.refuse_reason}: </span>
+              <span className="text-foreground">{item.motivo_recusa}</span>
             </p>
           ) : null}
         </CardContent>
       </Card>
 
       {item.status === "pendente" ? (
-        <Card className="mb-8">
-          <CardHeader>
+        <Card className="mb-8 shadow-sm">
+          <CardHeader className="border-b border-border bg-muted/40">
             <CardTitle>Ações</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 pt-6">
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
@@ -217,8 +216,8 @@ export function CadastroDetailScreen() {
               </Button>
             </div>
             {refuseOpen ? (
-              <div className="space-y-3 rounded-md border border-gray-200 p-4">
-                <p className="text-sm text-gray-500">{COPY.refuse_reason_required}</p>
+              <div className="space-y-3 rounded-md border border-border bg-card p-4 shadow-sm">
+                <p className="text-sm text-muted-foreground">{COPY.refuse_reason_required}</p>
                 <div>
                   <Label htmlFor="motivo" className="mb-2">
                     {COPY.refuse_reason}

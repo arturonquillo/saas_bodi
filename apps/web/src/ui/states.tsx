@@ -16,10 +16,13 @@ function Pulse({ className }: { className?: string }) {
 
 export function EmptyState({
   title,
+  body,
   action,
   art,
 }: {
   title: string;
+  /** Short why / next-step copy — only on helper-relevant empties. */
+  body?: string;
   action?: React.ReactNode;
   art?: EmptyArt;
 }) {
@@ -29,7 +32,7 @@ export function EmptyState({
   const desk = kind === "warehouse" || kind === "outbox" || kind === "pedidos" || kind === "inbox";
 
   return (
-    <div className="mx-auto flex max-w-[360px] flex-col items-center gap-3 py-8 text-center">
+    <div className="mx-auto flex max-w-[360px] animate-in fade-in flex-col items-center gap-3 py-8 text-center duration-200 motion-reduce:animate-none">
       <span
         aria-hidden="true"
         className={
@@ -40,7 +43,8 @@ export function EmptyState({
       >
         {initials || (kind === "cart" ? "○" : kind === "warehouse" ? "▢" : kind === "outbox" || kind === "inbox" ? "…" : "—")}
       </span>
-      <p className="m-0 text-base font-semibold">{title}</p>
+      <p className="m-0 text-base font-semibold text-foreground">{title}</p>
+      {body ? <p className="m-0 max-w-sm text-sm text-muted-foreground">{body}</p> : null}
       {action}
     </div>
   );

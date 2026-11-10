@@ -10,6 +10,8 @@ A superfície **voltada ao usuário** (operador e cliente) é a **Central de Aju
 
 Artigos seed (pt-BR) cobrem login, conversas, cadastros, orçamentos/pedidos, estoque, campanhas, tema e Loja. Após deploy: `migrate` + `seed` para popular o portal.
 
+No SaaS, páginas não óbvias (estoque, canal WA, pipeline, cadastros, config/tema, avisos) também mostram **uma linha de ajuda** sob o título; o Guia in-app permanece a referência completa.
+
 Os arquivos abaixo são **notas de mantenedor / QA** (espelho do produto). Atualize-os quando a tip de demo mudar (ver [política de docs](../README.md#documentação-viva)), e mantenha o portal in-app alinhado via seed ou Central de ajuda.
 
 ## Guias (repo)

@@ -17,6 +17,7 @@ Visual and UX source of truth for the MVP. Product: `docs/product/spec.md`. Arch
 | [copy-pt-BR.md](./copy-pt-BR.md) | Locked pt-BR strings |
 | [account.md](./account.md) | **Out of MVP** — deferred stub |
 | [a11y.md](./a11y.md) | Accessibility notes |
+| [saas-ux-amigavel.md](./saas-ux-amigavel.md) | Friendlier SaaS UX brief pointer (elevation, helpers, empties) — full matrix in Project store `docs/saas-ux-amigavel.md` |
 
 **CRM Phase A:** implement against [`crm-desk.md`](./crm-desk.md) + architecture `docs/architecture/crm-chatwoot-parity.md`. Legacy Inbox routes redirect to Conversas.
 

@@ -91,6 +91,7 @@ export function TemaScreen() {
   return (
     <SaasPage
       title={COPY.theme_title}
+      description={COPY.theme_page_desc}
       actions={
         <>
           <Button type="button" variant="outline" disabled={!dirty} onClick={() => setDiscardOpen(true)}>
@@ -108,12 +109,12 @@ export function TemaScreen() {
       }
     >
       {discardOpen ? (
-        <Card className="mb-8">
+        <Card className="mb-8 shadow-sm">
           <CardHeader>
             <CardTitle>{COPY.actions.cancelar}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-sm text-gray-500">{COPY.discard_theme}</p>
+            <p className="text-sm text-muted-foreground">{COPY.discard_theme}</p>
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="outline" onClick={() => setDiscardOpen(false)}>
                 {COPY.actions.fechar}
@@ -130,7 +131,7 @@ export function TemaScreen() {
         </Card>
       ) : null}
 
-      <Card className="mb-8">
+      <Card className="mb-8 shadow-sm">
         <CardHeader>
           <CardTitle>Tokens da marca</CardTitle>
         </CardHeader>
@@ -209,8 +210,8 @@ export function TemaScreen() {
         </CardContent>
       </Card>
 
-      <Card className="mb-8">
-        <CardHeader>
+      <Card className="mb-8 shadow-sm">
+        <CardHeader className="border-b border-border bg-muted/40">
           <CardTitle>{COPY.theme_preview}</CardTitle>
         </CardHeader>
         <CardContent>

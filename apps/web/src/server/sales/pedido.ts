@@ -1,5 +1,5 @@
 import type { PedidoChannel, PedidoStatus } from "@saas-frota/shared";
-import { stockEffectForPedidoTransition } from "@saas-frota/shared";
+import { availableQty, stockEffectForPedidoTransition } from "@saas-frota/shared";
 import type { SessionContext } from "../authz/session";
 import { assertSaasRole, requireClienteAprovado } from "../authz/gates";
 import { db } from "../db";
@@ -8,7 +8,7 @@ import { ApiError } from "../http/respond";
 import { newId } from "../ids";
 import { applyConsume, applyRelease, applyReserve } from "../inventory/stock-math";
 import { deliverOutboxIds, enqueueNotifications } from "../notifications/outbox-enqueue";
-import { resolveAtacadoLines } from "./lines";
+import { lineCreateData, resolveAtacadoLines, type ResolvedLine } from "./lines";
 import { assertPedidoTransition } from "./machines";
 
 function pedidoDto(row: {
@@ -25,7 +25,10 @@ function pedidoDto(row: {
     skuId: string;
     codigoSnapshot: string;
     nomeSnapshot: string;
+    unidadeSnapshot: string | null;
     qty: number;
+    precoListaCentavos: number;
+    descontoPct: number;
     unitPriceCentavos: number;
   }>;
   history?: Array<{
@@ -49,7 +52,11 @@ function pedidoDto(row: {
       sku_id: l.skuId,
       codigo: l.codigoSnapshot,
       nome: l.nomeSnapshot,
+      unidade: l.unidadeSnapshot,
       qty: l.qty,
+      preco_lista_centavos: l.precoListaCentavos,
+      desconto_pct: l.descontoPct,
+      preco_unitario_centavos: l.unitPriceCentavos,
       unit_price_centavos: l.unitPriceCentavos,
     })),
     historico: (row.history ?? []).map((h) => ({
@@ -77,8 +84,12 @@ export async function createPedidoConfirmado(input: {
   vendedorUserId: string;
   channel: PedidoChannel;
   orcamentoId?: string;
-  linhas: Array<{ sku_id: string; qty: number }>;
+  linhas?: Array<{ sku_id: string; qty: number; desconto_pct?: number }>;
+  /** When accepting Orçamento — copy frozen list/discount/net; skip re-price. */
+  frozenLines?: ResolvedLine[];
   requireVisibleLoja?: boolean;
+  forceListPrice?: boolean;
+  session?: SessionContext;
 }) {
   await requireClienteAprovado(input.clienteId, input.tenantId);
   if (input.orcamentoId) {
@@ -86,6 +97,9 @@ export async function createPedidoConfirmado(input: {
       where: { tenantId: input.tenantId, orcamentoId: input.orcamentoId },
     });
     if (existing) throw new ApiError("conflito", "Este orçamento já gerou um pedido.");
+  }
+  if (!input.frozenLines?.length && !input.linhas?.length) {
+    throw new ApiError("validacao", "Informe ao menos uma linha.");
   }
 
   const tenant = await db.tenant.findUniqueOrThrow({ where: { id: input.tenantId } });
@@ -98,10 +112,27 @@ export async function createPedidoConfirmado(input: {
   let outboxIds: string[] = [];
 
   await db.$transaction(async (tx) => {
-    const lines = await resolveAtacadoLines(tx, input.tenantId, input.linhas, {
-      requireVisibleLoja: input.requireVisibleLoja,
-      checkAvailable: true,
-    });
+    let lines: ResolvedLine[];
+    if (input.frozenLines?.length) {
+      lines = input.frozenLines;
+      for (const line of lines) {
+        const balance = await tx.inventoryBalance.findFirst({
+          where: { skuId: line.skuId, tenantId: input.tenantId },
+        });
+        if (!balance) throw new ApiError("nao_encontrado", "SKU sem saldo.");
+        if (line.qty > availableQty(balance.onHand, balance.reserved)) {
+          throw new ApiError("estoque_insuficiente", `Estoque insuficiente para ${line.codigoSnapshot}.`);
+        }
+      }
+    } else {
+      lines = await resolveAtacadoLines(tx, input.tenantId, input.linhas!, {
+        requireVisibleLoja: input.requireVisibleLoja,
+        checkAvailable: true,
+        forceListPrice: input.forceListPrice,
+        session: input.session,
+        requireAtivo: true,
+      });
+    }
     await tx.pedidoVenda.create({
       data: {
         id: pedidoId,
@@ -112,15 +143,7 @@ export async function createPedidoConfirmado(input: {
         channel: input.channel,
         status: "confirmado",
         lines: {
-          create: lines.map((l) => ({
-            id: newId("pln"),
-            tenantId: input.tenantId,
-            skuId: l.skuId,
-            codigoSnapshot: l.codigoSnapshot,
-            nomeSnapshot: l.nomeSnapshot,
-            qty: l.qty,
-            unitPriceCentavos: l.unitPriceCentavos,
-          })),
+          create: lines.map((l) => lineCreateData(input.tenantId, l, newId("pln"))),
         },
         history: {
           create: {
@@ -156,7 +179,10 @@ export async function createPedidoConfirmado(input: {
 
 export async function createSaasPedido(
   session: SessionContext,
-  input: { cliente_id: string; linhas: Array<{ sku_id: string; qty: number }> },
+  input: {
+    cliente_id: string;
+    linhas: Array<{ sku_id: string; qty: number; desconto_pct?: number }>;
+  },
 ) {
   assertSaasRole(session, "admin", "vendedor");
   const row = await createPedidoConfirmado({
@@ -166,13 +192,14 @@ export async function createSaasPedido(
     vendedorUserId: session.userId,
     channel: "saas",
     linhas: input.linhas,
+    session,
   });
   return pedidoDto(row);
 }
 
 export async function createLojaPedido(
   session: SessionContext,
-  linhas: Array<{ sku_id: string; qty: number }>,
+  linhas: Array<{ sku_id: string; qty: number; desconto_pct?: number }>,
 ) {
   if (session.clienteStatus !== "aprovado" || !session.clienteId) {
     throw new ApiError("cadastro_nao_aprovado", "Cadastro do cliente não está aprovado.");
@@ -184,14 +211,17 @@ export async function createLojaPedido(
   if (!tenant.defaultVendedorUserId) {
     throw new ApiError("validacao", "Tenant sem vendedor padrão.");
   }
+  // Strip any client-supplied discount — Loja always pays list.
   const row = await createPedidoConfirmado({
     tenantId: session.tenantId,
     actorUserId: session.userId,
     clienteId: session.clienteId,
     vendedorUserId: tenant.defaultVendedorUserId,
     channel: "loja",
-    linhas,
+    linhas: linhas.map((l) => ({ sku_id: l.sku_id, qty: l.qty })),
     requireVisibleLoja: true,
+    forceListPrice: true,
+    session,
   });
   return pedidoDto(row);
 }

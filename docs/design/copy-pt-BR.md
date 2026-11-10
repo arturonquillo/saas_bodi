@@ -255,12 +255,28 @@ Locked strings for MVP. Do not invent alternate status labels.
 
 | Key | String |
 |---|---|
+| estoque_title | Estoque |
+| estoque_empty | Nenhum produto cadastrado. |
+| novo_produto | Novo produto |
+| editar_produto | Editar produto |
+| codigo_sku | Código (SKU) |
+| descricao | Descrição |
+| unidade | Unidade |
+| preco_venda | Preço de venda |
+| desconto_max | Desconto máx. (%) |
+| desconto | Desconto (%) |
+| qtd_min_atacado | Qtd. mínima (atacado) |
+| estoque_inicial | Estoque inicial |
+| ativo | Ativo |
+| movimentos | Movimentos |
 | on_hand | Em estoque |
 | reserved | Reservado |
 | available | Disponível |
 | visivel_loja | Visível na loja |
 | adjust_qty | Ajustar quantidade |
 | motivo | Motivo |
+| lista_preco | Preço lista |
+| preco_liquido | Preço líquido |
 
 ## Shared errors / empty
 

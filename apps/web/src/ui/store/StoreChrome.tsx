@@ -18,6 +18,7 @@ import { apiGet, whatsappLink, type LojaConfigDto } from "../api";
 import { COPY } from "../copy";
 import { SkipLink } from "../layout";
 import { useSession } from "../session";
+import { helpPortalHomePath } from "../help/portal";
 import { ColorModeToggle } from "../theme/ColorModeToggle";
 import { LojaChatWidget } from "./LojaChatWidget";
 
@@ -44,6 +45,11 @@ export function StoreChrome({ children }: { children: React.ReactNode }) {
       <Button variant="ghost" asChild>
         <Link href="/loja#catalogo" onClick={() => setMobileOpen(false)}>
           {COPY.nav_catalogo}
+        </Link>
+      </Button>
+      <Button variant="ghost" asChild>
+        <Link href={helpPortalHomePath()} onClick={() => setMobileOpen(false)}>
+          {COPY.nav_ajuda}
         </Link>
       </Button>
       {wa ? (
@@ -160,13 +166,18 @@ export function StoreChrome({ children }: { children: React.ReactNode }) {
       <footer className="mt-auto border-t border-border bg-[var(--color-background)]">
         <div className="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-3 px-4 py-8 md:px-6">
           <BrandMark href="/loja" />
-          {wa ? (
-            <Button variant="outline" asChild className="border-[var(--brand-accent)] text-[var(--brand-accent)]">
-              <a href={wa} target="_blank" rel="noreferrer">
-                {COPY.cta_whatsapp}
-              </a>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="ghost" asChild>
+              <Link href={helpPortalHomePath()}>{COPY.nav_ajuda}</Link>
             </Button>
-          ) : null}
+            {wa ? (
+              <Button variant="outline" asChild className="border-[var(--brand-accent)] text-[var(--brand-accent)]">
+                <a href={wa} target="_blank" rel="noreferrer">
+                  {COPY.cta_whatsapp}
+                </a>
+              </Button>
+            ) : null}
+          </div>
         </div>
       </footer>
       <LojaChatWidget />

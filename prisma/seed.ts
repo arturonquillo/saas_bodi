@@ -873,53 +873,463 @@ async function main() {
       tenantId: TENANT,
       name: "Central de Ajuda Casa dos Frios",
       slug: "casa-dos-frios-ajuda",
-      headerText: "Como podemos ajudar?",
-      homepageMd: "# Central de Ajuda\n\nArtigos em **português (Brasil)**.",
+      headerText: "Guia do usuário — operadores e clientes",
+      homepageMd:
+        "# Bem-vindo\n\nArtigos em **português (Brasil)** para quem usa o SaaS (admin/vendedor) e a Loja (cliente CNPJ).\n\nNo SaaS, abra **Guia** no menu. Na Loja, use **Ajuda**. A autoria fica em **Central de ajuda** (admin).",
       locale: "pt-BR",
       enabled: true,
     },
   });
-  await prisma.helpCategory.create({
-    data: {
-      id: "hcat_pedidos",
-      tenantId: TENANT,
-      portalId: "por_ajuda",
-      name: "Pedidos",
-      slug: "pedidos",
-      description: "Dúvidas sobre pedidos e entrega",
-      position: 0,
-    },
-  });
-  await prisma.article.createMany({
+
+  await prisma.helpCategory.createMany({
     data: [
       {
-        id: "art_como_pedir",
+        id: "hcat_operador",
         tenantId: TENANT,
         portalId: "por_ajuda",
-        categoryId: "hcat_pedidos",
-        title: "Como fazer um pedido",
-        slug: "como-fazer-um-pedido",
-        contentMd: "## Passo a passo\n\n1. Acesse a loja\n2. Adicione itens\n3. Envie o pedido",
-        contentHtml:
-          "<h2>Passo a passo</h2>\n<p>1. Acesse a loja 2. Adicione itens 3. Envie o pedido</p>",
-        status: "published",
-        authorUserId: ids.admin,
-        publishedAt: now,
+        name: "Operador SaaS",
+        slug: "operador-saas",
+        description: "Login, conversas, cadastros, orçamentos e pedidos",
         position: 0,
       },
       {
-        id: "art_rascunho",
+        id: "hcat_estoque",
         tenantId: TENANT,
         portalId: "por_ajuda",
-        categoryId: "hcat_pedidos",
-        title: "Artigo interno (rascunho)",
-        slug: "artigo-rascunho",
-        contentMd: "Conteúdo ainda não publicado.",
-        contentHtml: "<p>Conteúdo ainda não publicado.</p>",
-        status: "draft",
-        authorUserId: ids.admin,
+        name: "Estoque",
+        slug: "estoque",
+        description: "Produtos, preço, desconto e ajustes",
         position: 1,
       },
+      {
+        id: "hcat_campanhas_tema",
+        tenantId: TENANT,
+        portalId: "por_ajuda",
+        name: "Campanhas e aparência",
+        slug: "campanhas-tema",
+        description: "Campanhas stub e tema da marca",
+        position: 2,
+      },
+      {
+        id: "hcat_loja",
+        tenantId: TENANT,
+        portalId: "por_ajuda",
+        name: "Loja (clientes)",
+        slug: "loja",
+        description: "Cadastro CNPJ, pedidos e WhatsApp",
+        position: 3,
+      },
+    ],
+  });
+
+  function helpArticle(input: {
+    id: string;
+    categoryId: string;
+    title: string;
+    slug: string;
+    md: string;
+    html: string;
+    status?: "published" | "draft";
+    position: number;
+  }) {
+    const published = (input.status ?? "published") === "published";
+    return {
+      id: input.id,
+      tenantId: TENANT,
+      portalId: "por_ajuda",
+      categoryId: input.categoryId,
+      title: input.title,
+      slug: input.slug,
+      contentMd: input.md,
+      contentHtml: input.html,
+      status: input.status ?? "published",
+      authorUserId: ids.admin,
+      publishedAt: published ? now : null,
+      position: input.position,
+    };
+  }
+
+  await prisma.article.createMany({
+    data: [
+      helpArticle({
+        id: "art_entrar_saas",
+        categoryId: "hcat_operador",
+        title: "Entrar no SaaS",
+        slug: "entrar-no-saas",
+        position: 0,
+        md: `## Como entrar
+
+1. Abra **/saas/entrar**.
+2. Use o e-mail da membership do tenant Casa dos Frios e a senha.
+3. Em sucesso, a sessão fica no cookie HttpOnly e o destino padrão é **Conversas**.
+
+## Papéis
+
+- **admin** — configuração CRM, estoque completo, campanhas, tema, usuários.
+- **vendedor** — conversas, comércio e leitura de estoque; desconto até o teto do SKU.
+
+A UI esconde ações; a API reforça o papel.
+
+## Contas de demo
+
+Senha compartilhada: **Demo@1234**.
+
+- admin@casadosfrios.local
+- vendedor@casadosfrios.local
+
+Sair: menu do avatar no canto superior → **Sair**.`,
+        html: `<h2>Como entrar</h2>
+<ol>
+<li>Abra <strong>/saas/entrar</strong>.</li>
+<li>Use o e-mail da membership do tenant Casa dos Frios e a senha.</li>
+<li>Em sucesso, a sessão fica no cookie HttpOnly e o destino padrão é <strong>Conversas</strong>.</li>
+</ol>
+<h2>Papéis</h2>
+<ul>
+<li><strong>admin</strong> — configuração CRM, estoque completo, campanhas, tema, usuários.</li>
+<li><strong>vendedor</strong> — conversas, comércio e leitura de estoque; desconto até o teto do SKU.</li>
+</ul>
+<p>A UI esconde ações; a API reforça o papel.</p>
+<h2>Contas de demo</h2>
+<p>Senha compartilhada: <strong>Demo@1234</strong>.</p>
+<ul>
+<li>admin@casadosfrios.local</li>
+<li>vendedor@casadosfrios.local</li>
+</ul>
+<p>Sair: menu do avatar no canto superior → <strong>Sair</strong>.</p>`,
+      }),
+      helpArticle({
+        id: "art_conversas",
+        categoryId: "hcat_operador",
+        title: "Conversas (CRM)",
+        slug: "conversas-crm",
+        position: 1,
+        md: `## Mesa de atendimento
+
+Home pós-login: **/saas/conversas**. Lista + thread + painel de contato/comércio.
+
+## Fluxo diário
+
+1. Filtre por status (aberta / pendente / adiada / resolvida), responsável e labels.
+2. Responda na thread (entrega WhatsApp é **stub** — sem Meta ao vivo).
+3. Use notas privadas, labels e respostas rápidas.
+4. Acompanhe cadastro/orçamento pelos atalhos do contato.
+
+Admin pode **Simular mensagem** na caixa WhatsApp para gerar inbound de demo.
+
+O widget da Loja cai na **mesma** mesa de Conversas.`,
+        html: `<h2>Mesa de atendimento</h2>
+<p>Home pós-login: <strong>/saas/conversas</strong>. Lista + thread + painel de contato/comércio.</p>
+<h2>Fluxo diário</h2>
+<ol>
+<li>Filtre por status (aberta / pendente / adiada / resolvida), responsável e labels.</li>
+<li>Responda na thread (entrega WhatsApp é <strong>stub</strong> — sem Meta ao vivo).</li>
+<li>Use notas privadas, labels e respostas rápidas.</li>
+<li>Acompanhe cadastro/orçamento pelos atalhos do contato.</li>
+</ol>
+<p>Admin pode <strong>Simular mensagem</strong> na caixa WhatsApp para gerar inbound de demo.</p>
+<p>O widget da Loja cai na <strong>mesma</strong> mesa de Conversas.</p>`,
+      }),
+      helpArticle({
+        id: "art_cadastros",
+        categoryId: "hcat_operador",
+        title: "Cadastros CNPJ",
+        slug: "cadastros-cnpj",
+        position: 2,
+        md: `## Onde fica
+
+**/saas/cadastros** — fila de solicitações da Loja.
+
+## Aprovar ou recusar
+
+1. Abra o cadastro pendente.
+2. Confira CNPJ, razão social e contato.
+3. **Aprovar** libera checkout na Loja; **Recusar** pede motivo.
+
+Somente cliente **aprovado** compra. Prospecto pode entrar na Loja, mas o checkout fica bloqueado.`,
+        html: `<h2>Onde fica</h2>
+<p><strong>/saas/cadastros</strong> — fila de solicitações da Loja.</p>
+<h2>Aprovar ou recusar</h2>
+<ol>
+<li>Abra o cadastro pendente.</li>
+<li>Confira CNPJ, razão social e contato.</li>
+<li><strong>Aprovar</strong> libera checkout na Loja; <strong>Recusar</strong> pede motivo.</li>
+</ol>
+<p>Somente cliente <strong>aprovado</strong> compra. Prospecto pode entrar na Loja, mas o checkout fica bloqueado.</p>`,
+      }),
+      helpArticle({
+        id: "art_orcamentos_pedidos",
+        categoryId: "hcat_operador",
+        title: "Orçamentos e pedidos",
+        slug: "orcamentos-e-pedidos",
+        position: 3,
+        md: `## Orçamentos
+
+1. **/saas/orcamentos** → **Novo orçamento**.
+2. Escolha cliente aprovado e SKUs ativos.
+3. Informe quantidade e, se permitido, **desconto (%)**.
+4. Envie o orçamento — o cliente vê em **Meus documentos** na Loja.
+
+## Pedidos
+
+1. **/saas/pedidos** → **Novo pedido**, ou a partir de orçamento aceito / Loja.
+2. Pedido **confirmado** reserva estoque no ledger único.
+3. Avance: em separação → despachado (baixa estoque) → entregue.
+4. Faturamento interno (stub) fica em **Vendas** — sem NF-e.`,
+        html: `<h2>Orçamentos</h2>
+<ol>
+<li><strong>/saas/orcamentos</strong> → <strong>Novo orçamento</strong>.</li>
+<li>Escolha cliente aprovado e SKUs ativos.</li>
+<li>Informe quantidade e, se permitido, <strong>desconto (%)</strong>.</li>
+<li>Envie o orçamento — o cliente vê em <strong>Meus documentos</strong> na Loja.</li>
+</ol>
+<h2>Pedidos</h2>
+<ol>
+<li><strong>/saas/pedidos</strong> → <strong>Novo pedido</strong>, ou a partir de orçamento aceito / Loja.</li>
+<li>Pedido <strong>confirmado</strong> reserva estoque no ledger único.</li>
+<li>Avance: em separação → despachado (baixa estoque) → entregue.</li>
+<li>Faturamento interno (stub) fica em <strong>Vendas</strong> — sem NF-e.</li>
+</ol>`,
+      }),
+      helpArticle({
+        id: "art_estoque_produto",
+        categoryId: "hcat_estoque",
+        title: "Criar produto e preço",
+        slug: "criar-produto-e-preco",
+        position: 0,
+        md: `## Quem pode
+
+Só **admin** cria/edita produto. Vendedor lista e abre detalhe.
+
+## Novo produto
+
+1. **/saas/estoque** → **Novo produto**.
+2. Preencha código (SKU), nome, unidade, **preço de venda**, desconto máx. %, MOQ, estoque inicial.
+3. Marque **ativo** e **visível na loja** conforme a vitrine.
+
+## Campos úteis
+
+- **Preço de venda** — lista atacado (única nesta fase).
+- **Desconto máx. (%)** — teto do vendedor nas linhas.
+- **Ativo** — inativo some da Loja e dos pickers.
+- **Visível na loja** — só afeta a projeção da Loja.
+
+Um único ledger: disponível = em mão − reservado.`,
+        html: `<h2>Quem pode</h2>
+<p>Só <strong>admin</strong> cria/edita produto. Vendedor lista e abre detalhe.</p>
+<h2>Novo produto</h2>
+<ol>
+<li><strong>/saas/estoque</strong> → <strong>Novo produto</strong>.</li>
+<li>Preencha código (SKU), nome, unidade, <strong>preço de venda</strong>, desconto máx. %, MOQ, estoque inicial.</li>
+<li>Marque <strong>ativo</strong> e <strong>visível na loja</strong> conforme a vitrine.</li>
+</ol>
+<h2>Campos úteis</h2>
+<ul>
+<li><strong>Preço de venda</strong> — lista atacado (única nesta fase).</li>
+<li><strong>Desconto máx. (%)</strong> — teto do vendedor nas linhas.</li>
+<li><strong>Ativo</strong> — inativo some da Loja e dos pickers.</li>
+<li><strong>Visível na loja</strong> — só afeta a projeção da Loja.</li>
+</ul>
+<p>Um único ledger: disponível = em mão − reservado.</p>`,
+      }),
+      helpArticle({
+        id: "art_desconto_linha",
+        categoryId: "hcat_estoque",
+        title: "Desconto de linha",
+        slug: "desconto-de-linha",
+        position: 1,
+        md: `## Em orçamento ou pedido
+
+1. Escolha um SKU ativo no picker (mostra lista e disponível).
+2. Informe quantidade e **Desconto (%)**.
+3. O preview mostra lista → líquido; o servidor congela os valores.
+
+## Regras
+
+- Vendedor não ultrapassa o **desconto máx.** do SKU.
+- Admin pode exceder o teto.
+- A Loja **não** tem desconto — sempre preço de lista.`,
+        html: `<h2>Em orçamento ou pedido</h2>
+<ol>
+<li>Escolha um SKU ativo no picker (mostra lista e disponível).</li>
+<li>Informe quantidade e <strong>Desconto (%)</strong>.</li>
+<li>O preview mostra lista → líquido; o servidor congela os valores.</li>
+</ol>
+<h2>Regras</h2>
+<ul>
+<li>Vendedor não ultrapassa o <strong>desconto máx.</strong> do SKU.</li>
+<li>Admin pode exceder o teto.</li>
+<li>A Loja <strong>não</strong> tem desconto — sempre preço de lista.</li>
+</ul>`,
+      }),
+      helpArticle({
+        id: "art_ajuste_estoque",
+        categoryId: "hcat_estoque",
+        title: "Ajustar quantidade",
+        slug: "ajustar-quantidade",
+        position: 2,
+        md: `## Ajuste manual (admin)
+
+1. Abra **/saas/estoque/[produto]**.
+2. Use **Ajustar quantidade** com delta ≠ 0 e **motivo**.
+3. O movimento tipo ajuste atualiza em mão; o histórico lista Ajuste, Reserva, Liberação e Consumo.
+
+Pedidos confirmados / cancelados / despachados movem o **mesmo** ledger automaticamente.`,
+        html: `<h2>Ajuste manual (admin)</h2>
+<ol>
+<li>Abra <strong>/saas/estoque/[produto]</strong>.</li>
+<li>Use <strong>Ajustar quantidade</strong> com delta ≠ 0 e <strong>motivo</strong>.</li>
+<li>O movimento tipo ajuste atualiza em mão; o histórico lista Ajuste, Reserva, Liberação e Consumo.</li>
+</ol>
+<p>Pedidos confirmados / cancelados / despachados movem o <strong>mesmo</strong> ledger automaticamente.</p>`,
+      }),
+      helpArticle({
+        id: "art_campanhas",
+        categoryId: "hcat_campanhas_tema",
+        title: "Campanhas",
+        slug: "campanhas",
+        position: 0,
+        md: `## Onde
+
+**/saas/crm/campanhas** (admin).
+
+## O que esperar
+
+- Campanhas **one-off** e **contínuas** são autoráveis.
+- Envio é **simulado** (outbox stub) — sem Meta, Twilio ou SMS real.
+- Contínuas podem ficar “aguardando widget” até o widget da Loja exibir o texto.
+
+Não dispare envio em massa esperando entrega real nesta fase.`,
+        html: `<h2>Onde</h2>
+<p><strong>/saas/crm/campanhas</strong> (admin).</p>
+<h2>O que esperar</h2>
+<ul>
+<li>Campanhas <strong>one-off</strong> e <strong>contínuas</strong> são autoráveis.</li>
+<li>Envio é <strong>simulado</strong> (outbox stub) — sem Meta, Twilio ou SMS real.</li>
+<li>Contínuas podem ficar “aguardando widget” até o widget da Loja exibir o texto.</li>
+</ul>
+<p>Não dispare envio em massa esperando entrega real nesta fase.</p>`,
+      }),
+      helpArticle({
+        id: "art_tema",
+        categoryId: "hcat_campanhas_tema",
+        title: "Tema e aparência",
+        slug: "tema-e-aparencia",
+        position: 1,
+        md: `## Marca do tenant
+
+Admin: **/saas/tema** — cores e marca aplicadas na Loja e no chrome.
+
+## Modo claro / escuro
+
+Use o controle de **Aparência** no header (SaaS, Loja e Central de Ajuda). A escolha persiste no navegador.
+
+Claro, escuro ou sistema — funciona junto com as cores da marca.`,
+        html: `<h2>Marca do tenant</h2>
+<p>Admin: <strong>/saas/tema</strong> — cores e marca aplicadas na Loja e no chrome.</p>
+<h2>Modo claro / escuro</h2>
+<p>Use o controle de <strong>Aparência</strong> no header (SaaS, Loja e Central de Ajuda). A escolha persiste no navegador.</p>
+<p>Claro, escuro ou sistema — funciona junto com as cores da marca.</p>`,
+      }),
+      helpArticle({
+        id: "art_loja_cadastro",
+        categoryId: "hcat_loja",
+        title: "Cadastro na Loja",
+        slug: "cadastro-na-loja",
+        position: 0,
+        md: `## Solicitação CNPJ
+
+1. Abra **/loja/cadastro**.
+2. Informe CNPJ, razão social, contato, WhatsApp, e-mail e senha.
+3. Status inicial: **pendente** — aguarde aprovação do operador em Cadastros.
+
+CNPJ inválido bloqueia o envio. Conta demo aprovada: cliente@mercadoexemplo.local / **Demo@1234**.`,
+        html: `<h2>Solicitação CNPJ</h2>
+<ol>
+<li>Abra <strong>/loja/cadastro</strong>.</li>
+<li>Informe CNPJ, razão social, contato, WhatsApp, e-mail e senha.</li>
+<li>Status inicial: <strong>pendente</strong> — aguarde aprovação do operador em Cadastros.</li>
+</ol>
+<p>CNPJ inválido bloqueia o envio. Conta demo aprovada: cliente@mercadoexemplo.local / <strong>Demo@1234</strong>.</p>`,
+      }),
+      helpArticle({
+        id: "art_loja_pedidos",
+        categoryId: "hcat_loja",
+        title: "Pedidos na Loja",
+        slug: "pedidos-na-loja",
+        position: 1,
+        md: `## Comprar (cliente aprovado)
+
+1. Entre em **/loja/entrar**.
+2. Navegue o catálogo (só SKUs ativos e visíveis com estoque).
+3. Adicione ao carrinho respeitando quantidade mínima.
+4. **Enviar pedido** confirma e reserva estoque.
+
+## Documentos
+
+**/loja/meus-docs** lista orçamentos e pedidos. Aceite ou recuse orçamentos enviados pelo SaaS.
+
+Prospecto vê banner de cadastro pendente; checkout bloqueado.`,
+        html: `<h2>Comprar (cliente aprovado)</h2>
+<ol>
+<li>Entre em <strong>/loja/entrar</strong>.</li>
+<li>Navegue o catálogo (só SKUs ativos e visíveis com estoque).</li>
+<li>Adicione ao carrinho respeitando quantidade mínima.</li>
+<li><strong>Enviar pedido</strong> confirma e reserva estoque.</li>
+</ol>
+<h2>Documentos</h2>
+<p><strong>/loja/meus-docs</strong> lista orçamentos e pedidos. Aceite ou recuse orçamentos enviados pelo SaaS.</p>
+<p>Prospecto vê banner de cadastro pendente; checkout bloqueado.</p>`,
+      }),
+      helpArticle({
+        id: "art_loja_whatsapp",
+        categoryId: "hcat_loja",
+        title: "WhatsApp e chat na Loja",
+        slug: "whatsapp-e-chat-na-loja",
+        position: 2,
+        md: `## Botão WhatsApp
+
+No header/rodapé da Loja, **WhatsApp** abre o número comercial do tenant (wa.me).
+
+## Widget de chat
+
+O chat embutido (quando ativo) fala com a mesa **/saas/conversas**. Mensagens entram na mesma Conversation dos operadores.
+
+Não há Meta Cloud ao vivo nesta fase — canais ficam em “Pronto para conectar” / stub.`,
+        html: `<h2>Botão WhatsApp</h2>
+<p>No header/rodapé da Loja, <strong>WhatsApp</strong> abre o número comercial do tenant (wa.me).</p>
+<h2>Widget de chat</h2>
+<p>O chat embutido (quando ativo) fala com a mesa <strong>/saas/conversas</strong>. Mensagens entram na mesma Conversation dos operadores.</p>
+<p>Não há Meta Cloud ao vivo nesta fase — canais ficam em “Pronto para conectar” / stub.</p>`,
+      }),
+      helpArticle({
+        id: "art_como_pedir",
+        categoryId: "hcat_loja",
+        title: "Como fazer um pedido (resumo)",
+        slug: "como-fazer-um-pedido",
+        position: 3,
+        md: `## Passo a passo
+
+1. Cadastre-se com CNPJ e aguarde aprovação.
+2. Entre na Loja e adicione itens ao carrinho.
+3. Envie o pedido — ou peça orçamento pelo WhatsApp / chat.`,
+        html: `<h2>Passo a passo</h2>
+<ol>
+<li>Cadastre-se com CNPJ e aguarde aprovação.</li>
+<li>Entre na Loja e adicione itens ao carrinho.</li>
+<li>Envie o pedido — ou peça orçamento pelo WhatsApp / chat.</li>
+</ol>`,
+      }),
+      helpArticle({
+        id: "art_rascunho",
+        categoryId: "hcat_operador",
+        title: "Artigo interno (rascunho)",
+        slug: "artigo-rascunho",
+        status: "draft",
+        position: 99,
+        md: "Conteúdo ainda não publicado.",
+        html: "<p>Conteúdo ainda não publicado.</p>",
+      }),
     ],
   });
 

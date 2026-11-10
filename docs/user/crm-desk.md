@@ -61,7 +61,9 @@ Cadastros · Orçamentos · Pedidos · Vendas · [Estoque](./estoque.md) · Avis
 | `/saas/crm/notificacoes` | A/B | |
 | `/saas/crm/perfil` | A/B | |
 | `/saas/crm/campanhas` | C | Envio stub; não dispara no boot |
-| `/saas/crm/central-ajuda` | C | Portal público seed |
+| `/saas/crm/central-ajuda` | C | Autoria do portal (admin) |
+| `/saas/guia` | C | Guia do usuário (artigos publicados; todos os papéis) |
+| `/ajuda/casa-dos-frios-ajuda` | C | Portal público (Loja + link externo) |
 | `/saas/crm/relatorios` | C | |
 | `/saas/crm/modelos-email` | D | Stub |
 | `/saas/crm/sla` | E | Políticas FRT/NRT/RT |

@@ -258,13 +258,18 @@ export function CentralAjudaAdminScreen() {
     <SaasPage
       title={COPY.crm.ajuda_title}
       actions={
-        publicUrl ? (
-          <Button type="button" variant="outline" asChild>
-            <Link href={publicUrl} target="_blank">
-              {COPY.crm.ajuda_open_public}
-            </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="ghost" className="cursor-pointer" asChild>
+            <Link href="/saas/guia">{COPY.nav_guia}</Link>
           </Button>
-        ) : null
+          {publicUrl ? (
+            <Button type="button" variant="outline" className="cursor-pointer" asChild>
+              <Link href={publicUrl} target="_blank" rel="noreferrer">
+                {COPY.crm.ajuda_open_public}
+              </Link>
+            </Button>
+          ) : null}
+        </div>
       }
     >
       {status === "loading" ? (

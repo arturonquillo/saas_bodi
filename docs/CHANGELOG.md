@@ -3,6 +3,15 @@
 Registro vivo do que já entrou na tip de produto/demo. Entradas mais novas no topo.  
 Convenção: ao shippar feature, acrescente uma entrada **no mesmo PR** (ver [docs/README.md](./README.md#documentação-viva)).
 
+## 2026-11-10 — Guia do usuário in-app (Central de Ajuda)
+
+- SaaS: nav + menu **Guia** → `/saas/guia` (artigos publicados do portal seed; admin e vendedor).
+- Loja: link **Ajuda** no header/rodapé → `/ajuda/casa-dos-frios-ajuda`.
+- Portal público com tema + toggle de aparência (dark mode).
+- Seed: categorias Operador / Estoque / Campanhas-tema / Loja + artigos pt-BR (login, conversas, cadastros, orçamentos/pedidos, produto/preço, desconto, ajuste, campanhas, tema, Loja cadastro/pedidos/WhatsApp) + rascunho interno.
+- `docs/user/` aponta a superfície web como guia do usuário; Markdown do repo permanece nota de mantenedor.
+- Deploy test3: precisa tip + `migrate` + `seed` para os artigos aparecerem.
+
 ## 2026-11-10 — test3: inventário + dark mode
 
 - Demo tip `cursor/test3-inventory-dark-8325` @ `202ad23` (merge PR #33 inventário + PR #30 dark mode) em https://test3.lecrunch.com.br.

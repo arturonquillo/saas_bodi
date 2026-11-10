@@ -10,11 +10,11 @@ MVP threat notes. Blockers if a PR ships the failure mode.
 
 **Tests:** seed a second tenant fixture in backend tests (not in demo seed); prove 404.
 
-## Client-trusted role, price, stock
+## Client-trusted role, price, stock, discount
 
-**Risk:** Body includes `saas_role`, `unit_price_centavos`, `available`, or `on_hand` and the server persists it.
+**Risk:** Body includes `saas_role`, `unit_price_centavos` / `preco_unitario_centavos` / `preco_lista_centavos`, `desconto_pct` above cap, `available`, or `on_hand` and the server persists it.
 
-**Rule:** Role from `memberships`. Unit price from SKU `preco_atacado_centavos` at line freeze. Qty from `inventory_balances`. Strip unknown/trusted fields in Zod.
+**Rule:** Role from `memberships`. List price from SKU `preco_atacado_centavos` at freeze; net from locked half-up % formula ([inventory.md](./inventory.md)). Vendedor `desconto_pct ≤ desconto_max_pct` (admin may exceed). Loja rejects discount fields. Qty from `inventory_balances`; ledger writes only via domain adjust / pedido hooks. Strip unknown/trusted fields in Zod.
 
 ## Cadastro gate bypass
 
@@ -189,6 +189,18 @@ MVP threat notes. Blockers if a PR ships the failure mode.
 **Risk:** 403/409 after partial stock or outbox write.
 
 **Rule:** Status change + history + stock + outbox in **one transaction**. On failure, zero side effects.
+
+## Inventory ledger fork / price-list creep
+
+**Risk:** Loja gets a `store_stocks` table; or a parallel price-list module shadows `preco_atacado_centavos`.
+
+**Rule:** Architecture blocker. One `InventoryBalance` per SKU; Loja reads projection only (`ativo && visivel_loja`). Discount is document-line `%`, not a catalog promo entity. See [inventory.md](./inventory.md).
+
+## Stock adjust without audit / under-reserved
+
+**Risk:** Admin adjust with empty motivo, or `on_hand` driven below `reserved`.
+
+**Rule:** `motivo` non-empty required; reject `delta_on_hand === 0`; invariant `reserved ≤ on_hand` in the same transaction as the movement append.
 
 ## Performance (contract)
 

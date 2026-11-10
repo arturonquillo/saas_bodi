@@ -58,13 +58,14 @@ paths:
 
   /api/loja/catalogo:
     get:
-      summary: Loja projection of the single inventory ledger
+      summary: Loja projection — ativo && visivel_loja; available from single ledger
       parameters:
         - $ref: "#/components/parameters/TenantSlug"
         - $ref: "#/components/parameters/Cursor"
         - $ref: "#/components/parameters/Limit"
       responses:
-        "200": { description: Catalog page }
+        "200":
+          description: Catalog page (codigo, nome, descricao, unidade, preco_atacado_centavos, qtd_min_atacado, available, sem_estoque)
 
   /api/loja/produtos/{id}:
     get:
@@ -72,8 +73,8 @@ paths:
         - $ref: "#/components/parameters/TenantSlug"
         - $ref: "#/components/parameters/Id"
       responses:
-        "200": { description: Product }
-        "404": { description: Hidden or other tenant }
+        "200": { description: Product projection }
+        "404": { description: Inactive, hidden, or other tenant }
 
   /api/loja/cadastro:
     post:
@@ -1170,16 +1171,69 @@ paths:
 
   /api/saas/estoque:
     get:
+      summary: List SKUs + ledger (admin, vendedor)
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: q
+          in: query
+          schema: { type: string }
+          description: Search codigo/nome
+        - name: ativo
+          in: query
+          schema: { type: boolean }
+        - name: visivel_loja
+          in: query
+          schema: { type: boolean }
       responses:
-        "200": { description: SKU + ledger page }
+        "200": { description: SKU + ledger page (see inventory.md) }
     post:
-      summary: Admin create SKU
+      summary: Admin create SKU + balance (+ opening adjust if on_hand > 0)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EstoqueCreate"
       responses:
         "201": { description: Created }
         "403": { description: vendedor forbidden }
+        "409": { description: conflito codigo_duplicado }
+
+  /api/saas/estoque/{id}:
+    get:
+      summary: SKU detail + balances
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200": { description: Estoque item DTO }
+        "404": { description: nao_encontrado }
+    patch:
+      summary: Admin patch master (not ledger qty)
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EstoquePatch"
+      responses:
+        "200": { description: Updated }
+        "403": { description: admin only }
+        "409": { description: conflito codigo_duplicado }
+
+  /api/saas/estoque/{id}/movimentos:
+    get:
+      summary: Movement history (newest first)
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200": { description: Movement page }
 
   /api/saas/estoque/{id}/ajuste:
     post:
+      summary: Admin stock adjust
       parameters:
         - $ref: "#/components/parameters/Id"
       requestBody:
@@ -1187,12 +1241,31 @@ paths:
           application/json:
             schema:
               type: object
-              required: [delta_on_hand, reason]
+              required: [delta_on_hand, motivo]
               properties:
-                delta_on_hand: { type: integer }
-                reason: { type: string }
+                delta_on_hand: { type: integer, description: nonzero signed delta }
+                motivo: { type: string, minLength: 1 }
       responses:
         "200": { description: Adjusted }
+        "403": { description: admin only }
+        "409": { description: on_hand would be < reserved }
+        "422": { description: validacao (delta 0 or empty motivo) }
+
+  /api/saas/estoque/{id}/visibilidade:
+    patch:
+      summary: Optional alias for visivel_loja (prefer PATCH master)
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [visivel_loja]
+              properties:
+                visivel_loja: { type: boolean }
+      responses:
+        "200": { description: Updated }
         "403": { description: admin only }
 
   /api/saas/avisos:
@@ -1232,3 +1305,39 @@ components:
       required: [para]
       properties:
         para: { type: string }
+    Unidade:
+      type: string
+      enum: [un, kg, cx, pct, lt]
+    EstoqueCreate:
+      type: object
+      required: [codigo, nome, preco_atacado_centavos]
+      properties:
+        codigo: { type: string }
+        nome: { type: string }
+        descricao: { type: string, maxLength: 500, nullable: true }
+        unidade: { $ref: "#/components/schemas/Unidade" }
+        preco_atacado_centavos: { type: integer, minimum: 0 }
+        desconto_max_pct: { type: integer, minimum: 0, maximum: 100, default: 0 }
+        qtd_min_atacado: { type: integer, minimum: 1, default: 1 }
+        visivel_loja: { type: boolean, default: true }
+        ativo: { type: boolean, default: true }
+        on_hand: { type: integer, minimum: 0, default: 0, description: create only }
+    EstoquePatch:
+      type: object
+      properties:
+        codigo: { type: string }
+        nome: { type: string }
+        descricao: { type: string, maxLength: 500, nullable: true }
+        unidade: { $ref: "#/components/schemas/Unidade" }
+        preco_atacado_centavos: { type: integer, minimum: 0 }
+        desconto_max_pct: { type: integer, minimum: 0, maximum: 100 }
+        qtd_min_atacado: { type: integer, minimum: 1 }
+        visivel_loja: { type: boolean }
+        ativo: { type: boolean }
+    LinhaComDesconto:
+      type: object
+      required: [sku_id, qty]
+      properties:
+        sku_id: { type: string }
+        qty: { type: integer, minimum: 1 }
+        desconto_pct: { type: integer, minimum: 0, maximum: 100, default: 0, description: SaaS only; Loja must omit }

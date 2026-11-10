@@ -1,6 +1,6 @@
 # MVP acceptance — Casa dos Frios
 
-Sign-off list for QA. Behavior: `docs/product/spec.md` and `docs/product/mvp.md`. Seed tenant `casa-dos-frios` required. PASS only if every item holds.
+Sign-off list for QA. Behavior: `docs/product/spec.md` and `docs/product/mvp.md`. Seed tenant `casa-dos-frios` required. PASS only if every item holds. **Inventory upgrade** (product create, discount, projection filters): additional checks in `docs/product/inventory.md` — run those when signing off the estoque upgrade, not as a blocker for the original thin-MVP demo.
 
 ## Demo tenant
 
@@ -27,7 +27,7 @@ Sign-off list for QA. Behavior: `docs/product/spec.md` and `docs/product/mvp.md`
 
 ## Orçamento → Pedido → Venda
 
-- Vendedor creates orçamento `rascunho` with lines (frozen `preco_atacado`); send → `enviado` requires `valido_ate`; outbox to customer.
+- Vendedor creates orçamento `rascunho` with lines (frozen list/`preco_atacado`, optional line discount → net per `inventory.md`); send → `enviado` requires `valido_ate`; outbox to customer.
 - Cliente (loja) or vendedor marks `aceito` only if cadastro `aprovado` → Pedido `confirmado` + stock **reserve**.
 - `enviado` → `recusado` / `cancelado` / `expirado` do not create Pedido.
 - Pedido: `confirmado` → `em_separacao` → `despachado` (consume) → `entregue`; cancel before despacho releases reserve.
@@ -54,6 +54,13 @@ Sign-off list for QA. Behavior: `docs/product/spec.md` and `docs/product/mvp.md`
 - Confirm reserves; dispatch consumes; cancel-before-dispatch releases.
 - Loja quantity tracks the **same** ledger (no second inventory table driving the store).
 - Admin qty adjust with reason writes movements on that ledger.
+
+### Inventory upgrade (when `inventory.md` is in scope)
+
+- Admin creates SKU via SaaS (código, nome, unidade, preço, MOQ, on_hand, visível, ativo); vendedor cannot.
+- Loja omits `ativo=false` and `visivel_loja=false`; SaaS new-line pickers omit inactive.
+- Vendedor discount above `desconto_max_pct` rejected; admin may exceed; Loja pays list only.
+- No price-list entity; no second ledger.
 
 ## Isolation and security
 

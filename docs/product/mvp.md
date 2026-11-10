@@ -1,6 +1,6 @@
 # MVP — Casa dos Frios CRM + loja atacado
 
-Vertical slice for a Brazilian wholesale distributor demo in one sitting. Behavior source of truth: `docs/product/spec.md`. Checks: `docs/product/mvp-acceptance.md`. Overview: `docs/product/brief.md`. **Post-MVP CRM desk:** `docs/product/chatwoot-parity.md` (does not expand this MVP slice). Stack is **not** chosen here.
+Vertical slice for a Brazilian wholesale distributor demo in one sitting. Behavior source of truth: `docs/product/spec.md`. Checks: `docs/product/mvp-acceptance.md`. Overview: `docs/product/brief.md`. **Post-MVP CRM desk:** `docs/product/chatwoot-parity.md` (does not expand this MVP slice). **Inventory upgrade** (full product create, discount, stock UX): `docs/product/inventory.md` — builds on the thin estoque slice below; does not replace CRM acceptance. Stack is **not** chosen here.
 
 ## Problem
 
@@ -27,7 +27,7 @@ Success metric: seed `casa-dos-frios`, every actor completes their step without 
 - Pipeline: **Orçamento → Pedido de venda → Venda/Faturamento** (statuses + who transitions in the spec).
 - Notifications: outbox stub on cadastro and document status changes (customer + vendedor).
 - Loja: marca Casa dos Frios, catálogo (projection), WhatsApp CTA, cadastro, compra se aprovado, meus docs.
-- Thin stock ledger + `visivel_loja`; `preco_atacado` (+ optional MOQ).
+- Thin stock ledger + `visivel_loja`; `preco_atacado` (+ optional MOQ). **Upgrade** adds admin product create/edit, `ativo`, `unidade`, `desconto_max_pct`, line discounts, movements UX — see `inventory.md`.
 - Theme tokens; logo placeholder.
 - pt-BR, LGPD masking, CNPJ checksum + registry degrade.
 - Seed tenant only; schema tenant-ready.
@@ -39,6 +39,7 @@ Success metric: seed `casa-dos-frios`, every actor completes their step without 
 - Meta WhatsApp Cloud API; required SMTP.
 - NF-e, PIX, payment capture, returns, partial faturamento.
 - Roles estoquista/entregador; AI inventory chat; varejo/CPF sales; analytics; i18n.
+- Multi-lista de preços; promotional price entity; returns; product images; fractional stock (see `inventory.md` non-goals).
 
 ### Locked decisions (do not reopen in implementation)
 
@@ -60,7 +61,7 @@ Copy **pt-BR**. Theme on SaaS + Loja.
 - Inbox: threads, intent tag, link to cadastro/orçamento.
 - Cadastros: list + approve/refuse.
 - Orçamentos / Pedidos / Vendas: list + detail + legal transitions only.
-- Catálogo/estoque: SKU CRUD thin, on-hand, reserved, available, visibility.
+- Catálogo/estoque: thin list + visibility + adjust in first slice; **upgrade** — Novo produto, edit master, ativo, movimentos, desconto em linhas (`inventory.md`).
 
 ### Loja
 
@@ -84,7 +85,7 @@ API enforces; UI hides. Full sales matrices in the spec.
 | Inbox + tag intents | yes | yes | |
 | Approve/refuse cadastro | yes | yes | request only |
 | Orçamento / Pedido / Venda transitions (per matrix) | yes | yes | accept/refuse own orçamento `enviado` |
-| SKU / stock adjust | yes | read (+ create pedido lines from catalog) | projection |
+| SKU create/edit / stock adjust / visibility / ativo | yes | read (+ create pedido lines from catalog; line discount ≤ cap) | projection |
 | Outbox read | yes | yes | |
 
 ## Data and integrations
@@ -111,7 +112,7 @@ Demonstrable on seed without wizard. Full list: `docs/product/mvp-acceptance.md`
 
 ## Specialist tasks
 
-- **architect:** Tenant-ready model (even with one seed): users/roles/sessions, customers, cadastro requests, inbox threads/messages, orçamento/pedido/venda + lines + history, stock ledger, outbox, theme. RBAC + cadastro gate. CNPJ port. WhatsApp simulate ports. Threats: IDOR, tax-ID leakage, client-trusted prices/roles. Contracts for frontend/backend. No Account module. No Meta.
+- **architect:** Tenant-ready model (even with one seed): users/roles/sessions, customers, cadastro requests, inbox threads/messages, orçamento/pedido/venda + lines + history, stock ledger, outbox, theme. RBAC + cadastro gate. CNPJ port. WhatsApp simulate ports. Threats: IDOR, tax-ID leakage, client-trusted prices/roles. Contracts for frontend/backend. No Account module. No Meta. For inventory upgrade checklist see `inventory.md` (architect section).
 - **design:** pt-BR flows for SaaS (admin, inbox, pipeline) and Loja (marca-first hero, catálogo, cadastro, WhatsApp CTA). Tokens Casa dos Frios (not purple-default; logo placeholder). States: empty inbox, registry down, cadastro pending, expired orçamento. shadcn inventory only.
 - **frontend:** Screens against contracts + tokens. Hide illegal transitions. Simulate-inbox UI for admin. No invented APIs.
 - **backend:** Domain + APIs; closed state machines; reserve/consume/release; outbox; simulated inbox; seed; LGPD. Tests isolation/RBAC/stock/cadastro gate.

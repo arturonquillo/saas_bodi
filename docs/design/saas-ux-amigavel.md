@@ -1,6 +1,6 @@
 # SaaS UX amigável — design note
 
-Friendlier SaaS desk for Casa dos Frios: subtle elevation, clearer hierarchy, short pt-BR helpers on non-obvious screens, richer empty states. **Design contract only** — implementation is frontend (CDF-58).
+Friendlier SaaS desk for Casa dos Frios: subtle elevation, clearer hierarchy, short pt-BR helpers on non-obvious screens, richer empty states. Frontend (CDF-58) applies this contract on the stacked UX branch.
 
 ## Source of truth
 

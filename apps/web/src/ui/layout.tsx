@@ -28,24 +28,32 @@ export function StoreMain({
 }
 
 /**
- * saas-starter dashboard page shell:
- * <section className="flex-1 p-4 lg:p-8">
- *   <h1 className="text-lg lg:text-2xl font-medium text-gray-900 mb-6">…
+ * saas-starter dashboard page shell with optional one-line helper (pt-BR).
+ * Description only on non-obvious screens — see docs/design/saas-ux-amigavel.md.
  */
 export function SaasPage({
   title,
+  description,
   actions,
   children,
 }: {
   title: string;
+  description?: string;
   actions?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
-    <section className="flex-1 p-4 lg:p-8">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-lg font-medium text-foreground lg:text-2xl">{title}</h1>
-        {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
+    <section className="flex-1 animate-in fade-in p-4 duration-200 motion-reduce:animate-none lg:p-8">
+      <div className="mb-6 border-b border-border pb-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 max-w-2xl">
+            <h1 className="text-lg font-medium text-foreground lg:text-2xl">{title}</h1>
+            {description ? (
+              <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+            ) : null}
+          </div>
+          {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
+        </div>
       </div>
       {children}
     </section>
@@ -84,7 +92,7 @@ export function ListHeader({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-medium text-foreground lg:text-2xl">{title}</h1>
-          {subtitle ? <p className="mt-1 text-sm text-gray-500">{subtitle}</p> : null}
+          {subtitle ? <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p> : null}
         </div>
         {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
       </div>
@@ -99,7 +107,13 @@ export function DeskWrap({
   ...props
 }: React.ComponentProps<"div">) {
   return (
-    <div className={cn("overflow-hidden rounded-xl border border-gray-200 bg-white", className)} {...props}>
+    <div
+      className={cn(
+        "overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-shadow duration-150 motion-reduce:transition-none",
+        className,
+      )}
+      {...props}
+    >
       {children}
     </div>
   );
@@ -107,7 +121,14 @@ export function DeskWrap({
 
 export function FormWrap({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("rounded-xl border border-gray-200 bg-white p-6", className)}>{children}</div>
+    <div
+      className={cn(
+        "rounded-xl border border-border bg-card p-6 shadow-sm",
+        className,
+      )}
+    >
+      {children}
+    </div>
   );
 }
 

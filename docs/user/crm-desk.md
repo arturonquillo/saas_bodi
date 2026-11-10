@@ -4,6 +4,8 @@ O desk CRM é a mesa Chatwoot-parity nativa do SaaS (não é sidecar Chatwoot OS
 
 Home pós-login: `/saas/conversas`. Legacy `/saas/inbox` redireciona.
 
+**UX:** telas de comércio e canal mostram uma linha de ajuda sob o título (saldo vs vitrine, pipeline orçamento→venda, status do WhatsApp, etc.). A mesa **Conversas** e o **Guia** não repetem essa intro — o Guia continua sendo a ajuda completa.
+
 ## Papéis
 
 | Capacidade | Admin | Vendedor |

@@ -13,7 +13,7 @@ import { formatDate } from "../format";
 import { SaasPage } from "../layout";
 import { NotifyAlert, VendaStatusBadge, legalVendaTargets, vendaTransitionLabel } from "../order-ui";
 import { DetailNavButton } from "../DetailNavRow";
-import { ErrorState, FormSkeleton, TableSkeleton } from "../states";
+import { EmptyState, ErrorState, FormSkeleton, TableSkeleton } from "../states";
 
 export function VendasListScreen() {
   const [items, setItems] = useState<VendaDto[]>([]);
@@ -35,24 +35,23 @@ export function VendasListScreen() {
   }, [load]);
 
   return (
-    <SaasPage title={COPY.vendas_title}>
+    <SaasPage title={COPY.vendas_title} description={COPY.vendas_page_desc}>
       {status === "loading" ? (
         <TableSkeleton />
       ) : status === "error" ? (
         <ErrorState onRetry={() => void load()} />
       ) : (
-        <Card className="mb-8">
+        <Card className="mb-8 shadow-sm">
           <CardHeader>
             <CardTitle>{COPY.vendas_title}</CardTitle>
           </CardHeader>
           <CardContent>
             {items.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <h3 className="mb-2 text-lg font-semibold text-gray-900">{COPY.vendas_empty}</h3>
-                <p className="max-w-sm text-sm text-gray-500">
-                  Vendas faturadas a partir de pedidos aparecerão nesta lista.
-                </p>
-              </div>
+              <EmptyState
+                title={COPY.vendas_empty}
+                body={COPY.vendas_empty_body}
+                art="pedidos"
+              />
             ) : (
               <ul className="space-y-2">
                 {items.map((v) => (
@@ -139,32 +138,38 @@ export function VendaDetailScreen() {
       title={item.id}
       actions={<VendaStatusBadge status={item.status} large />}
     >
-      <p className="mb-6 text-sm text-gray-500">
-        <Link href="/saas/vendas" className="hover:text-gray-900">
+      <p className="mb-6 text-sm text-muted-foreground">
+        <Link href="/saas/vendas" className="cursor-pointer hover:text-foreground hover:underline">
           ← {COPY.vendas_title}
         </Link>
       </p>
 
-      <Card className="mb-8">
+      <div className="mb-6 rounded-lg border border-border bg-muted/40 px-4 py-3">
+        <p className="text-sm text-muted-foreground">{COPY.venda_stub_banner}</p>
+      </div>
+
+      <Card className="mb-8 shadow-sm">
         <CardHeader>
           <CardTitle>Pedido vinculado</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          <p className="text-sm text-gray-500">{COPY.venda_stub_banner}</p>
           <p className="text-sm">
-            <span className="text-gray-500">Pedido: </span>
-            <Link href={`/saas/pedidos/${item.pedido_id}`} className="text-gray-900 hover:underline">
+            <span className="text-muted-foreground">Pedido: </span>
+            <Link
+              href={`/saas/pedidos/${item.pedido_id}`}
+              className="cursor-pointer text-foreground hover:underline"
+            >
               {item.pedido_id}
             </Link>
           </p>
         </CardContent>
       </Card>
 
-      <Card className="mb-8">
-        <CardHeader>
+      <Card className="mb-8 shadow-sm">
+        <CardHeader className="border-b border-border bg-muted/40">
           <CardTitle>Ações</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 pt-6">
           <div className="flex flex-wrap gap-2">
             {targets.map((to) => (
               <Button
@@ -187,7 +192,7 @@ export function VendaDetailScreen() {
         </CardContent>
       </Card>
 
-      <Card className="mb-8">
+      <Card className="mb-8 shadow-sm">
         <CardHeader>
           <CardTitle>{COPY.history}</CardTitle>
         </CardHeader>
@@ -195,10 +200,10 @@ export function VendaDetailScreen() {
           <ul className="space-y-4">
             {item.historico.map((h, i) => (
               <li key={`${h.to}-${i}`} className="flex items-center justify-between gap-4">
-                <p className="text-sm font-medium text-gray-900">
+                <p className="text-sm font-medium text-foreground">
                   {h.from ?? "—"} → {h.to}
                 </p>
-                <p className="text-xs text-gray-500">{formatDate(h.created_at)}</p>
+                <p className="text-xs text-muted-foreground">{formatDate(h.created_at)}</p>
               </li>
             ))}
           </ul>

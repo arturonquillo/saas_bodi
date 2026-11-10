@@ -5,7 +5,7 @@ import { SquareArrowOutUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const rowClass =
-  "group flex w-full cursor-pointer items-center gap-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "group flex w-full cursor-pointer items-center gap-3 rounded-md text-left transition-[background-color,box-shadow] duration-150 hover:bg-muted/40 hover:shadow-sm motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 function AffordanceIcon({ className }: { className?: string }) {
   return (

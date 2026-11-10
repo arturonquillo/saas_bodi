@@ -1122,6 +1122,8 @@ Somente cliente **aprovado** compra. Prospecto pode entrar na Loja, mas o checko
         position: 3,
         md: `## Orçamentos
 
+Cada lista do pipeline (Orçamentos, Pedidos, Vendas) mostra uma linha curta sob o título — o Guia abaixo é o detalhe.
+
 1. **/saas/orcamentos** → **Novo orçamento**.
 2. Escolha cliente aprovado e SKUs ativos.
 3. Informe quantidade e, se permitido, **desconto (%)**.
@@ -1133,7 +1135,8 @@ Somente cliente **aprovado** compra. Prospecto pode entrar na Loja, mas o checko
 2. Pedido **confirmado** reserva estoque no ledger único.
 3. Avance: em separação → despachado (baixa estoque) → entregue.
 4. Faturamento interno (stub) fica em **Vendas** — sem NF-e.`,
-        html: `<h2>Orçamentos</h2>
+        html: `<p>Cada lista do pipeline (Orçamentos, Pedidos, Vendas) mostra uma linha curta sob o título — o Guia abaixo é o detalhe.</p>
+<h2>Orçamentos</h2>
 <ol>
 <li><strong>/saas/orcamentos</strong> → <strong>Novo orçamento</strong>.</li>
 <li>Escolha cliente aprovado e SKUs ativos.</li>

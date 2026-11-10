@@ -35,7 +35,7 @@ import {
 } from "../order-ui";
 import { DetailNavButton } from "../DetailNavRow";
 import { useSession } from "../session";
-import { ErrorState, FormSkeleton, GateBanner, TableSkeleton } from "../states";
+import { EmptyState, ErrorState, FormSkeleton, GateBanner, TableSkeleton } from "../states";
 
 const selectClass =
   "border-input flex h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm";
@@ -62,6 +62,7 @@ export function OrcamentosListScreen() {
   return (
     <SaasPage
       title={COPY.orcamentos_title}
+      description={COPY.orcamentos_page_desc}
       actions={
         <Button asChild className="bg-primary text-white hover:bg-primary/90">
           <Link href="/saas/orcamentos/novo">{COPY.orcamento_novo}</Link>
@@ -73,21 +74,22 @@ export function OrcamentosListScreen() {
       ) : status === "error" ? (
         <ErrorState onRetry={() => void load()} />
       ) : (
-        <Card className="mb-8">
+        <Card className="mb-8 shadow-sm">
           <CardHeader>
             <CardTitle>{COPY.orcamentos_title}</CardTitle>
           </CardHeader>
           <CardContent>
             {items.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <h3 className="mb-2 text-lg font-semibold text-gray-900">{COPY.orcamentos_empty}</h3>
-                <p className="mb-4 max-w-sm text-sm text-gray-500">
-                  Crie um orçamento para iniciar a cotação com o cliente.
-                </p>
-                <Button asChild className="bg-primary text-white hover:bg-primary/90">
-                  <Link href="/saas/orcamentos/novo">{COPY.orcamento_novo}</Link>
-                </Button>
-              </div>
+              <EmptyState
+                title={COPY.orcamentos_empty}
+                body={COPY.orcamentos_empty_body}
+                art="pedidos"
+                action={
+                  <Button asChild className="bg-primary text-white hover:bg-primary/90">
+                    <Link href="/saas/orcamentos/novo">{COPY.orcamento_novo}</Link>
+                  </Button>
+                }
+              />
             ) : (
               <ul className="space-y-2">
                 {items.map((o) => (
@@ -183,8 +185,8 @@ export function OrcamentoDetailScreen() {
       title={item.id}
       actions={<OrcamentoStatusBadge status={item.status} large />}
     >
-      <p className="mb-6 text-sm text-gray-500">
-        <Link href="/saas/orcamentos" className="hover:text-gray-900">
+      <p className="mb-6 text-sm text-muted-foreground">
+        <Link href="/saas/orcamentos" className="cursor-pointer hover:text-foreground hover:underline">
           ← {COPY.orcamentos_title}
         </Link>
       </p>
@@ -195,27 +197,27 @@ export function OrcamentoDetailScreen() {
         </p>
       ) : null}
 
-      <Card className="mb-8">
+      <Card className="mb-8 shadow-sm">
         <CardHeader>
           <CardTitle>{COPY.customer}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
           <p>
-            <span className="text-gray-500">{COPY.customer}: </span>
-            <span className="text-gray-900">{clienteDisplay(item)}</span>
+            <span className="text-muted-foreground">{COPY.customer}: </span>
+            <span className="text-foreground">{clienteDisplay(item)}</span>
           </p>
           <p>
-            <span className="text-gray-500">{COPY.valido_ate}: </span>
-            <span className="text-gray-900">{formatDateOnly(item.valido_ate)}</span>
+            <span className="text-muted-foreground">{COPY.valido_ate}: </span>
+            <span className="text-foreground">{formatDateOnly(item.valido_ate)}</span>
           </p>
         </CardContent>
       </Card>
 
-      <Card className="mb-8">
-        <CardHeader>
+      <Card className="mb-8 shadow-sm">
+        <CardHeader className="border-b border-border bg-muted/40">
           <CardTitle>Ações</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 pt-6">
           <div className="flex flex-wrap gap-2">
             {targets.map((to) => (
               <Button
@@ -239,6 +241,9 @@ export function OrcamentoDetailScreen() {
               </Button>
             ) : null}
           </div>
+          {gate ? (
+            <p className="text-sm text-muted-foreground">{COPY.orcamentos_page_desc}</p>
+          ) : null}
           {gate ? <GateBanner message={COPY.gate_not_approved} /> : null}
           {error ? <p className="text-sm text-red-500">{error}</p> : null}
           {notified ? <NotifyAlert canais="whatsapp" /> : null}

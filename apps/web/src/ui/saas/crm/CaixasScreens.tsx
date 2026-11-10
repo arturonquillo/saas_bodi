@@ -68,7 +68,7 @@ import type {
   PreChatField,
 } from "../../crm/types";
 import { SaasPage } from "../../layout";
-import { ErrorState, TableSkeleton } from "../../states";
+import { EmptyState, ErrorState, TableSkeleton } from "../../states";
 
 function SecretsBlock({
   present,
@@ -147,8 +147,9 @@ export function CaixasListScreen() {
   return (
     <SaasPage
       title={COPY.crm.caixas_title}
+      description={COPY.crm.caixas_page_desc}
       actions={
-        <Button type="button" onClick={() => setOpen(true)}>
+        <Button type="button" className="cursor-pointer" onClick={() => setOpen(true)}>
           {COPY.crm.caixa_create}
         </Button>
       }
@@ -158,13 +159,22 @@ export function CaixasListScreen() {
       ) : status === "error" ? (
         <ErrorState onRetry={() => void load()} />
       ) : (
-        <Card className="mb-8">
+        <Card className="mb-8 shadow-sm">
           <CardHeader>
             <CardTitle>{COPY.crm.caixas_title}</CardTitle>
           </CardHeader>
           <CardContent>
             {items.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma caixa.</p>
+              <EmptyState
+                title={COPY.crm.caixas_empty}
+                body={COPY.crm.caixas_empty_body}
+                art="inbox"
+                action={
+                  <Button type="button" className="cursor-pointer" onClick={() => setOpen(true)}>
+                    {COPY.crm.caixa_create}
+                  </Button>
+                }
+              />
             ) : (
               <ul className="space-y-2">
                 {items.map((inbox) => (
@@ -637,6 +647,7 @@ export function CaixaDetailScreen() {
   return (
     <SaasPage
       title={inbox.name}
+      description={COPY.crm.canal_page_desc}
       actions={
         <Button type="button" variant="outline" asChild>
           <Link href={`/saas/crm/caixas/${id}/canal`}>{COPY.crm.canal_title}</Link>

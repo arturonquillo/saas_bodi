@@ -26,7 +26,7 @@ import { DetailNavButton } from "../DetailNavRow";
 import { formatDate, formatMoney } from "../format";
 import { SaasPage } from "../layout";
 import { useSession } from "../session";
-import { ErrorState, FormSkeleton, TableSkeleton } from "../states";
+import { EmptyState, ErrorState, FormSkeleton, TableSkeleton } from "../states";
 
 const selectClass =
   "border-input flex h-9 w-full min-w-0 cursor-pointer rounded-md border bg-transparent px-3 py-1 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm";
@@ -288,6 +288,7 @@ export function EstoqueListScreen() {
   return (
     <SaasPage
       title={COPY.estoque_title}
+      description={COPY.estoque_page_desc}
       actions={
         admin ? (
           <Button
@@ -300,52 +301,54 @@ export function EstoqueListScreen() {
         ) : null
       }
     >
-      <Card className="mb-8">
+      <Card className="mb-8 shadow-sm">
         <CardHeader>
           <CardTitle>{COPY.estoque_title}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="min-w-[200px] flex-1">
-              <Label htmlFor="busca" className="mb-2">
-                {COPY.buscar_produto}
-              </Label>
-              <Input
-                id="busca"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder={COPY.buscar_produto}
-              />
-            </div>
-            <div>
-              <Label htmlFor="filtro-ativo" className="mb-2">
-                {COPY.filtro_ativo}
-              </Label>
-              <select
-                id="filtro-ativo"
-                className={selectClass}
-                value={filtroAtivo}
-                onChange={(e) => setFiltroAtivo(e.target.value as typeof filtroAtivo)}
-              >
-                <option value="all">{COPY.todos}</option>
-                <option value="true">{COPY.sim}</option>
-                <option value="false">{COPY.nao}</option>
-              </select>
-            </div>
-            <div>
-              <Label htmlFor="filtro-visivel" className="mb-2">
-                {COPY.filtro_visivel}
-              </Label>
-              <select
-                id="filtro-visivel"
-                className={selectClass}
-                value={filtroVisivel}
-                onChange={(e) => setFiltroVisivel(e.target.value as typeof filtroVisivel)}
-              >
-                <option value="all">{COPY.todos}</option>
-                <option value="true">{COPY.sim}</option>
-                <option value="false">{COPY.nao}</option>
-              </select>
+          <div className="-mx-6 border-b border-border bg-muted/40 px-6 py-3">
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="min-w-[200px] flex-1">
+                <Label htmlFor="busca" className="mb-2">
+                  {COPY.buscar_produto}
+                </Label>
+                <Input
+                  id="busca"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder={COPY.buscar_produto}
+                />
+              </div>
+              <div>
+                <Label htmlFor="filtro-ativo" className="mb-2">
+                  {COPY.filtro_ativo}
+                </Label>
+                <select
+                  id="filtro-ativo"
+                  className={selectClass}
+                  value={filtroAtivo}
+                  onChange={(e) => setFiltroAtivo(e.target.value as typeof filtroAtivo)}
+                >
+                  <option value="all">{COPY.todos}</option>
+                  <option value="true">{COPY.sim}</option>
+                  <option value="false">{COPY.nao}</option>
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="filtro-visivel" className="mb-2">
+                  {COPY.filtro_visivel}
+                </Label>
+                <select
+                  id="filtro-visivel"
+                  className={selectClass}
+                  value={filtroVisivel}
+                  onChange={(e) => setFiltroVisivel(e.target.value as typeof filtroVisivel)}
+                >
+                  <option value="all">{COPY.todos}</option>
+                  <option value="true">{COPY.sim}</option>
+                  <option value="false">{COPY.nao}</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -354,10 +357,22 @@ export function EstoqueListScreen() {
           ) : status === "error" ? (
             <ErrorState onRetry={() => void load()} />
           ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <h3 className="mb-2 text-lg font-semibold text-foreground">{COPY.estoque_empty}</h3>
-              <p className="max-w-sm text-sm text-muted-foreground">{COPY.estoque_empty_hint}</p>
-            </div>
+            <EmptyState
+              title={COPY.estoque_empty}
+              body={COPY.estoque_empty_hint}
+              art="warehouse"
+              action={
+                admin ? (
+                  <Button
+                    type="button"
+                    className="cursor-pointer bg-primary text-white hover:bg-primary/90"
+                    onClick={() => router.push("/saas/estoque/novo")}
+                  >
+                    {COPY.novo_produto}
+                  </Button>
+                ) : null
+              }
+            />
           ) : (
             <ul className="space-y-2">
               {filtered.map((item) => (

@@ -34,7 +34,7 @@ import {
 } from "../order-ui";
 import { DetailNavButton } from "../DetailNavRow";
 import { useSession } from "../session";
-import { ErrorState, FormSkeleton, GateBanner, TableSkeleton } from "../states";
+import { EmptyState, ErrorState, FormSkeleton, GateBanner, TableSkeleton } from "../states";
 
 const selectClass =
   "border-input flex h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm";
@@ -61,6 +61,7 @@ export function PedidosListScreen() {
   return (
     <SaasPage
       title={COPY.pedidos_title}
+      description={COPY.pedidos_page_desc}
       actions={
         <Button asChild className="bg-primary text-white hover:bg-primary/90">
           <Link href="/saas/pedidos/novo">{COPY.pedido_novo}</Link>
@@ -72,21 +73,22 @@ export function PedidosListScreen() {
       ) : status === "error" ? (
         <ErrorState onRetry={() => void load()} />
       ) : (
-        <Card className="mb-8">
+        <Card className="mb-8 shadow-sm">
           <CardHeader>
             <CardTitle>{COPY.pedidos_title}</CardTitle>
           </CardHeader>
           <CardContent>
             {items.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <h3 className="mb-2 text-lg font-semibold text-gray-900">{COPY.pedidos_empty}</h3>
-                <p className="mb-4 max-w-sm text-sm text-gray-500">
-                  Crie um pedido para clientes com cadastro aprovado.
-                </p>
-                <Button asChild className="bg-primary text-white hover:bg-primary/90">
-                  <Link href="/saas/pedidos/novo">{COPY.pedido_novo}</Link>
-                </Button>
-              </div>
+              <EmptyState
+                title={COPY.pedidos_empty}
+                body={COPY.pedidos_empty_body}
+                art="pedidos"
+                action={
+                  <Button asChild className="bg-primary text-white hover:bg-primary/90">
+                    <Link href="/saas/pedidos/novo">{COPY.pedido_novo}</Link>
+                  </Button>
+                }
+              />
             ) : (
               <ul className="space-y-2">
                 {items.map((p) => (
@@ -196,36 +198,38 @@ export function PedidoDetailScreen() {
       title={item.id}
       actions={<PedidoStatusBadge status={item.status} large />}
     >
-      <p className="mb-6 text-sm text-gray-500">
-        <Link href="/saas/pedidos" className="hover:text-gray-900">
+      <p className="mb-6 text-sm text-muted-foreground">
+        <Link href="/saas/pedidos" className="cursor-pointer hover:text-foreground hover:underline">
           ← {COPY.pedidos_title}
         </Link>
       </p>
 
-      <Card className="mb-8">
+      <div className="mb-6 rounded-lg border border-border bg-muted/40 px-4 py-3">
+        <PedidoStatusTrail status={item.status} />
+        <p className="mt-2 text-sm text-muted-foreground">{COPY.pedidos_page_desc}</p>
+      </div>
+
+      <Card className="mb-8 shadow-sm">
         <CardHeader>
           <CardTitle>{COPY.customer}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="mb-2">
-            <PedidoStatusTrail status={item.status} />
-          </div>
           <p className="text-sm">
-            <span className="text-gray-500">{COPY.customer}: </span>
-            <span className="text-gray-900">{item.cliente_id}</span>
+            <span className="text-muted-foreground">{COPY.customer}: </span>
+            <span className="text-foreground">{item.cliente_id}</span>
           </p>
           <p className="text-sm">
-            <span className="text-gray-500">Canal: </span>
-            <span className="text-gray-900">{item.channel}</span>
+            <span className="text-muted-foreground">Canal: </span>
+            <span className="text-foreground">{item.channel}</span>
           </p>
         </CardContent>
       </Card>
 
-      <Card className="mb-8">
-        <CardHeader>
+      <Card className="mb-8 shadow-sm">
+        <CardHeader className="border-b border-border bg-muted/40">
           <CardTitle>Ações</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 pt-6">
           <div className="flex flex-wrap gap-2">
             {targets.map((to) => (
               <Button
